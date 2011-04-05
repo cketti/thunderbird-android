@@ -35,6 +35,7 @@ import com.fsck.k9.service.MailService;
 import com.fsck.k9.service.ShutdownReceiver;
 import com.fsck.k9.service.StorageGoneReceiver;
 
+/* cketti's dummy commit for the GSOC 2011 application */
 public class K9 extends Application {
     /**
      * Components that are interested in knowing when the K9 instance is
