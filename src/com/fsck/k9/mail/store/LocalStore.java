@@ -607,26 +607,7 @@ public class LocalStore extends Store implements Serializable {
                     try {
                         cursor = db.rawQuery("SELECT " + GET_FOLDER_COLS + " FROM folders ORDER BY name ASC", null);
                         while (cursor.moveToNext()) {
-                        	int id = cursor.getInt(0);
-                        	String name = cursor.getString(1);
-                        	int unreadCount = cursor.getInt(2);
-                        	int visibleLimit = cursor.getInt(3);
-                        	long lastUpdated = cursor.getLong(4);
-                        	String status = cursor.getString(5);
-                        	String pushState = cursor.getString(6);
-                        	long lastPushed = cursor.getLong(7);
-                        	int flaggedCount = cursor.getInt(8);
-                        	int integrate = cursor.getInt(9);
-                        	int topGroup = cursor.getInt(10);
-                        	String pollClass = cursor.getString(11);
-                        	String pushClass = cursor.getString(12);
-                        	String displayClass = cursor.getString(13);
-
-                            LocalFolder folder = new LocalFolder(name);
-                            folder.open(id, name, unreadCount, visibleLimit, lastUpdated, status,
-                            		pushState, lastPushed, flaggedCount, integrate, topGroup,
-                            		pollClass, pushClass, displayClass);
-
+                            LocalFolder folder = new LocalFolder(cursor);
                             folders.add(folder);
                         }
                         return folders;
@@ -1109,6 +1090,11 @@ public class LocalStore extends Store implements Serializable {
         // know whether or not an unread message added to the local folder is actually "new" or not.
         private Integer mLastUid = null;
 
+        public LocalFolder(Cursor cursor) throws MessagingException {
+        	super(LocalStore.this.mAccount);
+        	init(cursor);
+        }
+
         public LocalFolder(String name) {
             super(LocalStore.this.mAccount);
             this.mName = name;
@@ -1154,23 +1140,7 @@ public class LocalStore extends Store implements Serializable {
                             if (cursor.moveToFirst()) {
                                 int folderId = cursor.getInt(0);
                                 if (folderId > 0) {
-                                	String name = cursor.getString(1);
-                                	int unreadCount = cursor.getInt(2);
-                                	int visibleLimit = cursor.getInt(3);
-                                	long lastUpdated = cursor.getLong(4);
-                                	String status = cursor.getString(5);
-                                	String pushState = cursor.getString(6);
-                                	long lastPushed = cursor.getLong(7);
-                                	int flaggedCount = cursor.getInt(8);
-                                	int integrate = cursor.getInt(9);
-                                	int topGroup = cursor.getInt(10);
-                                	String pollClass = cursor.getString(11);
-                                	String pushClass = cursor.getString(12);
-                                	String displayClass = cursor.getString(13);
-
-                                    open(folderId, name, unreadCount, visibleLimit, lastUpdated,
-                                    		status, pushState, lastPushed, flaggedCount, integrate,
-                                    		topGroup, pollClass, pushClass, displayClass);
+                                    init(cursor);
                                 }
                             } else {
                                 Log.w(K9.LOG_TAG, "Creating folder " + getName() + " with existing id " + getId());
@@ -1192,7 +1162,22 @@ public class LocalStore extends Store implements Serializable {
             }
         }
 
-        private void open(int id, String name, int unreadCount, int visibleLimit, long lastChecked, String status, String pushState, long lastPushed, int flaggedCount, int integrate, int topGroup, String syncClass, String pushClass, String displayClass) throws MessagingException {
+        private final void init(Cursor cursor) throws MessagingException {
+        	int id = cursor.getInt(0);
+        	String name = cursor.getString(1);
+        	int unreadCount = cursor.getInt(2);
+        	int visibleLimit = cursor.getInt(3);
+        	long lastChecked = cursor.getLong(4);
+        	String status = cursor.getString(5);
+        	String pushState = cursor.getString(6);
+        	long lastPushed = cursor.getLong(7);
+        	int flaggedCount = cursor.getInt(8);
+        	int integrate = cursor.getInt(9);
+        	int topGroup = cursor.getInt(10);
+        	String syncClass = cursor.getString(11);
+        	String pushClass = cursor.getString(12);
+        	String displayClass = cursor.getString(13);
+
             mFolderId = id;
             mName = name;
             mUnreadMessageCount = unreadCount;
