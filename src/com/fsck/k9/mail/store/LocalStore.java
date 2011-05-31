@@ -607,8 +607,25 @@ public class LocalStore extends Store implements Serializable {
                     try {
                         cursor = db.rawQuery("SELECT " + GET_FOLDER_COLS + " FROM folders ORDER BY name ASC", null);
                         while (cursor.moveToNext()) {
-                            LocalFolder folder = new LocalFolder(cursor.getString(1));
-                            folder.open(cursor.getInt(0), cursor.getString(1), cursor.getInt(2), cursor.getInt(3), cursor.getLong(4), cursor.getString(5), cursor.getString(6), cursor.getLong(7), cursor.getInt(8), cursor.getInt(9), cursor.getInt(10), cursor.getString(11), cursor.getString(12), cursor.getString(13));
+                        	int id = cursor.getInt(0);
+                        	String name = cursor.getString(1);
+                        	int unreadCount = cursor.getInt(2);
+                        	int visibleLimit = cursor.getInt(3);
+                        	long lastUpdated = cursor.getLong(4);
+                        	String status = cursor.getString(5);
+                        	String pushState = cursor.getString(6);
+                        	long lastPushed = cursor.getLong(7);
+                        	int flaggedCount = cursor.getInt(8);
+                        	int integrate = cursor.getInt(9);
+                        	int topGroup = cursor.getInt(10);
+                        	String pollClass = cursor.getString(11);
+                        	String pushClass = cursor.getString(12);
+                        	String displayClass = cursor.getString(13);
+
+                            LocalFolder folder = new LocalFolder(name);
+                            folder.open(id, name, unreadCount, visibleLimit, lastUpdated, status,
+                            		pushState, lastPushed, flaggedCount, integrate, topGroup,
+                            		pollClass, pushClass, displayClass);
 
                             folders.add(folder);
                         }
@@ -1137,7 +1154,23 @@ public class LocalStore extends Store implements Serializable {
                             if (cursor.moveToFirst()) {
                                 int folderId = cursor.getInt(0);
                                 if (folderId > 0) {
-                                    open(folderId, cursor.getString(1), cursor.getInt(2), cursor.getInt(3), cursor.getLong(4), cursor.getString(5), cursor.getString(6), cursor.getLong(7), cursor.getInt(8), cursor.getInt(9), cursor.getInt(10), cursor.getString(11), cursor.getString(12), cursor.getString(13));
+                                	String name = cursor.getString(1);
+                                	int unreadCount = cursor.getInt(2);
+                                	int visibleLimit = cursor.getInt(3);
+                                	long lastUpdated = cursor.getLong(4);
+                                	String status = cursor.getString(5);
+                                	String pushState = cursor.getString(6);
+                                	long lastPushed = cursor.getLong(7);
+                                	int flaggedCount = cursor.getInt(8);
+                                	int integrate = cursor.getInt(9);
+                                	int topGroup = cursor.getInt(10);
+                                	String pollClass = cursor.getString(11);
+                                	String pushClass = cursor.getString(12);
+                                	String displayClass = cursor.getString(13);
+
+                                    open(folderId, name, unreadCount, visibleLimit, lastUpdated,
+                                    		status, pushState, lastPushed, flaggedCount, integrate,
+                                    		topGroup, pollClass, pushClass, displayClass);
                                 }
                             } else {
                                 Log.w(K9.LOG_TAG, "Creating folder " + getName() + " with existing id " + getId());
