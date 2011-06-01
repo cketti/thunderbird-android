@@ -99,10 +99,21 @@ public class LocalStore extends Store implements Serializable {
         + "bcc_list, reply_to_list, attachment_count, internal_date, message_id, folder_id, preview ";
 
 
-    static private String GET_FOLDER_COLS = "id, name, unread_count, visible_limit, last_updated, status, push_state, last_pushed, flagged_count, integrate, top_group, poll_class, push_class, display_class";
+    private static final String GET_FOLDER_COLS =
+    	"folders.id," +
+    	"folders.name," +
+    	"folders.local_only," +
+    	"folders.unread_count," +
+    	"folders.flagged_count," +
+    	"folders.integrate," +
+    	"folders.top_group," +
+    	"folders.display_class," +
+    	"folders.visible_limit," +
+    	"folder_attributes.key," +
+    	"folder_attributes.value";
 
 
-    protected static final int DB_VERSION = 42;
+    protected static final int DB_VERSION = 43;
 
     protected String uUid = null;
 
@@ -151,6 +162,131 @@ public class LocalStore extends Store implements Serializable {
             AttachmentProvider.clear(mApplication);
 
             try {
+            	if (db.getVersion() < 43) {
+            		db.execSQL("DROP TABLE IF EXISTS folders");
+            		db.execSQL("CREATE TABLE folders (" +
+            				"id INTEGER PRIMARY KEY," +
+            				"name TEXT," +
+            				"local_only BOOLEAN," +
+            				"unread_count INTEGER," +
+            				"flagged_count INTEGER," +
+            				"integrate BOOLEAN," +
+            				"top_group BOOLEAN," +
+            				"display_class TEXT," +
+            				"visible_limit TEXT)");
+
+            		db.execSQL("DROP TABLE IF EXISTS folder_attributes");
+            		db.execSQL("CREATE TABLE folder_attributes (" +
+							"id INTEGER PRIMARY KEY," +
+							"folder_id INTEGER," +
+							"key TEXT," +
+							"value TEXT)");
+
+            		/*
+            		db.execSQL("DROP TABLE IF EXISTS messages");
+            		db.execSQL("CREATE TABLE messages (" +
+            				"id INTEGER PRIMARY KEY," +
+            				"folder_id INTEGER," +
+            				"uid TEXT," +
+            				"message_part_id INTEGER," +
+            				"root INTEGER," +
+            				"parent INTEGER," +
+            				"seq INTEGER," +
+            				"local_only BOOLEAN," +
+            				"deleted BOOLEAN," +
+            				"notified BOOLEAN," +
+            				"date INTEGER," +
+            				"internal_date INTEGER," +
+            				"seen BOOLEAN," +
+            				"flagged BOOLEAN," +
+            				"answered BOOLEAN," +
+            				"forwarded BOOLEAN," +
+            				"destroyed BOOLEAN," +
+            				"send_failed BOOLEAN," +
+            				"send_in_progress BOOLEAN," +
+            				"downloaded_full BOOLEAN," +
+            				"downloaded_partial BOOLEAN," +
+            				"remote_copy_started BOOLEAN," +
+            				"got_all_headers BOOLEAN)");
+
+            		db.execSQL("DROP TABLE IF EXISTS addresses");
+            		db.execSQL("CREATE TABLE addresses (" +
+            				"id INTEGER PRIMARY KEY," +
+            				"message_id INTEGER," +
+            				"type INTEGER," +
+            				"name TEXT," +
+            				"email TEXT)");
+
+            		db.execSQL("DROP TABLE IF EXISTS message_parts");
+            		db.execSQL("CREATE TABLE message_parts (" +
+            				"id INTEGER PRIMARY KEY," +
+            				"type INTEGER," +
+            				"mime_type TEXT," +
+            				"root INTEGER," +
+            				"parent INTEGER," +
+            				"seq INTEGER," +
+            				"size INTEGER," +
+            				"data_type INTEGER," +
+            				"data TEXT," +
+            				"header TEXT," +
+            				"preamble TEXT," +
+            				"epilogue TEXT)");
+
+            		db.execSQL("DROP TABLE IF EXISTS message_part_attributes");
+            		db.execSQL("CREATE TABLE message_part_attributes (" +
+            				"id INTEGER PRIMARY KEY," +
+            				"message_part_id INTEGER," +
+            				"key TEXT," +
+            				"value TEXT)");
+
+            		db.execSQL("DROP TABLE IF EXISTS message_cache");
+            		db.execSQL("CREATE TABLE message_cache (" +
+            				"id INTEGER PRIMARY KEY," +
+            				"message_id INTEGER," +
+            				"subject TEXT," +
+            				"preview TEXT," +
+            				"data_type INTEGER," +
+            				"data TEXT)");
+
+            		db.execSQL("DROP TABLE IF EXISTS pending_commands");
+            		db.execSQL("CREATE TABLE pending_commands (" +
+            				"id INTEGER PRIMARY KEY," +
+            				"command TEXT," +
+            				"arguments TEXT)");
+					*/
+
+                    db.execSQL("CREATE INDEX IF NOT EXISTS folder_name ON folders (name)");
+                    db.execSQL("DROP TABLE IF EXISTS messages");
+                    db.execSQL("CREATE TABLE messages (id INTEGER PRIMARY KEY, deleted INTEGER default 0, folder_id INTEGER, uid TEXT, subject TEXT, "
+                               + "date INTEGER, flags TEXT, sender_list TEXT, to_list TEXT, cc_list TEXT, bcc_list TEXT, reply_to_list TEXT, "
+                               + "html_content TEXT, text_content TEXT, attachment_count INTEGER, internal_date INTEGER, message_id TEXT, preview TEXT, "
+                               + "mime_type TEXT)");
+
+                    db.execSQL("DROP TABLE IF EXISTS headers");
+                    db.execSQL("CREATE TABLE headers (id INTEGER PRIMARY KEY, message_id INTEGER, name TEXT, value TEXT)");
+                    db.execSQL("CREATE INDEX IF NOT EXISTS header_folder ON headers (message_id)");
+
+                    db.execSQL("CREATE INDEX IF NOT EXISTS msg_uid ON messages (uid, folder_id)");
+                    db.execSQL("DROP INDEX IF EXISTS msg_folder_id");
+                    db.execSQL("DROP INDEX IF EXISTS msg_folder_id_date");
+                    db.execSQL("CREATE INDEX IF NOT EXISTS msg_folder_id_deleted_date ON messages (folder_id,deleted,internal_date)");
+                    db.execSQL("DROP TABLE IF EXISTS attachments");
+                    db.execSQL("CREATE TABLE attachments (id INTEGER PRIMARY KEY, message_id INTEGER,"
+                               + "store_data TEXT, content_uri TEXT, size INTEGER, name TEXT,"
+                               + "mime_type TEXT, content_id TEXT, content_disposition TEXT)");
+
+                    db.execSQL("DROP TABLE IF EXISTS pending_commands");
+                    db.execSQL("CREATE TABLE pending_commands " +
+                               "(id INTEGER PRIMARY KEY, command TEXT, arguments TEXT)");
+
+                    db.execSQL("DROP TRIGGER IF EXISTS delete_folder");
+                    db.execSQL("CREATE TRIGGER delete_folder BEFORE DELETE ON folders BEGIN DELETE FROM messages WHERE old.id = folder_id; END;");
+
+                    db.execSQL("DROP TRIGGER IF EXISTS delete_message");
+                    db.execSQL("CREATE TRIGGER delete_message BEFORE DELETE ON messages BEGIN DELETE FROM attachments WHERE old.id = message_id; "
+                               + "DELETE FROM headers where old.id = message_id; END;");
+            	}
+            	/*
                 // schema version 29 was when we moved to incremental updates
                 // in the case of a new db or a < v29 db, we blow away and start from scratch
                 if (db.getVersion() < 29) {
@@ -331,6 +467,7 @@ public class LocalStore extends Store implements Serializable {
                         }
                     }
                 }
+                */
             }
 
             catch (SQLiteException e) {
@@ -359,6 +496,7 @@ public class LocalStore extends Store implements Serializable {
             //}
         }
 
+        /*
         private void update41Metadata(final SQLiteDatabase  db, SharedPreferences prefs, int id, String name) {
 
 
@@ -399,6 +537,7 @@ public class LocalStore extends Store implements Serializable {
                        new Object[] { integrate, inTopGroup, syncClass, pushClass, displayClass, id });
 
         }
+        */
     }
 
 
@@ -605,10 +744,15 @@ public class LocalStore extends Store implements Serializable {
                     Cursor cursor = null;
 
                     try {
-                        cursor = db.rawQuery("SELECT " + GET_FOLDER_COLS + " FROM folders ORDER BY name ASC", null);
-                        while (cursor.moveToNext()) {
-                            LocalFolder folder = new LocalFolder(cursor);
-                            folders.add(folder);
+            			cursor = db.rawQuery("SELECT " + GET_FOLDER_COLS + " FROM folders " +
+        						"LEFT JOIN folder_attributes ON (folders.id = folder_attributes.folder_id) " +
+        						"ORDER BY name ASC", null);
+
+                        if (cursor.moveToNext()) {
+                        	do {
+	                            LocalFolder folder = new LocalFolder(cursor);
+	                            folders.add(folder);
+                        	} while (!cursor.isAfterLast());
                         }
                         return folders;
                     } catch (MessagingException e) {
@@ -1053,16 +1197,24 @@ public class LocalStore extends Store implements Serializable {
                     }
                     folder.refresh(name, prefHolder);   // Recover settings from Preferences
 
-                    db.execSQL("INSERT INTO folders (name, visible_limit, top_group, display_class, poll_class, push_class, integrate) VALUES (?, ?, ?, ?, ?, ?, ?)", new Object[] {
-                                   name,
-                                   visibleLimit,
-                                   prefHolder.inTopGroup ? 1 : 0,
-                                   prefHolder.displayClass.name(),
-                                   prefHolder.syncClass.name(),
-                                   prefHolder.pushClass.name(),
-                                   prefHolder.integrate ? 1 : 0,
-                               });
+                    ContentValues cv = new ContentValues();
+                    cv.put("name", name);
+                    cv.put("integrate", prefHolder.integrate ? 1 : 0);
+                    cv.put("top_group", prefHolder.inTopGroup ? 1 : 0);
+                    cv.put("display_class", prefHolder.displayClass.name());
+                    cv.put("visible_limit", visibleLimit);
+                    long folderId = db.insert("folders", null, cv);
 
+                    cv.clear();
+                    cv.put("folder_id", folderId);
+
+                    cv.put("key", "poll_class");
+                    cv.put("value", prefHolder.syncClass.name());
+                    db.insert("folder_attributes", null, cv);
+
+                    cv.put("key", "push_class");
+                    cv.put("value", prefHolder.pushClass.name());
+                    db.insert("folder_attributes", null, cv);
                 }
                 return null;
             }
@@ -1129,7 +1281,8 @@ public class LocalStore extends Store implements Serializable {
                     public Void doDbWork(final SQLiteDatabase db) throws WrappedException {
                         Cursor cursor = null;
                         try {
-                            String baseQuery = "SELECT " + GET_FOLDER_COLS + " FROM folders ";
+                            String baseQuery = "SELECT " + GET_FOLDER_COLS + " FROM folders " +
+                            		"LEFT JOIN folder_attributes ON (folders.id = folder_attributes.folder_id) ";
 
                             if (mName != null) {
                                 cursor = db.rawQuery(baseQuery + "where folders.name = ?", new String[] { mName });
@@ -1165,18 +1318,33 @@ public class LocalStore extends Store implements Serializable {
         private final void init(Cursor cursor) throws MessagingException {
         	int id = cursor.getInt(0);
         	String name = cursor.getString(1);
-        	int unreadCount = cursor.getInt(2);
-        	int visibleLimit = cursor.getInt(3);
-        	long lastChecked = cursor.getLong(4);
-        	String status = cursor.getString(5);
-        	String pushState = cursor.getString(6);
-        	long lastPushed = cursor.getLong(7);
-        	int flaggedCount = cursor.getInt(8);
-        	int integrate = cursor.getInt(9);
-        	int topGroup = cursor.getInt(10);
-        	String syncClass = cursor.getString(11);
-        	String pushClass = cursor.getString(12);
-        	String displayClass = cursor.getString(13);
+        	//boolean localOnly = (cursor.getInt(2) == 1);
+        	int unreadCount = cursor.getInt(3);
+        	int flaggedCount = cursor.getInt(4);
+        	boolean integrate = (cursor.getInt(5) == 1);
+        	boolean topGroup = (cursor.getInt(6) == 1);
+        	String displayClass = cursor.getString(7);
+        	int visibleLimit = cursor.getInt(8);
+
+        	Map<String, String> folderAttributes = new HashMap<String, String>();
+        	do {
+        		String key = cursor.getString(9);
+        		String value = cursor.getString(10);
+        		folderAttributes.put(key, value);
+        	} while (cursor.moveToNext() && cursor.getInt(0) == id);
+
+            // TODO: remove the specialization from LocalFolde
+        	String pushState = folderAttributes.get("push_state");
+        	String status = folderAttributes.get("status");
+        	String lastCheckedString = folderAttributes.get("last_updated");
+        	long lastChecked = (lastCheckedString == null) ? 0 : Long.valueOf(lastCheckedString);
+        	String lastPushedString = folderAttributes.get("last_pushed");
+        	long lastPushed = (lastPushedString == null) ? 0 : Long.valueOf(lastPushedString);
+        	String pushClassString = folderAttributes.get("push_class");
+        	FolderClass pushClass = (pushClassString == null) ? FolderClass.NO_CLASS : FolderClass.valueOf(pushClassString);
+        	String syncClassString = folderAttributes.get("poll_class");
+        	FolderClass syncClass = (syncClassString == null) ? FolderClass.NO_CLASS : FolderClass.valueOf(syncClassString);
+
 
             mFolderId = id;
             mName = name;
@@ -1189,12 +1357,11 @@ public class LocalStore extends Store implements Serializable {
             // does a DB update on setLastChecked
             super.setLastChecked(lastChecked);
             super.setLastPush(lastPushed);
-            mInTopGroup = topGroup == 1  ? true : false;
-            mIntegrate = integrate == 1 ? true : false;
-            String noClass = FolderClass.NO_CLASS.toString();
-            mDisplayClass = Folder.FolderClass.valueOf((displayClass == null) ? noClass : displayClass);
-            mPushClass = Folder.FolderClass.valueOf((pushClass == null) ? noClass : pushClass);
-            mSyncClass = Folder.FolderClass.valueOf((syncClass == null) ? noClass : syncClass);
+            mInTopGroup = topGroup;
+            mIntegrate = integrate;
+            mDisplayClass = (displayClass == null) ? FolderClass.NO_CLASS : FolderClass.valueOf(displayClass);
+            mPushClass = pushClass;
+            mSyncClass = syncClass;
 
         }
 
@@ -1330,7 +1497,7 @@ public class LocalStore extends Store implements Serializable {
             } catch (MessagingException e) {
                 throw new WrappedException(e);
             }
-            updateFolderColumn("last_updated", lastChecked);
+            updateFolderAttribute("last_updated", lastChecked);
         }
 
         @Override
@@ -1341,7 +1508,7 @@ public class LocalStore extends Store implements Serializable {
             } catch (MessagingException e) {
                 throw new WrappedException(e);
             }
-            updateFolderColumn("last_pushed", lastChecked);
+            updateFolderAttribute("last_pushed", lastChecked);
         }
 
         public int getVisibleLimit() throws MessagingException {
@@ -1372,11 +1539,11 @@ public class LocalStore extends Store implements Serializable {
 
         @Override
         public void setStatus(final String status) throws MessagingException {
-            updateFolderColumn("status", status);
+        	updateFolderAttribute("status", status);
         }
         public void setPushState(final String pushState) throws MessagingException {
             mPushState = pushState;
-            updateFolderColumn("push_state", pushState);
+            updateFolderAttribute("push_state", pushState);
         }
 
         private void updateFolderColumn(final String column, final Object value) throws MessagingException {
@@ -1390,6 +1557,36 @@ public class LocalStore extends Store implements Serializable {
                             throw new WrappedException(e);
                         }
                         db.execSQL("UPDATE folders SET " + column + " = ? WHERE id = ?", new Object[] { value, mFolderId });
+                        return null;
+                    }
+                });
+            } catch (WrappedException e) {
+                throw(MessagingException) e.getCause();
+            }
+        }
+
+        private void updateFolderAttribute(final String key, final Object value) throws MessagingException {
+            try {
+                database.execute(false, new DbCallback<Void>() {
+                    @Override
+                    public Void doDbWork(final SQLiteDatabase db) throws WrappedException {
+                        try {
+                            open(OpenMode.READ_WRITE);
+                        } catch (MessagingException e) {
+                            throw new WrappedException(e);
+                        }
+                        String folderId = Long.toString(mFolderId);
+
+                        ContentValues cv = new ContentValues();
+                        cv.put("key", key);
+                        cv.put("value", value.toString());
+                        int result = db.update("folder_attributes", cv, "folder_id = ? AND key = ?",
+                        		new String[] {folderId, key});
+
+                        if (result < 1) {
+                        	cv.put("folder_id", folderId);
+                        	db.insert("folder_attributes", null, cv);
+                        }
                         return null;
                     }
                 });
@@ -1442,11 +1639,11 @@ public class LocalStore extends Store implements Serializable {
 
         public void setSyncClass(FolderClass syncClass) throws MessagingException {
             mSyncClass = syncClass;
-            updateFolderColumn("poll_class", mSyncClass.name());
+            updateFolderAttribute("poll_class", mSyncClass.name());
         }
         public void setPushClass(FolderClass pushClass) throws MessagingException {
             mPushClass = pushClass;
-            updateFolderColumn("push_class", mPushClass.name());
+            updateFolderAttribute("push_class", mPushClass.name());
         }
 
         public boolean isIntegrate() {
