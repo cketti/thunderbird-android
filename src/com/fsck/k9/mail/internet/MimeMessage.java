@@ -4,6 +4,7 @@ package com.fsck.k9.mail.internet;
 import com.fsck.k9.mail.*;
 import com.fsck.k9.mail.store.UnavailableStorageException;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.james.mime4j.stream.BodyDescriptor;
 import org.apache.james.mime4j.stream.RawField;
 import org.apache.james.mime4j.parser.ContentHandler;
@@ -538,23 +539,16 @@ public class MimeMessage extends Message {
 
         public void epilogue(InputStream is) throws IOException {
             expect(MimeMultipart.class);
-            StringBuffer sb = new StringBuffer();
-            int b;
-            while ((b = is.read()) != -1) {
-                sb.append((char)b);
-            }
-            ((MimeMultipart) stack.peek()).setEpilogue(sb.toString());
+            ByteArrayOutputStream buf = new ByteArrayOutputStream();
+            IOUtils.copy(is, buf);
+            ((MimeMultipart) stack.peek()).setEpilogue(buf.toByteArray());
         }
 
         public void preamble(InputStream is) throws IOException {
             expect(MimeMultipart.class);
-            StringBuffer sb = new StringBuffer();
-            int b;
-            while ((b = is.read()) != -1) {
-                sb.append((char)b);
-            }
-            ((MimeMultipart)stack.peek()).setPreamble(sb.toString());
-
+            ByteArrayOutputStream buf = new ByteArrayOutputStream();
+            IOUtils.copy(is, buf);
+            ((MimeMultipart) stack.peek()).setPreamble(buf.toByteArray());
         }
 
         public void raw(InputStream is) throws IOException {

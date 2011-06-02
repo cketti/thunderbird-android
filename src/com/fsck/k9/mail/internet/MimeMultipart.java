@@ -8,8 +8,8 @@ import com.fsck.k9.mail.Multipart;
 import java.io.*;
 
 public class MimeMultipart extends Multipart {
-    protected String mPreamble;
-    protected String mEpilogue;
+    protected byte[] mPreamble;
+    protected byte[] mEpilogue;
 
     protected String mContentType;
 
@@ -46,11 +46,11 @@ public class MimeMultipart extends Multipart {
         return sb.toString().toUpperCase();
     }
 
-    public String getPreamble() {
+    public byte[] getPreamble() {
         return mPreamble;
     }
 
-    public void setPreamble(String preamble) {
+    public void setPreamble(byte[] preamble) {
         this.mPreamble = preamble;
     }
 
@@ -92,11 +92,11 @@ public class MimeMultipart extends Multipart {
     }
 
 	@Override
-	public String getEpilogue() {
+	public byte[] getEpilogue() {
 		return null;
 	}
 
-	public void setEpilogue(String epilogue) {
+	public void setEpilogue(byte[] epilogue) {
 		mEpilogue = epilogue;
 	}
 }

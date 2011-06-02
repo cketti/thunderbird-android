@@ -81,7 +81,7 @@ public abstract class Multipart implements Body {
         }
     }
 
-    public abstract String getPreamble();
+    public abstract byte[] getPreamble();
 
-    public abstract String getEpilogue();
+    public abstract byte[] getEpilogue();
 }
