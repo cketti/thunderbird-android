@@ -223,6 +223,4 @@ public abstract class Message implements Part, Body {
         }
         return 0;
     }
-
-    public abstract Header getHeader() throws MessagingException;
 }

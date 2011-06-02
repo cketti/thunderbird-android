@@ -30,4 +30,6 @@ public interface Part {
     public void setBody(Body body) throws MessagingException;
 
     public void writeTo(OutputStream out) throws IOException, MessagingException;
+
+    public abstract Header getHeader() throws MessagingException;
 }
