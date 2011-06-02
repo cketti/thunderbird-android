@@ -9,6 +9,7 @@ import java.io.*;
 
 public class MimeMultipart extends Multipart {
     protected String mPreamble;
+    protected String mEpilogue;
 
     protected String mContentType;
 
@@ -89,4 +90,13 @@ public class MimeMultipart extends Multipart {
     public InputStream getInputStream() throws MessagingException {
         return null;
     }
+
+	@Override
+	public String getEpilogue() {
+		return null;
+	}
+
+	public void setEpilogue(String epilogue) {
+		mEpilogue = epilogue;
+	}
 }

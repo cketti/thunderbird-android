@@ -80,4 +80,8 @@ public abstract class Multipart implements Body {
             ((TextBody)body).setCharset(charset);
         }
     }
+
+    public abstract String getPreamble();
+
+    public abstract String getEpilogue();
 }

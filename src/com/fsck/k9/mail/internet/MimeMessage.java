@@ -543,7 +543,7 @@ public class MimeMessage extends Message {
             while ((b = is.read()) != -1) {
                 sb.append((char)b);
             }
-            // ((Multipart) stack.peek()).setEpilogue(sb.toString());
+            ((MimeMultipart) stack.peek()).setEpilogue(sb.toString());
         }
 
         public void preamble(InputStream is) throws IOException {
