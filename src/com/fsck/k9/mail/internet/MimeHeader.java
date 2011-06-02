@@ -2,6 +2,7 @@
 package com.fsck.k9.mail.internet;
 
 import com.fsck.k9.helper.Utility;
+import com.fsck.k9.mail.Header;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -10,7 +11,7 @@ import java.io.OutputStreamWriter;
 import java.nio.charset.Charset;
 import java.util.*;
 
-public class MimeHeader {
+public class MimeHeader implements Header {
     private static final String[] EMPTY_STRING_ARRAY = new String[0];
 
     /**

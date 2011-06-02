@@ -561,4 +561,9 @@ public class MimeMessage extends Message {
             throw new UnsupportedOperationException("Not supported");
         }
     }
+
+	@Override
+	public Header getHeader() throws MessagingException {
+		return mHeader;
+	}
 }
