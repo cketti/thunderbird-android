@@ -96,7 +96,7 @@ public class LockableDatabase {
             }
 
             try {
-                openOrCreateDataspace();
+                openOrCreateDatabase();
             } catch (UnavailableStorageException e) {
                 Log.e(K9.LOG_TAG, "Unable to open DB on mount", e);
             }
@@ -340,7 +340,7 @@ public class LockableDatabase {
                 mStorageProviderId = newProviderId;
 
                 // re-initialize this class with the new Uri
-                openOrCreateDataspace();
+                openOrCreateDatabase();
             } finally {
                 unlockWrite(newProviderId);
             }
@@ -352,7 +352,7 @@ public class LockableDatabase {
     public void open() throws UnavailableStorageException {
         lockWrite();
         try {
-            openOrCreateDataspace();
+            openOrCreateDatabase();
         } finally {
             unlockWrite();
         }
@@ -363,7 +363,7 @@ public class LockableDatabase {
      *
      * @throws UnavailableStorageException
      */
-    protected void openOrCreateDataspace() throws UnavailableStorageException {
+    protected void openOrCreateDatabase() throws UnavailableStorageException {
 
         lockWrite();
         try {
@@ -471,7 +471,7 @@ public class LockableDatabase {
             }
 
             if (recreate) {
-                openOrCreateDataspace();
+                openOrCreateDatabase();
             } else {
                 // stop waiting for mount/unmount events
                 getStorageManager().removeListener(mStorageListener);
