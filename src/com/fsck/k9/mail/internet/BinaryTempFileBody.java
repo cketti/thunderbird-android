@@ -48,7 +48,7 @@ public class BinaryTempFileBody implements Body {
         Base64OutputStream base64Out = new Base64OutputStream(out);
         IOUtils.copy(in, base64Out);
         base64Out.close();
-        mFile.delete();
+        //CKETTI-GSOC mFile.delete();
     }
 
     class BinaryTempFileBodyInputStream extends FilterInputStream {
@@ -59,7 +59,7 @@ public class BinaryTempFileBody implements Body {
         @Override
         public void close() throws IOException {
             super.close();
-            mFile.delete();
+            //CKETTI-GSOC mFile.delete();
         }
     }
 }

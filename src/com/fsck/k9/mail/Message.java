@@ -51,6 +51,14 @@ public abstract class Message implements Part, Body {
         if (o == null || !(o instanceof Message)) {
             return false;
         }
+
+        if (mFolder == null || mUid == null) {
+            // If this message has no associated Folder object and/or doesn't have an ID (e.g. it's
+            // a message created by the MessageCompose activity) we don't bother comparing the
+            // messages and use Object#equals(Object) instead.
+            return super.equals(o);
+        }
+
         Message other = (Message)o;
         return (mFolder.getName().equals(other.getFolder().getName())
                 && mFolder.getAccount().getUuid().equals(other.getFolder().getAccount().getUuid())
@@ -59,6 +67,11 @@ public abstract class Message implements Part, Body {
 
     @Override
     public int hashCode() {
+        if (mFolder == null || mUid == null) {
+            // see note in Message#equals(Object)
+            return super.hashCode();
+        }
+
         final int MULTIPLIER = 31;
 
         int result = 1;

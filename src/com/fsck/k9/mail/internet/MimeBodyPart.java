@@ -3,6 +3,7 @@ package com.fsck.k9.mail.internet;
 
 import com.fsck.k9.mail.Body;
 import com.fsck.k9.mail.BodyPart;
+import com.fsck.k9.mail.Header;
 import com.fsck.k9.mail.MessagingException;
 
 import java.io.BufferedWriter;
@@ -131,5 +132,10 @@ public class MimeBodyPart extends BodyPart {
         if (mBody != null) {
             mBody.writeTo(out);
         }
+    }
+
+    @Override
+    public Header getHeader() throws MessagingException {
+        return mHeader;
     }
 }

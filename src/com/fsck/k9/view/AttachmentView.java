@@ -93,7 +93,7 @@ public class AttachmentView extends FrameLayout {
                 name = MimeUtility.getHeaderParameter(contentDisposition, "filename");
             }
             if (name == null) {
-                return false;
+                name = "Unnamed";
             }
 
             mAccount = account;
@@ -148,7 +148,11 @@ public class AttachmentView extends FrameLayout {
 
             attachmentName.setText(name);
             attachmentInfo.setText(SizeFormatter.formatSize(mContext, size));
-            Bitmap previewIcon = getPreviewIcon();
+
+            Bitmap previewIcon = null;
+            if (part.getBody() != null) {
+                previewIcon = getPreviewIcon();
+            }
             if (previewIcon != null) {
                 attachmentIcon.setImageBitmap(previewIcon);
             } else {

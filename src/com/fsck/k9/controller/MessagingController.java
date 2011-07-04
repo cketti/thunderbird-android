@@ -766,10 +766,8 @@ public class MessagingController implements Runnable {
             };
 
             try {
-                String[] queryFields = {"html_content", "subject", "sender_list"};
                 LocalStore localStore = account.getLocalStore();
-                localStore.searchForMessages(retrievalListener, queryFields
-                                             , query, foldersToSearch,
+                localStore.searchForMessages(retrievalListener, query, foldersToSearch,
                                              messagesToSearch == null ? null : messagesToSearch.toArray(EMPTY_MESSAGE_ARRAY),
                                              requiredFlags, forbiddenFlags);
 
@@ -2609,10 +2607,13 @@ public class MessagingController implements Runnable {
                          * If the message has been synchronized since we were called we'll
                          * just hand it back cause it's ready to go.
                          */
+                        /*
                         FetchProfile fp = new FetchProfile();
                         fp.add(FetchProfile.Item.ENVELOPE);
                         fp.add(FetchProfile.Item.BODY);
                         localFolder.fetch(new Message[] { message }, fp, null);
+                        */
+                        localFolder.loadMessageForView((LocalMessage)message);
                     } else {
                         /*
                          * At this point the message is not available, so we need to download it
@@ -2633,7 +2634,8 @@ public class MessagingController implements Runnable {
                         localFolder.appendMessages(new Message[] { remoteMessage });
                         fp.add(FetchProfile.Item.ENVELOPE);
                         message = localFolder.getMessage(uid);
-                        localFolder.fetch(new Message[] { message }, fp, null);
+                        //localFolder.fetch(new Message[] { message }, fp, null);
+                        localFolder.loadMessageForView((LocalMessage)message);
 
                         // Mark that this message is now fully synched
                         message.setFlag(Flag.X_DOWNLOADED_FULL, true);
@@ -2692,12 +2694,16 @@ public class MessagingController implements Runnable {
                         l.loadMessageForViewHeadersAvailable(account, folder, uid, message);
                     }
 
+                    localFolder.loadMessageForView(message);
+
+                    /*
                     FetchProfile fp = new FetchProfile();
                     fp.add(FetchProfile.Item.ENVELOPE);
                     fp.add(FetchProfile.Item.BODY);
                     localFolder.fetch(new Message[] {
                                           message
                                       }, fp, null);
+                    */
                     localFolder.close();
 
                     for (MessagingListener l : getListeners(listener)) {
@@ -2788,7 +2794,10 @@ public class MessagingController implements Runnable {
                     remoteMessage.setBody(message.getBody());
                     remoteFolder.fetchPart(remoteMessage, part, null);
 
-                    localFolder.updateMessage((LocalMessage)message);
+                    localFolder.updateMessage((LocalMessage)message, part);
+
+                    //TODO: check if message has now been completely downloaded
+
                     for (MessagingListener l : getListeners()) {
                         l.loadAttachmentFinished(account, message, part, tag);
                     }
