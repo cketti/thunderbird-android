@@ -5,7 +5,7 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import android.app.Application;
+import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteException;
 import android.util.Log;
@@ -48,7 +48,7 @@ public class LockableDatabase {
      * Workaround exception wrapper used to keep the inner exception generated
      * in a {@link DbCallback}.
      */
-    protected static class WrappedException extends RuntimeException {
+    public static class WrappedException extends RuntimeException {
         /**
          *
          */
@@ -96,7 +96,7 @@ public class LockableDatabase {
             }
 
             try {
-                openOrCreateDataspace(mApplication);
+                openOrCreateDataspace();
             } catch (UnavailableStorageException e) {
                 Log.e(K9.LOG_TAG, "Unable to open DB on mount", e);
             }
@@ -124,7 +124,7 @@ public class LockableDatabase {
 
     private final StorageListener mStorageListener = new StorageListener();
 
-    private Application mApplication;
+    private Context mContext;
 
     /**
      * {@link ThreadLocal} to check whether a DB transaction is occuring in the
@@ -139,15 +139,15 @@ public class LockableDatabase {
     private String uUid;
 
     /**
-     * @param application
+     * @param context
      *            Never <code>null</code>.
      * @param uUid
      *            Never <code>null</code>.
      * @param schemaDefinition
      *            Never <code>null</code
      */
-    public LockableDatabase(final Application application, final String uUid, final SchemaDefinition schemaDefinition) {
-        this.mApplication = application;
+    public LockableDatabase(final Context context, final String uUid, final SchemaDefinition schemaDefinition) {
+        this.mContext = context;
         this.uUid = uUid;
         this.mSchemaDefinition = schemaDefinition;
     }
@@ -161,7 +161,7 @@ public class LockableDatabase {
     }
 
     private StorageManager getStorageManager() {
-        return StorageManager.getInstance(mApplication);
+        return StorageManager.getInstance(mContext);
     }
 
     /**
@@ -340,7 +340,7 @@ public class LockableDatabase {
                 mStorageProviderId = newProviderId;
 
                 // re-initialize this class with the new Uri
-                openOrCreateDataspace(mApplication);
+                openOrCreateDataspace();
             } finally {
                 unlockWrite(newProviderId);
             }
@@ -352,19 +352,18 @@ public class LockableDatabase {
     public void open() throws UnavailableStorageException {
         lockWrite();
         try {
-            openOrCreateDataspace(mApplication);
+            openOrCreateDataspace();
         } finally {
             unlockWrite();
         }
-        StorageManager.getInstance(mApplication).addListener(mStorageListener);
+        StorageManager.getInstance(mContext).addListener(mStorageListener);
     }
 
     /**
      *
-     * @param application
      * @throws UnavailableStorageException
      */
-    protected void openOrCreateDataspace(final Application application) throws UnavailableStorageException {
+    protected void openOrCreateDataspace() throws UnavailableStorageException {
 
         lockWrite();
         try {
@@ -472,7 +471,7 @@ public class LockableDatabase {
             }
 
             if (recreate) {
-                openOrCreateDataspace(mApplication);
+                openOrCreateDataspace();
             } else {
                 // stop waiting for mount/unmount events
                 getStorageManager().removeListener(mStorageListener);
