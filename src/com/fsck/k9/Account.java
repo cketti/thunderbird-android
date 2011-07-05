@@ -173,7 +173,7 @@ public class Account implements BaseAccount {
 
     protected Account(Context context) {
         mUuid = UUID.randomUUID().toString();
-        mLocalStorageProviderId = StorageManager.getInstance(K9.app).getDefaultProviderId();
+        mLocalStorageProviderId = StorageManager.getInstance(context).getDefaultProviderId();
         mAutomaticCheckIntervalMinutes = -1;
         mIdleRefreshMinutes = 24;
         mSaveAllHeaders = true;
@@ -230,20 +230,20 @@ public class Account implements BaseAccount {
         mNotificationSetting.setLedColor(mChipColor);
     }
 
-    protected Account(Preferences preferences, String uuid) {
+    protected Account(Context context, Preferences preferences, String uuid) {
         this.mUuid = uuid;
-        loadAccount(preferences);
+        loadAccount(context, preferences);
     }
 
     /**
      * Load stored settings for this account.
      */
-    private synchronized void loadAccount(Preferences preferences) {
+    private synchronized void loadAccount(Context context, Preferences preferences) {
 
         SharedPreferences prefs = preferences.getPreferences();
 
         mStoreUri = Utility.base64Decode(prefs.getString(mUuid + ".storeUri", null));
-        mLocalStorageProviderId = prefs.getString(mUuid + ".localStorageProvider", StorageManager.getInstance(K9.app).getDefaultProviderId());
+        mLocalStorageProviderId = prefs.getString(mUuid + ".localStorageProvider", StorageManager.getInstance(context).getDefaultProviderId());
         mTransportUri = Utility.base64Decode(prefs.getString(mUuid + ".transportUri", null));
         mDescription = prefs.getString(mUuid + ".description", null);
         mAlwaysBcc = prefs.getString(mUuid + ".alwaysBcc", mAlwaysBcc);
@@ -1374,7 +1374,7 @@ public class Account implements BaseAccount {
         if (localStorageProviderId == null) {
             return true; // defaults to internal memory
         }
-        return StorageManager.getInstance(K9.app).isReady(localStorageProviderId);
+        return StorageManager.getInstance(context).isReady(localStorageProviderId);
     }
 
 }

@@ -50,7 +50,7 @@ public class Preferences {
             String[] uuids = accountUuids.split(",");
             accounts = new ArrayList<Account>(uuids.length);
             for (String uuid : uuids) {
-                accounts.add(new Account(this, uuid));
+                accounts.add(new Account(mContext, this, uuid));
             }
         } else {
             accounts = new ArrayList<Account>();
@@ -118,7 +118,7 @@ public class Preferences {
     }
 
     public synchronized Account newAccount() {
-        newAccount = new Account(K9.app);
+        newAccount = new Account(mContext);
 
         return newAccount;
     }
