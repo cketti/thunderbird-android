@@ -383,5 +383,13 @@ otherwise it would make K-9 start at the wrong time
             android:readPermission="com.fsck.k9.permission.READ_MESSAGES"
             android:writePermission="com.fsck.k9.permission.DELETE_MESSAGES"
             />
+        <provider
+            android:name=".provider.EmailProvider"
+            android:authorities="com.fsck.k9.emailprovider"
+            android:multiprocess="true"
+            android:grantUriPermissions="true"
+            android:readPermission="com.fsck.k9.permission.READ_MESSAGES"
+            android:writePermission="com.fsck.k9.permission.DELETE_MESSAGES"
+            />
     </application>
 </manifest>
