@@ -2,6 +2,7 @@ package com.fsck.k9.provider;
 
 import com.fsck.k9.Account;
 import com.fsck.k9.Preferences;
+import com.fsck.k9.mail.store.UnavailableStorageException;
 import com.fsck.k9.provider.EmailProvider;
 
 import android.content.ContentResolver;
@@ -50,7 +51,16 @@ public class EmailProviderTest extends ProviderTestCase2<EmailProvider>
 
     @Override
     public void tearDown() {
-        // Delete account created in setUp()
+        // Delete database (and associated files) of the account created in setUp()
+        EmailProvider provider = (EmailProvider) mResolver.acquireContentProviderClient(
+                EmailProviderConstants.BASE_URI).getLocalContentProvider();
+        try {
+            provider.deleteDatabase(mAccountUuid);
+        } catch (UnavailableStorageException e) {
+            e.printStackTrace();
+        }
+
+        // Delete account
         Preferences preferences = Preferences.getPreferences(getContext());
         Account account = preferences.getAccount(mAccountUuid);
         preferences.deleteAccount(account);

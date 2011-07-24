@@ -207,6 +207,10 @@ public class EmailProvider extends ContentProvider {
         }
     }
 
+    protected void deleteDatabase(String accountUuid) throws UnavailableStorageException {
+        getDatabase(accountUuid).delete();
+    }
+
     private static class StoreSchemaDefinition implements LockableDatabase.SchemaDefinition {
         @Override
         public int getVersion() {
