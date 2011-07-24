@@ -4,6 +4,7 @@ import com.fsck.k9.Account;
 import com.fsck.k9.Preferences;
 import com.fsck.k9.mail.store.UnavailableStorageException;
 import com.fsck.k9.provider.EmailProvider;
+import com.fsck.k9.provider.EmailProviderConstants.FolderColumns;
 
 import android.content.ContentResolver;
 import android.content.ContentUris;
@@ -15,8 +16,13 @@ import android.test.ProviderTestCase2;
 
 public class EmailProviderTest extends ProviderTestCase2<EmailProvider>
 {
-    private String mAccountUuid;
+    private static final String FOLDER_NAME_1 = "INBOX";
+    private static final String FOLDER_NAME_2 = "Some other folder";
+
     private ContentResolver mResolver;
+    private String mAccountUuid;
+    private long mFolderId1;
+    private long mFolderId2;
 
     public EmailProviderTest()
     {
@@ -38,15 +44,20 @@ public class EmailProviderTest extends ProviderTestCase2<EmailProvider>
 
         mAccountUuid = account.getUuid();
 
-        // Create some folders
+        createTestFolders();
+    }
+
+    private void createTestFolders() {
         Uri uri = EmailProviderConstants.Folder.getContentUri(mAccountUuid);
         ContentValues cv = new ContentValues();
 
-        cv.put(EmailProviderConstants.FolderColumns.NAME, "INBOX");
-        mResolver.insert(uri, cv);
+        cv.put(EmailProviderConstants.FolderColumns.NAME, FOLDER_NAME_1);
+        mFolderId1 = ContentUris.parseId(mResolver.insert(uri, cv));
 
-        cv.put(EmailProviderConstants.FolderColumns.NAME, "Folder1");
-        mResolver.insert(uri, cv);
+        cv.put(EmailProviderConstants.FolderColumns.NAME, FOLDER_NAME_2);
+        mFolderId2 = ContentUris.parseId(mResolver.insert(uri, cv));
+
+        assertNotSame(mFolderId1 + " vs. " + mFolderId2, mFolderId1, mFolderId2);
     }
 
     @Override
@@ -80,48 +91,55 @@ public class EmailProviderTest extends ProviderTestCase2<EmailProvider>
 
     public void testFolders() {
         Uri uri = EmailProviderConstants.Folder.getContentUri(mAccountUuid);
-        String[] projection = new String[] {"name"};
-        String selection = null;
-        String[] selectionArgs = null;
-        String sortOrder = null;
-        Cursor cursor = mResolver.query(uri, projection, selection, selectionArgs, sortOrder);
+        String[] projection = new String[] {FolderColumns.NAME};
+        Cursor cursor = mResolver.query(uri, projection, null, null, null);
 
-        boolean found = false;
-        while (cursor.moveToNext()) {
-            String name = cursor.getString(0);
+        boolean folder1Found = false;
+        boolean folder2Found = false;
+        try {
+            while (cursor.moveToNext()) {
+                String name = cursor.getString(0);
 
-            if ("INBOX".equals(name)) {
-                found = true;
+                if (FOLDER_NAME_1.equals(name)) {
+                    folder1Found = true;
+                } else if (FOLDER_NAME_2.equals(name)) {
+                    folder2Found = true;
+                }
             }
+        } finally {
+            cursor.close();
         }
 
-        cursor.close();
-
-        assertTrue(found);
+        assertTrue(folder1Found);
+        assertTrue(folder2Found);
     }
 
     public void testFolderId() {
-        long folderId = 1;
+        checkFolderId(mFolderId1, FOLDER_NAME_1);
+        checkFolderId(mFolderId2, FOLDER_NAME_2);
+    }
+
+    private void checkFolderId(long folderId, String expectedName) {
         Uri uri = ContentUris.withAppendedId(
                 EmailProviderConstants.Folder.getContentUri(mAccountUuid), folderId);
-        String[] projection = new String[] {"id", "name"};
-        String selection = null;
-        String[] selectionArgs = null;
-        String sortOrder = null;
-        Cursor cursor = mResolver.query(uri, projection, selection, selectionArgs, sortOrder);
+        String[] projection = new String[] {FolderColumns.ID, FolderColumns.NAME};
+        Cursor cursor = mResolver.query(uri, projection, null, null, null);
 
         long id = 0;
+        String name = null;
         int count = 0;
-        while (cursor.moveToNext()) {
-            id = cursor.getLong(0);
-            //String name = cursor.getString(1);
-            count++;
+        try {
+            while (cursor.moveToNext()) {
+                id = cursor.getLong(0);
+                name = cursor.getString(1);
+                count++;
+            }
+        } finally {
+            cursor.close();
         }
-
-        cursor.close();
 
         assertEquals(1, count);
         assertEquals(folderId, id);
+        assertEquals(expectedName, name);
     }
-
 }
