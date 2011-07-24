@@ -5,13 +5,17 @@ import android.util.Log;
 import com.fsck.k9.K9;
 import com.fsck.k9.mail.*;
 import org.apache.commons.io.IOUtils;
+import org.apache.james.mime4j.MimeException;
 import org.apache.james.mime4j.codec.Base64InputStream;
 import org.apache.james.mime4j.codec.QuotedPrintableInputStream;
+import org.apache.james.mime4j.dom.field.DateTimeField;
+import org.apache.james.mime4j.field.DefaultFieldParser;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.regex.Pattern;
 import java.nio.charset.Charset;
 import java.nio.charset.IllegalCharsetNameException;
@@ -2402,5 +2406,52 @@ public class MimeUtility {
             return "shift_jis";
 
         return charset;
+    }
+
+
+    /**
+     * Get the boundary string belonging to a {@link com.fsck.k9.message.Multipart Multipart}.
+     *
+     * @param part
+     *         The {@link com.fsck.k9.message.Part Part} object the boundary should be extracted
+     *         from.
+     *
+     * @return The boundary string or {@code null} if it wasn't found.
+     */
+    public static String getBoundary(com.fsck.k9.message.Part part) {
+        String boundary = null;
+
+        String[] lines = part.getHeader().get("Content-Type");
+        if (lines.length > 0) {
+            boundary = getHeaderParameter(lines[0], "boundary");
+        }
+
+        return boundary;
+    }
+
+    /**
+     * Get the date from a {@code Part}'s {@code "Date:"} header line.
+     *
+     * @param part
+     *         The {@link com.fsck.k9.message.Part Part} object the date should be extracted from.
+     *
+     * @return The part's date or {@code null} if the part doesn't contain a {@code "Date:"}
+     *         header line or parsing the value failed.
+     */
+    public static Date getDate(com.fsck.k9.message.Part part) {
+        Date date = null;
+
+        String[] lines = part.getHeader().get("Date");
+        if (lines.length > 0) {
+            String dateString = lines[0];
+            try {
+                DateTimeField field = (DateTimeField) DefaultFieldParser.parse("Date: " + dateString);
+                date = field.getDate();
+            } catch (MimeException e) {
+                /* Ignore */
+            }
+        }
+
+        return date;
     }
 }

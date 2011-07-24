@@ -1,10 +1,19 @@
 package com.fsck.k9.provider;
 
+import java.io.ByteArrayInputStream;
 import com.fsck.k9.Account;
 import com.fsck.k9.Preferences;
 import com.fsck.k9.mail.store.UnavailableStorageException;
+import com.fsck.k9.message.Body;
+import com.fsck.k9.message.Header;
+import com.fsck.k9.message.Message;
+import com.fsck.k9.message.MessageContainer;
+import com.fsck.k9.message.MessageFactory;
 import com.fsck.k9.provider.EmailProvider;
 import com.fsck.k9.provider.EmailProviderConstants.FolderColumns;
+import com.fsck.k9.provider.EmailProviderConstants.MessageColumns;
+import com.fsck.k9.provider.message.EmailProviderHelper;
+import com.fsck.k9.provider.message.EmailProviderMetadata;
 
 import android.content.ContentResolver;
 import android.content.ContentUris;
@@ -18,11 +27,13 @@ public class EmailProviderTest extends ProviderTestCase2<EmailProvider>
 {
     private static final String FOLDER_NAME_1 = "INBOX";
     private static final String FOLDER_NAME_2 = "Some other folder";
+    private static final String MESSAGE_CONTENTS = "Hello, world!";
 
     private ContentResolver mResolver;
     private String mAccountUuid;
     private long mFolderId1;
     private long mFolderId2;
+    private long mMessageId1;
 
     public EmailProviderTest()
     {
@@ -58,6 +69,26 @@ public class EmailProviderTest extends ProviderTestCase2<EmailProvider>
         mFolderId2 = ContentUris.parseId(mResolver.insert(uri, cv));
 
         assertNotSame(mFolderId1 + " vs. " + mFolderId2, mFolderId1, mFolderId2);
+    }
+
+    private void createTestMessage() {
+        MessageFactory factory = EmailProviderHelper.getFactory(mContext, mAccountUuid);
+
+        EmailProviderMetadata metadata = (EmailProviderMetadata) factory.createMetadata();
+        metadata.setFolderId(mFolderId1);
+
+        Message message = factory.createMessage();
+
+        Header header = message.getHeader();
+        header.addEncoded("Content-Type", "text/plain");
+        header.addEncoded("Subject", "Test");
+
+        ByteArrayInputStream in = new ByteArrayInputStream(MESSAGE_CONTENTS.getBytes());
+        Body body = factory.createBody(message, in);
+        message.setBody(body);
+
+        MessageContainer container = new MessageContainer(metadata, message);
+        mMessageId1 = EmailProviderHelper.saveMessage(mContext, container);
     }
 
     @Override
@@ -141,5 +172,61 @@ public class EmailProviderTest extends ProviderTestCase2<EmailProvider>
         assertEquals(1, count);
         assertEquals(folderId, id);
         assertEquals(expectedName, name);
+    }
+
+    public void testMessages() {
+        createTestMessage();
+
+        Uri uri = EmailProviderConstants.Message.getContentUri(mAccountUuid);
+        String[] projection = new String[] {
+                MessageColumns.ID,
+                MessageColumns.FOLDER_ID,
+                };
+        Cursor cursor = mResolver.query(uri, projection, null, null, null);
+
+        int count = 0;
+        boolean found = false;
+        try {
+            while (cursor.moveToNext()) {
+                long id = cursor.getLong(0);
+                long folderId = cursor.getLong(1);
+
+                count++;
+
+                if (id == mMessageId1) {
+                    found = true;
+                    assertEquals(mFolderId1, folderId);
+                }
+            }
+        } finally {
+            cursor.close();
+        }
+
+        assertEquals(1, count);
+        assertTrue(found);
+    }
+
+    public void testMessageId() {
+        createTestMessage();
+
+        Uri uri = ContentUris.withAppendedId(
+                EmailProviderConstants.Message.getContentUri(mAccountUuid), mMessageId1);
+
+        String[] projection = new String[] {MessageColumns.ID};
+        Cursor cursor = mResolver.query(uri, projection, null, null, null);
+
+        long id = 0;
+        int count = 0;
+        try {
+            while (cursor.moveToNext()) {
+                id = cursor.getLong(0);
+                count++;
+            }
+        } finally {
+            cursor.close();
+        }
+
+        assertEquals(1, count);
+        assertEquals(mMessageId1, id);
     }
 }

@@ -76,6 +76,21 @@ public class EmailProvider extends ContentProvider {
 
         // A specific folder
         matcher.addURI(EmailProviderConstants.AUTHORITY, "account/*/folder/#", FOLDER_ID);
+
+        // Messages of a specific account
+        matcher.addURI(EmailProviderConstants.AUTHORITY, "account/*/message", MESSAGES);
+
+        // A specific message
+        matcher.addURI(EmailProviderConstants.AUTHORITY, "account/*/message/#", MESSAGE_ID);
+
+        // EmailProviderMessage parts
+        matcher.addURI(EmailProviderConstants.AUTHORITY, "account/*/message_part", MESSAGE_PARTS);
+
+        // A specific message part
+        matcher.addURI(EmailProviderConstants.AUTHORITY, "account/*/message_part/#", MESSAGE_PART_ID);
+
+        // EmailProviderMessage part attributes
+        matcher.addURI(EmailProviderConstants.AUTHORITY, "account/*/message_part_attribute", MESSAGE_PART_ATTRIBUTES);
     }
 
 
