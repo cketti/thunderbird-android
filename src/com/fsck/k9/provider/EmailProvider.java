@@ -34,6 +34,13 @@ public class EmailProvider extends ContentProvider {
     private static final int FOLDER_ID = FOLDER_BASE + 1;
 
 
+    private static final String FOLDERS_TABLE = "folders";
+
+    private static final String[] TABLE_NAMES = new String[] {
+        "",                 // placeholder for accounts
+        FOLDERS_TABLE,
+    };
+
     private static final UriMatcher sURIMatcher = new UriMatcher(UriMatcher.NO_MATCH);
 
     static {
@@ -90,12 +97,13 @@ public class EmailProvider extends ContentProvider {
             case FOLDERS:
             {
                 String accountUuid = segments.get(1);
+                final String tableName = TABLE_NAMES[match >> 12];
                 try {
                     cursor = getDatabase(accountUuid).execute(false, new DbCallback<Cursor>() {
                         @Override
                         public Cursor doDbWork(SQLiteDatabase db) throws WrappedException,
                                 UnavailableStorageException {
-                            return db.query("folders", projection, selection, selectionArgs, null,
+                            return db.query(tableName, projection, selection, selectionArgs, null,
                                     null, sortOrder);
                         }
                     });
@@ -108,15 +116,15 @@ public class EmailProvider extends ContentProvider {
             {
                 String accountUuid = segments.get(1);
                 String id = uri.getLastPathSegment();
+                final String tableName = TABLE_NAMES[match >> 12];
                 try {
-                    final String selectionWithId = whereWithId(
-                            EmailProviderConstants.FolderColumns.ID, id, selection);
+                    final String selectionWithId = whereWithId(id, selection);
 
                     cursor = getDatabase(accountUuid).execute(false, new DbCallback<Cursor>() {
                         @Override
                         public Cursor doDbWork(SQLiteDatabase db) throws WrappedException,
                                 UnavailableStorageException {
-                            return db.query("folders", projection, selectionWithId,
+                            return db.query(tableName, projection, selectionWithId,
                                     selectionArgs, null, null, sortOrder);
                         }
                     });
@@ -154,13 +162,14 @@ public class EmailProvider extends ContentProvider {
             case FOLDERS:
             {
                 String accountUuid = segments.get(1);
+                final String tableName = TABLE_NAMES[match >> 12];
                 long id = 0;
                 try {
                     id = getDatabase(accountUuid).execute(false, new DbCallback<Long>() {
                         @Override
                         public Long doDbWork(SQLiteDatabase db) throws WrappedException,
                                 UnavailableStorageException {
-                            return db.insert("folders", null, values);
+                            return db.insert(tableName, null, values);
                         }
                     });
                 } catch (UnavailableStorageException e) {
@@ -186,10 +195,9 @@ public class EmailProvider extends ContentProvider {
     }
 
 
-    private String whereWithId(String pk, String id, String selection) {
+    private String whereWithId(String id, String selection) {
         StringBuilder sb = new StringBuilder(256);
-        sb.append(pk);
-        sb.append('=');
+        sb.append("id=");
         sb.append(id);
         if (selection != null) {
             sb.append(" AND (");
