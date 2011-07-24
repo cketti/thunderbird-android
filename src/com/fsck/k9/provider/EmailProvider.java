@@ -33,12 +33,36 @@ public class EmailProvider extends ContentProvider {
     private static final int FOLDERS = FOLDER_BASE;
     private static final int FOLDER_ID = FOLDER_BASE + 1;
 
+    private static final int MESSAGE_BASE = 0x2000;
+    private static final int MESSAGES = MESSAGE_BASE;
+    private static final int MESSAGE_ID = MESSAGE_BASE + 1;
+
+    private static final int MESSAGE_PART_BASE = 0x3000;
+    private static final int MESSAGE_PARTS = MESSAGE_PART_BASE;
+    private static final int MESSAGE_PART_ID = MESSAGE_PART_BASE + 1;
+
+    private static final int MESSAGE_PART_ATTRIBUTES_BASE = 0x4000;
+    private static final int MESSAGE_PART_ATTRIBUTES = MESSAGE_PART_ATTRIBUTES_BASE;
+    private static final int MESSAGE_PART_ATTRIBUTE_ID = MESSAGE_PART_ATTRIBUTES_BASE + 1;
+
+    private static final int ADDRESS_BASE = 0x5000;
+    private static final int ADDRESSES = ADDRESS_BASE;
+    private static final int ADDRESS_ID = ADDRESS_BASE + 1;
+
 
     private static final String FOLDERS_TABLE = "folders";
+    private static final String MESSAGES_TABLE = "messages";
+    private static final String MESSAGE_PARTS_TABLE = "message_parts";
+    private static final String MESSAGE_PART_ATTRIBUTES_TABLE = "message_part_attributes";
+    private static final String ADDRESSES_TABLE = "addresses";
 
     private static final String[] TABLE_NAMES = new String[] {
         "",                 // placeholder for accounts
         FOLDERS_TABLE,
+        MESSAGES_TABLE,
+        MESSAGE_PARTS_TABLE,
+        MESSAGE_PART_ATTRIBUTES_TABLE,
+        ADDRESSES_TABLE
     };
 
     private static final UriMatcher sURIMatcher = new UriMatcher(UriMatcher.NO_MATCH);
@@ -95,6 +119,9 @@ public class EmailProvider extends ContentProvider {
         List<String> segments = uri.getPathSegments();
         switch (match) {
             case FOLDERS:
+            case MESSAGES:
+            case MESSAGE_PART_ATTRIBUTES:
+            case ADDRESSES:
             {
                 String accountUuid = segments.get(1);
                 final String tableName = TABLE_NAMES[match >> 12];
@@ -113,6 +140,10 @@ public class EmailProvider extends ContentProvider {
                 break;
             }
             case FOLDER_ID:
+            case MESSAGE_ID:
+            case MESSAGE_PART_ID:
+            case MESSAGE_PART_ATTRIBUTE_ID:
+            case ADDRESS_ID:
             {
                 String accountUuid = segments.get(1);
                 String id = uri.getLastPathSegment();
@@ -160,6 +191,9 @@ public class EmailProvider extends ContentProvider {
         List<String> segments = uri.getPathSegments();
         switch (match) {
             case FOLDERS:
+            case MESSAGES:
+            case MESSAGE_PARTS:
+            case ADDRESSES:
             {
                 String accountUuid = segments.get(1);
                 final String tableName = TABLE_NAMES[match >> 12];
