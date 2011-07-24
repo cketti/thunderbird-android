@@ -5,6 +5,7 @@ import com.fsck.k9.Preferences;
 import com.fsck.k9.provider.EmailProvider;
 
 import android.content.ContentResolver;
+import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
@@ -13,11 +14,6 @@ import android.test.ProviderTestCase2;
 
 public class EmailProviderTest extends ProviderTestCase2<EmailProvider>
 {
-    // Don't use EmailProviderConstants.AUTHORITY here, so the tests will fail if the authority
-    // is changed in the ContentProvider.
-    private static final String AUTHORITY = "com.fsck.k9.emailprovider";
-
-
     private String mAccountUuid;
     private ContentResolver mResolver;
 
@@ -42,7 +38,7 @@ public class EmailProviderTest extends ProviderTestCase2<EmailProvider>
         mAccountUuid = account.getUuid();
 
         // Create some folders
-        Uri uri = Uri.parse(String.format("content://%s/account/%s/folder", AUTHORITY, mAccountUuid));
+        Uri uri = EmailProviderConstants.Folder.getContentUri(mAccountUuid);
         ContentValues cv = new ContentValues();
 
         cv.put(EmailProviderConstants.FolderColumns.NAME, "INBOX");
@@ -61,7 +57,7 @@ public class EmailProviderTest extends ProviderTestCase2<EmailProvider>
     }
 
     public void testInvalidUri() {
-        Uri uri = Uri.parse(String.format("content://%s/invalid", AUTHORITY));
+        Uri uri = Uri.parse(String.format("content://%s/invalid", EmailProviderConstants.AUTHORITY));
         boolean exception = false;
         try {
             mResolver.query(uri, null, null, null, null);
@@ -73,8 +69,7 @@ public class EmailProviderTest extends ProviderTestCase2<EmailProvider>
     }
 
     public void testFolders() {
-        Uri uri = Uri.parse(String.format("content://%s/account/%s/folder",
-                AUTHORITY, mAccountUuid));
+        Uri uri = EmailProviderConstants.Folder.getContentUri(mAccountUuid);
         String[] projection = new String[] {"name"};
         String selection = null;
         String[] selectionArgs = null;
@@ -97,9 +92,8 @@ public class EmailProviderTest extends ProviderTestCase2<EmailProvider>
 
     public void testFolderId() {
         long folderId = 1;
-
-        Uri uri = Uri.parse(String.format("content://%s/account/%s/folder/%d",
-                AUTHORITY, mAccountUuid, folderId));
+        Uri uri = ContentUris.withAppendedId(
+                EmailProviderConstants.Folder.getContentUri(mAccountUuid), folderId);
         String[] projection = new String[] {"id", "name"};
         String selection = null;
         String[] selectionArgs = null;

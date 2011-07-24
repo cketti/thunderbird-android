@@ -1,6 +1,7 @@
 package com.fsck.k9.provider;
 
 import android.content.ContentProvider;
+import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
 import android.content.UriMatcher;
@@ -39,7 +40,7 @@ public class EmailProvider extends ContentProvider {
         // Email URI matching table
         UriMatcher matcher = sURIMatcher;
 
-        // All folders of an account
+        // Folders of a specific account
         matcher.addURI(EmailProviderConstants.AUTHORITY, "account/*/folder", FOLDERS);
 
         // A specific folder
@@ -106,7 +107,7 @@ public class EmailProvider extends ContentProvider {
             case FOLDER_ID:
             {
                 String accountUuid = segments.get(1);
-                String id = segments.get(3);
+                String id = uri.getLastPathSegment();
                 try {
                     final String selectionWithId = whereWithId(
                             EmailProviderConstants.FolderColumns.ID, id, selection);
@@ -146,16 +147,16 @@ public class EmailProvider extends ContentProvider {
 
     @Override
     public Uri insert(final Uri uri, final ContentValues values) {
-        Uri createdUri = null;
+        Uri resultUri = null;
         int match = sURIMatcher.match(uri);
         List<String> segments = uri.getPathSegments();
         switch (match) {
             case FOLDERS:
             {
                 String accountUuid = segments.get(1);
-                long folderId = 0;
+                long id = 0;
                 try {
-                    folderId = getDatabase(accountUuid).execute(false, new DbCallback<Long>() {
+                    id = getDatabase(accountUuid).execute(false, new DbCallback<Long>() {
                         @Override
                         public Long doDbWork(SQLiteDatabase db) throws WrappedException,
                                 UnavailableStorageException {
@@ -166,8 +167,7 @@ public class EmailProvider extends ContentProvider {
                     throw new RuntimeException(e);
                 }
 
-                createdUri = Uri.parse(String.format("content://%s/account/%s/folder/%d",
-                        EmailProviderConstants.AUTHORITY, accountUuid, folderId));
+                resultUri = ContentUris.withAppendedId(uri, id);
                 break;
             }
             default:
@@ -176,7 +176,7 @@ public class EmailProvider extends ContentProvider {
             }
         }
 
-        return createdUri;
+        return resultUri;
     }
 
     @Override
