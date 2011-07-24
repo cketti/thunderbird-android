@@ -4,6 +4,7 @@ import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
+import android.database.Cursor;
 import android.net.Uri;
 
 import com.fsck.k9.mail.Flag;
@@ -22,9 +23,16 @@ import com.fsck.k9.provider.EmailProviderConstants.MessagePartAttributeColumns;
 import com.fsck.k9.provider.EmailProviderConstants.MessagePartColumns;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.james.mime4j.MimeException;
 import org.apache.james.mime4j.dom.field.ContentTypeField;
 import org.apache.james.mime4j.field.DefaultFieldParser;
+import org.apache.james.mime4j.parser.ContentHandler;
+import org.apache.james.mime4j.parser.MimeStreamParser;
+import org.apache.james.mime4j.stream.BodyDescriptor;
+import org.apache.james.mime4j.stream.MimeEntityConfig;
+import org.apache.james.mime4j.stream.RawField;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -315,4 +323,246 @@ public class EmailProviderHelper {
         }
     }
 
+    /**
+     * Restore a message along with it's metadata from {@link EmailProvider}.
+     *
+     * @param context
+     *         A {@link Context} instance.
+     * @param accountUuid
+     *         The UUID of the account the message should be loaded from.
+     * @param messageId
+     *         The ID of the message that is to be loaded.
+     * @return A {@link MessageContainer} instance describing the loaded message. May be
+     *         {@code null} in case the message couldn't be found.
+     */
+    public static MessageContainer restoreMessageWithId(Context context, String accountUuid,
+                long messageId) {
+
+        EmailProviderMetadata metadata = new EmailProviderMetadata(accountUuid);
+        metadata.setId(messageId);
+        Message message = new EmailProviderMessage();
+
+        MessageContainer container = new MessageContainer(metadata, message);
+
+        // Load data from the "messages" table
+        loadMetadata(context, metadata);
+
+        // Load data from the "message_parts" table
+        loadMessageParts(context, container);
+
+        // Load data from the "message_part_attributes" table
+        loadMessagePartAttributes(context, metadata);
+
+        return container;
+    }
+
+    private static void loadMetadata(Context context, EmailProviderMetadata metadata) {
+        ContentResolver resolver = context.getContentResolver();
+        Uri messageUri = EmailProviderConstants.Message.getContentUri(metadata.getAccountUuid());
+        Uri uri = ContentUris.withAppendedId(messageUri, metadata.getId());
+        Cursor cursor = resolver.query(uri, MESSAGE_PROJECTION, null, null, null);
+
+        try {
+            //TODO: check return value
+            cursor.moveToFirst();
+            long folderId = cursor.getLong(cursor.getColumnIndex(MessageColumns.FOLDER_ID));
+            String uid = cursor.getString(cursor.getColumnIndex(MessageColumns.UID));
+            boolean localOnly = (cursor.getInt(cursor.getColumnIndex(MessageColumns.LOCAL_ONLY)) == 1);
+            boolean deleted = (cursor.getInt(cursor.getColumnIndex(MessageColumns.DELETED)) == 1);
+            //boolean notified = (cursor.getInt(cursor.getColumnIndex(MessageColumns.NOTIFIED)) == 1);
+            //long date = cursor.getLong(cursor.getColumnIndex(MessageColumns.DATE));
+            long internalDate = cursor.getLong(cursor.getColumnIndex(MessageColumns.INTERNAL_DATE));
+            boolean seen = (cursor.getInt(cursor.getColumnIndex(MessageColumns.SEEN)) == 1);
+            boolean flagged = (cursor.getInt(cursor.getColumnIndex(MessageColumns.FLAGGED)) == 1);
+            boolean answered = (cursor.getInt(cursor.getColumnIndex(MessageColumns.ANSWERED)) == 1);
+            //boolean forwarded = (cursor.getInt(cursor.getColumnIndex(MessageColumns.FORWARDED)) == 1);
+            boolean destroyed = (cursor.getInt(cursor.getColumnIndex(MessageColumns.DESTROYED)) == 1);
+            boolean sendFailed = (cursor.getInt(cursor.getColumnIndex(MessageColumns.SEND_FAILED)) == 1);
+            boolean sendInProgress = (cursor.getInt(cursor.getColumnIndex(MessageColumns.SEND_IN_PROGRESS)) == 1);
+            boolean downloadedFull = (cursor.getInt(cursor.getColumnIndex(MessageColumns.DOWNLOADED_FULL)) == 1);
+            boolean downloadedPartial = (cursor.getInt(cursor.getColumnIndex(MessageColumns.DOWNLOADED_PARTIAL)) == 1);
+            boolean remoteCopyStarted = (cursor.getInt(cursor.getColumnIndex(MessageColumns.REMOTE_COPY_STARTED)) == 1);
+            boolean gotAllHeaders = (cursor.getInt(cursor.getColumnIndex(MessageColumns.GOT_ALL_HEADERS)) == 1);
+
+            metadata.setFolderId(folderId);
+            metadata.setServerId(uid);
+            metadata.setLocalOnly(localOnly);
+            metadata.setDate(new Date(internalDate));
+
+            metadata.setFlag(Flag.DELETED, deleted);
+            metadata.setFlag(Flag.SEEN, seen);
+            metadata.setFlag(Flag.FLAGGED, flagged);
+            metadata.setFlag(Flag.ANSWERED, answered);
+            //metadata.setFlag(Flag.FORWARDED, forwarded);
+            metadata.setFlag(Flag.X_DESTROYED, destroyed);
+            metadata.setFlag(Flag.X_SEND_FAILED, sendFailed);
+            metadata.setFlag(Flag.X_SEND_IN_PROGRESS, sendInProgress);
+            metadata.setFlag(Flag.X_DOWNLOADED_FULL, downloadedFull);
+            metadata.setFlag(Flag.X_DOWNLOADED_PARTIAL, downloadedPartial);
+            metadata.setFlag(Flag.X_REMOTE_COPY_STARTED, remoteCopyStarted);
+            metadata.setFlag(Flag.X_GOT_ALL_HEADERS, gotAllHeaders);
+
+        } finally {
+            cursor.close();
+        }
+    }
+
+    private static void loadMessageParts(Context context, MessageContainer container) {
+        ContentResolver resolver = context.getContentResolver();
+        EmailProviderMetadata metadata = (EmailProviderMetadata) container.getMetadata();
+        Message message = container.getMessage();
+        String accountUuid = metadata.getAccountUuid();
+
+
+        Uri partsUri = ContentUris.withAppendedId(
+                EmailProviderConstants.MessageParts.getContentUri(accountUuid), metadata.getId());
+
+        Cursor cursor = resolver.query(partsUri, PART_PROJECTION, null, null, null);
+
+        try {
+            while (cursor.moveToNext()) {
+                int partId = cursor.getInt(cursor.getColumnIndex(MessagePartColumns.ID));
+                String mimeType = cursor.getString(cursor.getColumnIndex(MessagePartColumns.MIME_TYPE));
+                int parentPartId = cursor.getInt(cursor.getColumnIndex(MessagePartColumns.PARENT));
+                String header = cursor.getString(cursor.getColumnIndex(MessagePartColumns.HEADER));
+
+                Part parent;
+                Part current;
+                if (parentPartId == 0)
+                {
+                    parent = message;
+                }
+                else
+                {
+                    parent = metadata.getPart(parentPartId);
+                }
+
+                Body parentBody = parent.getBody();
+                if (parentBody instanceof Multipart)
+                {
+                    current = new EmailProviderBodyPart();
+                    ((Multipart) parentBody).addPart(current);
+                }
+                else if (parentBody instanceof Message)
+                {
+                    current = (Message) parentBody;
+                }
+                else
+                {
+                    current = parent;
+                }
+
+                Multipart multipart = null;
+                if (mimeType.startsWith("multipart/"))
+                {
+                    multipart = new EmailProviderMultipart();
+                    current.setBody(multipart);
+                }
+                else if (mimeType.equalsIgnoreCase("message/rfc822"))
+                {
+                    Message innerMessage = new EmailProviderMessage();
+                    current.setBody(innerMessage);
+                }
+                else
+                {
+                    Uri bodyUri = ContentUris.withAppendedId(
+                            EmailProviderConstants.MessagePart.getContentUri(metadata.getAccountUuid()),
+                            partId);
+                    Body body = new EmailProviderBody(context, bodyUri);
+                    current.setBody(body);
+                }
+
+                metadata.updateMapping(current, partId);
+
+                parseHeader(current, header);
+
+                if (multipart != null) {
+                    String boundary = MimeUtility.getBoundary(current);
+                    multipart.setBoundary(boundary);
+                }
+            }
+        } finally {
+            cursor.close();
+        }
+    }
+
+    private static void parseHeader(final Part part, String header) {
+        MimeEntityConfig parserConfig = new MimeEntityConfig();
+        parserConfig.setMaxHeaderLen(-1);
+        parserConfig.setMaxLineLen(-1);
+        parserConfig.setStrictParsing(false);
+        MimeStreamParser parser = new MimeStreamParser(parserConfig);
+        parser.setContentHandler(new ContentHandler() {
+            @Override
+            public void field(RawField field) throws MimeException
+            {
+                part.getHeader().addEncoded(field.getName(), field.getBody());
+            }
+
+            @Override public void startMultipart(BodyDescriptor bd) throws MimeException { /* unused */ }
+            @Override public void startMessage() throws MimeException { /* unused */ }
+            @Override public void startHeader() throws MimeException { /* unused */ }
+            @Override public void startBodyPart() throws MimeException { /* unused */ }
+            @Override public void raw(InputStream is) throws MimeException, IOException { /* unused */ }
+            @Override public void preamble(InputStream is) throws MimeException, IOException { /* unused */ }
+            @Override public void epilogue(InputStream arg0) throws MimeException, IOException { /* unused */ }
+            @Override public void endMultipart() throws MimeException { /* unused */ }
+            @Override public void endMessage() throws MimeException { /* unused */ }
+            @Override public void endHeader() throws MimeException { /* unused */ }
+            @Override public void endBodyPart() throws MimeException { /* unused */ }
+            @Override public void body(BodyDescriptor bd, InputStream is) throws MimeException, IOException { /* unused */ }
+        });
+
+        try
+        {
+            parser.parse(new ByteArrayInputStream(header.getBytes()));
+        }
+        catch (Exception e)
+        {
+            //FIXME
+            e.printStackTrace();
+        }
+    }
+
+    private static void loadMessagePartAttributes(Context context,
+                                                  EmailProviderMetadata metadata) {
+        ContentResolver resolver = context.getContentResolver();
+
+        // Get attributes for all message parts
+        Uri attributesUri = EmailProviderConstants.MessagePartAttibute.getContentUri(metadata.getAccountUuid());
+
+        Long[] partIds = metadata.getPartIds();
+
+        StringBuilder sb = new StringBuilder(64);
+        sb.append(MessagePartAttributeColumns.MESSAGE_PART_ID);
+        sb.append(" IN (");
+        sb.append('?');
+        String[] attributeSelectionArgs = new String[partIds.length];
+        for (int i = 0, end = partIds.length; i < end; i++) {
+            sb.append(",?");
+            attributeSelectionArgs[i] = partIds[i].toString();
+        }
+        sb.append(')');
+        String attributeSelection = sb.toString();
+
+        String[] attributeProjection = new String[] {
+            MessagePartAttributeColumns.ID,
+            MessagePartAttributeColumns.MESSAGE_PART_ID,
+            MessagePartAttributeColumns.KEY,
+            MessagePartAttributeColumns.VALUE
+        };
+
+        Cursor cursor = resolver.query(attributesUri, attributeProjection, attributeSelection, attributeSelectionArgs, null);
+        try {
+            while (cursor.moveToNext()) {
+                long partId = cursor.getLong(cursor.getColumnIndex(MessagePartAttributeColumns.MESSAGE_PART_ID));
+                String key = cursor.getString(cursor.getColumnIndex(MessagePartAttributeColumns.KEY));
+                String value = cursor.getString(cursor.getColumnIndex(MessagePartAttributeColumns.VALUE));
+
+                metadata.setAttribute(partId, key, value);
+            }
+        } finally {
+            cursor.close();
+        }
+    }
 }

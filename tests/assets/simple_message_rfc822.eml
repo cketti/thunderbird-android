@@ -1,0 +1,15 @@
+From: SENDER <sender@example.k9.fsck.com>
+To: TO <to@example.k9.fsck.com>
+Subject: Simple message/rfc822 message
+Message-ID: <TEST000003@example.k9.fsck.com>
+Mime-Version: 1.0
+Content-Type: message/rfc822
+
+From: SENDER <sender@example.k9.fsck.com>
+To: TO2 <to2@example.k9.fsck.com>
+Subject: message/rfc822 inner message
+Message-ID: <TEST000003-1@example.k9.fsck.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+
+This is a simple text message embedded in a message/rfc822 message

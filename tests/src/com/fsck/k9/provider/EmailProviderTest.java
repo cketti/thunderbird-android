@@ -1,6 +1,10 @@
 package com.fsck.k9.provider;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.lang.reflect.Method;
 import com.fsck.k9.Account;
 import com.fsck.k9.Preferences;
 import com.fsck.k9.mail.store.UnavailableStorageException;
@@ -19,8 +23,10 @@ import android.content.ContentResolver;
 import android.content.ContentUris;
 import android.content.ContentValues;
 import android.content.Context;
+import android.content.res.AssetManager;
 import android.database.Cursor;
 import android.net.Uri;
+import android.test.AndroidTestCase;
 import android.test.ProviderTestCase2;
 
 public class EmailProviderTest extends ProviderTestCase2<EmailProvider>
@@ -38,6 +44,31 @@ public class EmailProviderTest extends ProviderTestCase2<EmailProvider>
     public EmailProviderTest()
     {
         super(EmailProvider.class, EmailProviderConstants.AUTHORITY);
+    }
+
+    private Context getTestContext() {
+        Context context = null;
+        try {
+            Method m = AndroidTestCase.class.getMethod("getTestContext", new Class[0]);
+            context = (Context) m.invoke(this, new Object[0]);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+
+        return context;
+    }
+
+    private void assertEquals(String message, InputStream expected, byte[] actual) throws IOException {
+        try {
+            for (int i = 0, end = actual.length; i < end; i++) {
+                int b = expected.read();
+                assertTrue("InputStream 'expected' contains less bytes than byte array 'actual' (" + message + ")", b != -1);
+                assertEquals(message, b, actual[i]);
+            }
+            assertTrue("InputStream 'expected' contains more bytes than byte array 'actual'(" + message + ")", expected.read() == -1);
+        } finally {
+            expected.close();
+        }
     }
 
     @Override
@@ -228,5 +259,53 @@ public class EmailProviderTest extends ProviderTestCase2<EmailProvider>
 
         assertEquals(1, count);
         assertEquals(mMessageId1, id);
+    }
+
+    public void testMessageFromFile() throws IOException {
+        MessageFactory factory = EmailProviderHelper.getFactory(mContext, mAccountUuid);
+        AssetManager assetManager = getTestContext().getAssets();
+
+        String[] testFiles = new String[] {
+            "simple_text_message.eml",
+            "multipart_alternative.eml",
+            "simple_message_rfc822.eml"
+        };
+
+        for (String filename : testFiles) {
+            EmailProviderMetadata metadata = (EmailProviderMetadata) factory.createMetadata();
+            metadata.setFolderId(mFolderId1);
+
+            InputStream in = assetManager.open(filename);
+            Message message = factory.createMessage(in);
+
+            /*
+            ByteArrayOutputStream buf = new ByteArrayOutputStream();
+            message.writeTo(buf);
+            buf.close();
+
+            System.out.println("------");
+            System.out.println(buf.toString());
+            System.out.println("------");
+            //*/
+
+            MessageContainer container = new MessageContainer(metadata, message);
+            long messageId = EmailProviderHelper.saveMessage(mContext, container);
+
+            MessageContainer container2 = EmailProviderHelper.restoreMessageWithId(mContext, mAccountUuid, messageId);
+
+            InputStream asset = assetManager.open(filename);
+
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+            container2.getMessage().writeTo(buffer);
+            buffer.close();
+
+            /*
+            System.out.println("======");
+            System.out.println(buffer.toString());
+            System.out.println("======");
+            //*/
+
+            assertEquals(filename, asset, buffer.toByteArray());
+        }
     }
 }

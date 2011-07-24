@@ -8,14 +8,19 @@ import android.content.UriMatcher;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
+import android.os.ParcelFileDescriptor;
 
 import com.fsck.k9.Account;
 import com.fsck.k9.Preferences;
 import com.fsck.k9.mail.store.LockableDatabase;
+import com.fsck.k9.mail.store.StorageManager;
 import com.fsck.k9.mail.store.UnavailableStorageException;
 import com.fsck.k9.mail.store.LockableDatabase.DbCallback;
 import com.fsck.k9.mail.store.LockableDatabase.WrappedException;
 
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,6 +49,7 @@ public class EmailProvider extends ContentProvider {
     private static final int MESSAGE_PART_ATTRIBUTES_BASE = 0x4000;
     private static final int MESSAGE_PART_ATTRIBUTES = MESSAGE_PART_ATTRIBUTES_BASE;
     private static final int MESSAGE_PART_ATTRIBUTE_ID = MESSAGE_PART_ATTRIBUTES_BASE + 1;
+    private static final int MESSAGE_PARTS_BY_MESSAGE_ID = MESSAGE_PART_BASE + 2;
 
     private static final int ADDRESS_BASE = 0x5000;
     private static final int ADDRESSES = ADDRESS_BASE;
@@ -88,6 +94,9 @@ public class EmailProvider extends ContentProvider {
 
         // A specific message part
         matcher.addURI(EmailProviderConstants.AUTHORITY, "account/*/message_part/#", MESSAGE_PART_ID);
+
+        // All message parts of a specific message
+        matcher.addURI(EmailProviderConstants.AUTHORITY, "account/*/message_parts/#", MESSAGE_PARTS_BY_MESSAGE_ID);
 
         // EmailProviderMessage part attributes
         matcher.addURI(EmailProviderConstants.AUTHORITY, "account/*/message_part_attribute", MESSAGE_PART_ATTRIBUTES);
@@ -179,6 +188,13 @@ public class EmailProvider extends ContentProvider {
                 }
                 break;
             }
+            case MESSAGE_PARTS_BY_MESSAGE_ID:
+            {
+                String accountUuid = segments.get(1);
+                String id = uri.getLastPathSegment();
+                cursor = getMessageParts(accountUuid, id, projection, selection, selectionArgs);
+                break;
+            }
             default:
             {
                 throw new IllegalArgumentException("Unknown URI " + uri);
@@ -190,6 +206,63 @@ public class EmailProvider extends ContentProvider {
             cursor.setNotificationUri(getContext().getContentResolver(), notificationUri);
         }
         */
+        return cursor;
+    }
+
+    private Cursor getMessageParts(String accountUuid, String messageId, final String[] projection,
+                                   final String selection, final String[] selectionArgs) {
+        Cursor cursor = null;
+        try {
+            StringBuffer sb = new StringBuffer();
+            sb.append("SELECT ");
+            boolean first = true;
+            for (String field : projection) {
+                if (!first) {
+                    sb.append(',');
+                } else {
+                    first = false;
+                }
+                sb.append("p.");
+                sb.append(field);
+                sb.append(" AS ");
+                sb.append(field);
+            }
+            sb.append(" FROM ");
+            sb.append(MESSAGES_TABLE);
+            sb.append(" AS m JOIN ");
+            sb.append(MESSAGE_PARTS_TABLE);
+            //TODO: make this work when the message id of a sub-message is used
+            sb.append(" AS p ON (m.id = p.message_id) WHERE (m.id = ? OR m.root = ?)");
+            if (selection != null) {
+                sb.append(" AND (");
+                //sb.append(modifiedSelection);
+                sb.append(selection);
+                sb.append(')');
+            }
+            //TODO: respect sortOrder argument
+            sb.append(" ORDER BY p.parent, p.seq");
+
+            final String query = sb.toString();
+
+            int len = (selectionArgs == null) ? 0 : selectionArgs.length;
+            final String[] modifiedSelectionArgs = new String[2 + len];
+            modifiedSelectionArgs[0] = messageId;
+            modifiedSelectionArgs[1] = messageId;
+            if (len > 0) {
+                System.arraycopy(selectionArgs, 0, modifiedSelectionArgs, 2, len);
+            }
+
+            cursor = getDatabase(accountUuid).execute(false, new DbCallback<Cursor>() {
+                @Override
+                public Cursor doDbWork(SQLiteDatabase db) throws WrappedException,
+                        UnavailableStorageException {
+
+                    return db.rawQuery(query, modifiedSelectionArgs);
+                }
+            });
+        } catch (UnavailableStorageException e) {
+            throw new RuntimeException(e);
+        }
         return cursor;
     }
 
@@ -243,6 +316,37 @@ public class EmailProvider extends ContentProvider {
         return 0;
     }
 
+    @Override
+    public ParcelFileDescriptor openFile(Uri uri, String mode) throws FileNotFoundException {
+        int match = sURIMatcher.match(uri);
+        switch (match) {
+            case MESSAGE_PART_ID:
+            {
+                List<String> segments = uri.getPathSegments();
+                String accountUuid = segments.get(1);
+                long partId = ContentUris.parseId(uri);
+                Context context = getContext();
+                Account account = Preferences.getPreferences(context).getAccount(accountUuid);
+                File dir = StorageManager.getInstance(context).getAttachmentDirectory(accountUuid, account.getLocalStorageProviderId());
+                File file = new File(dir, Long.toString(partId));
+                //TODO: only create if there's an entry in message_parts
+                if (!file.exists()) {
+                    try {
+                        file.createNewFile();
+                    } catch (IOException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                }
+                //TODO: respect "mode" argument
+                return ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_WRITE);
+            }
+            default:
+            {
+                throw new IllegalArgumentException("Unknown URI " + uri);
+            }
+        }
+    }
 
     private String whereWithId(String id, String selection) {
         StringBuilder sb = new StringBuilder(256);

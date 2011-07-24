@@ -1,0 +1,17 @@
+From: SENDER <sender@example.k9.fsck.com>
+To: TO <to@example.k9.fsck.com>, TO2 <to2@example.k9.fsck.com>
+Subject: multipart/alternative message
+Message-ID: <TEST000002@example.k9.fsck.com>
+Mime-Version: 1.0
+Content-Type: multipart/alternative; boundary="AhhlLboLdkugWU4S"
+
+--AhhlLboLdkugWU4S
+Content-Type: text/plain
+
+I'm the plain text part
+
+--AhhlLboLdkugWU4S
+Content-Type: text/html
+
+<html><body>I'm the <strong>HTML</strong> part</body></html>
+--AhhlLboLdkugWU4S--

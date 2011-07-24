@@ -18,6 +18,7 @@ public class EmailProviderConstants {
     public static final ContentUri Folder = new ContentUri("folder");
     public static final ContentUri Message = new ContentUri("message");
     public static final ContentUri MessagePart = new ContentUri("message_part");
+    public static final ContentUri MessageParts = new ContentUri("message_parts");
     public static final ContentUri MessagePartAttibute = new ContentUri("message_part_attribute");
     public static final ContentUri Address = new ContentUri("address");
 

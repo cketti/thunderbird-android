@@ -1,0 +1,9 @@
+From: SENDER <sender@example.k9.fsck.com>
+To: TO <to@example.k9.fsck.com>
+Cc: CC <cc@example.k9.fsck.com>
+Subject: Simple text/plain message
+Message-ID: <TEST000001@example.k9.fsck.com>
+Mime-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+
+This is a very simple text message
