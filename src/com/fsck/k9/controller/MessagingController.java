@@ -14,7 +14,6 @@ import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import android.app.Application;
 import android.app.KeyguardManager;
 import android.app.Notification;
 import android.app.NotificationManager;
@@ -180,10 +179,7 @@ public class MessagingController implements Runnable {
 
     private boolean mBusy;
 
-    /**
-     *  {@link K9}
-     */
-    private Application mApplication;
+    private Context mContext;
 
     // Key is accountUuid:folderName:messageUid   ,   value is unimportant
     private ConcurrentHashMap<String, String> deletedUids = new ConcurrentHashMap<String, String>();
@@ -227,11 +223,8 @@ public class MessagingController implements Runnable {
         return false;
     }
 
-    /**
-     * @param application  {@link K9}
-     */
-    private MessagingController(Application application) {
-        mApplication = application;
+    private MessagingController(Context context) {
+        mContext = context;
         mThread = new Thread(this);
         mThread.setName("MessagingController");
         mThread.start();
@@ -241,14 +234,24 @@ public class MessagingController implements Runnable {
     }
 
     /**
-     * Gets or creates the singleton instance of MessagingController. Application is used to
-     * provide a Context to classes that need it.
-     * @param application {@link K9}
-     * @return
+     * Gets or creates the singleton instance of MessagingController.
+     *
+     * <p>
+     * <strong>Note:</strong>
+     * This will also work with {@code Context} instances other than the application context. But
+     * it would leak the component that this context belongs to. See this
+     * <a href="http://developer.android.com/resources/articles/avoiding-memory-leaks.html">article
+     * on memory leaks</a> for more information.
+     * </p>
+     *
+     * @param context
+     *         The application {@link Context} instance. Never {@code null}.
+     *
+     * @return The {@link MessagingController} instance.
      */
-    public synchronized static MessagingController getInstance(Application application) {
+    public synchronized static MessagingController getInstance(Context context) {
         if (inst == null) {
-            inst = new MessagingController(application);
+            inst = new MessagingController(context);
         }
         return inst;
     }
@@ -408,7 +411,7 @@ public class MessagingController implements Runnable {
             l.listFoldersStarted(account);
         }
         List <? extends Folder > localFolders = null;
-        if (!account.isAvailable(mApplication)) {
+        if (!account.isAvailable(mContext)) {
             Log.i(K9.LOG_TAG, "not listing folders of unavailable account");
         } else {
             try {
@@ -649,13 +652,13 @@ public class MessagingController implements Runnable {
         if (accountUuids != null) {
             accountUuidsSet.addAll(Arrays.asList(accountUuids));
         }
-        final Preferences prefs = Preferences.getPreferences(mApplication.getApplicationContext());
+        final Preferences prefs = Preferences.getPreferences(mContext.getApplicationContext());
         Account[] accounts = prefs.getAccounts();
         List<LocalFolder> foldersToSearch = null;
         boolean displayableOnly = false;
         boolean noSpecialFolders = true;
         for (final Account account : accounts) {
-            if (!account.isAvailable(mApplication)) {
+            if (!account.isAvailable(mContext)) {
                 Log.d(K9.LOG_TAG, "searchLocalMessagesSynchronous() ignores account that is not available");
                 continue;
             }
@@ -1196,7 +1199,7 @@ public class MessagingController implements Runnable {
 
         int unreadBeforeStart = 0;
         try {
-            AccountStats stats = account.getStats(mApplication);
+            AccountStats stats = account.getStats(mContext);
             unreadBeforeStart = stats.unreadMessageCount;
 
         } catch (MessagingException e) {
@@ -1328,7 +1331,7 @@ public class MessagingController implements Runnable {
             if (oldestExtantMessage.before(downloadStarted) &&
                     oldestExtantMessage.after(new Date(account.getLatestOldMessageSeenTime()))) {
                 account.setLatestOldMessageSeenTime(oldestExtantMessage.getTime());
-                account.save(Preferences.getPreferences(mApplication.getApplicationContext()));
+                account.save(Preferences.getPreferences(mContext.getApplicationContext()));
             }
 
         }
@@ -1600,7 +1603,7 @@ public class MessagingController implements Runnable {
                     // Send a notification of this message
 
                     if (shouldNotifyForMessage(account, localFolder, message)) {
-                        notifyAccount(mApplication, account, message, unreadBeforeStart, newMessages);
+                        notifyAccount(mContext, account, message, unreadBeforeStart, newMessages);
                     }
 
                 } catch (MessagingException me) {
@@ -1738,7 +1741,7 @@ public class MessagingController implements Runnable {
 
             // Send a notification of this message
             if (shouldNotifyForMessage(account, localFolder, message)) {
-                notifyAccount(mApplication, account, message, unreadBeforeStart, newMessages);
+                notifyAccount(mContext, account, message, unreadBeforeStart, newMessages);
             }
 
         }//for large messsages
@@ -2852,7 +2855,7 @@ public class MessagingController implements Runnable {
 
 
     public void sendPendingMessages(MessagingListener listener) {
-        final Preferences prefs = Preferences.getPreferences(mApplication.getApplicationContext());
+        final Preferences prefs = Preferences.getPreferences(mContext.getApplicationContext());
         Account[] accounts = prefs.getAccounts();
         for (Account account : accounts) {
             sendPendingMessages(account, listener);
@@ -2870,7 +2873,7 @@ public class MessagingController implements Runnable {
         putBackground("sendPendingMessages", listener, new Runnable() {
             @Override
             public void run() {
-                if (!account.isAvailable(mApplication)) {
+                if (!account.isAvailable(mContext)) {
                     throw new UnavailableAccountException();
                 }
                 if (messagesPendingSend(account)) {
@@ -2890,7 +2893,7 @@ public class MessagingController implements Runnable {
 
     private void cancelNotification(int id) {
         NotificationManager notifMgr =
-            (NotificationManager)mApplication.getSystemService(Context.NOTIFICATION_SERVICE);
+            (NotificationManager)mContext.getSystemService(Context.NOTIFICATION_SERVICE);
         notifMgr.cancel(id);
     }
 
@@ -2906,12 +2909,12 @@ public class MessagingController implements Runnable {
             return;
         }
         NotificationManager notifMgr =
-            (NotificationManager)mApplication.getSystemService(Context.NOTIFICATION_SERVICE);
+            (NotificationManager)mContext.getSystemService(Context.NOTIFICATION_SERVICE);
         Notification notif = new Notification(R.drawable.ic_menu_refresh,
-                                              mApplication.getString(R.string.notification_bg_send_ticker, account.getDescription()), System.currentTimeMillis());
-        Intent intent = MessageList.actionHandleFolderIntent(mApplication, account, account.getInboxFolderName());
-        PendingIntent pi = PendingIntent.getActivity(mApplication, 0, intent, 0);
-        notif.setLatestEventInfo(mApplication, mApplication.getString(R.string.notification_bg_send_title),
+                                              mContext.getString(R.string.notification_bg_send_ticker, account.getDescription()), System.currentTimeMillis());
+        Intent intent = MessageList.actionHandleFolderIntent(mContext, account, account.getInboxFolderName());
+        PendingIntent pi = PendingIntent.getActivity(mContext, 0, intent, 0);
+        notif.setLatestEventInfo(mContext, mContext.getString(R.string.notification_bg_send_title),
                                  account.getDescription() , pi);
         notif.flags = Notification.FLAG_ONGOING_EVENT;
 
@@ -2929,14 +2932,14 @@ public class MessagingController implements Runnable {
         notifySendFailed(account, lastFailure, account.getDraftsFolderName());
     }
     private void notifySendFailed(Account account, Exception lastFailure, String openFolder) {
-        NotificationManager notifMgr = (NotificationManager)mApplication.getSystemService(Context.NOTIFICATION_SERVICE);
-        Notification notif = new Notification(R.drawable.stat_notify_email_generic, mApplication.getString(R.string.send_failure_subject), System.currentTimeMillis());
+        NotificationManager notifMgr = (NotificationManager)mContext.getSystemService(Context.NOTIFICATION_SERVICE);
+        Notification notif = new Notification(R.drawable.stat_notify_email_generic, mContext.getString(R.string.send_failure_subject), System.currentTimeMillis());
 
-        Intent i = FolderList.actionHandleNotification(mApplication, account, openFolder);
+        Intent i = FolderList.actionHandleNotification(mContext, account, openFolder);
 
-        PendingIntent pi = PendingIntent.getActivity(mApplication, 0, i, 0);
+        PendingIntent pi = PendingIntent.getActivity(mContext, 0, i, 0);
 
-        notif.setLatestEventInfo(mApplication, mApplication.getString(R.string.send_failure_subject), getRootCauseMessage(lastFailure), pi);
+        notif.setLatestEventInfo(mContext, mContext.getString(R.string.send_failure_subject), getRootCauseMessage(lastFailure), pi);
 
         configureNotification(notif,  null, null, K9.NOTIFICATION_LED_SENDING_FAILURE_COLOR, K9.NOTIFICATION_LED_BLINK_FAST, true);
         notif.flags |= Notification.FLAG_AUTO_CANCEL;
@@ -2946,15 +2949,15 @@ public class MessagingController implements Runnable {
 
     private void notifyFetchingMail(final Account account, final Folder folder) {
         if (account.isShowOngoing()) {
-            final NotificationManager notifMgr = (NotificationManager)mApplication
+            final NotificationManager notifMgr = (NotificationManager)mContext
                                                  .getSystemService(Context.NOTIFICATION_SERVICE);
             Notification notif = new Notification(R.drawable.ic_menu_refresh,
-                                                  mApplication.getString(R.string.notification_bg_sync_ticker, account.getDescription(), folder.getName()),
+                                                  mContext.getString(R.string.notification_bg_sync_ticker, account.getDescription(), folder.getName()),
                                                   System.currentTimeMillis());
-            Intent intent = MessageList.actionHandleFolderIntent(mApplication, account, account.getInboxFolderName());
-            PendingIntent pi = PendingIntent.getActivity(mApplication, 0, intent, 0);
-            notif.setLatestEventInfo(mApplication, mApplication.getString(R.string.notification_bg_sync_title), account.getDescription()
-                                     + mApplication.getString(R.string.notification_bg_title_separator) + folder.getName(), pi);
+            Intent intent = MessageList.actionHandleFolderIntent(mContext, account, account.getInboxFolderName());
+            PendingIntent pi = PendingIntent.getActivity(mContext, 0, intent, 0);
+            notif.setLatestEventInfo(mContext, mContext.getString(R.string.notification_bg_sync_title), account.getDescription()
+                                     + mContext.getString(R.string.notification_bg_title_separator) + folder.getName(), pi);
             notif.flags = Notification.FLAG_ONGOING_EVENT;
 
             if (K9.NOTIFICATION_LED_WHILE_SYNCING) {
@@ -4206,7 +4209,7 @@ public class MessagingController implements Runnable {
             if (previousPusher != null) {
                 previousPusher.stop();
             }
-            Preferences prefs = Preferences.getPreferences(mApplication);
+            Preferences prefs = Preferences.getPreferences(mContext);
 
             Account.FolderMode aDisplayMode = account.getFolderDisplayMode();
             Account.FolderMode aPushMode = account.getFolderPushMode();
@@ -4259,7 +4262,7 @@ public class MessagingController implements Runnable {
             }
 
             if (names.size() > 0) {
-                PushReceiver receiver = new MessagingControllerPushReceiver(mApplication, account, this);
+                PushReceiver receiver = new MessagingControllerPushReceiver(mContext, account, this);
                 int maxPushFolders = account.getMaxPushFolders();
 
                 if (names.size() > maxPushFolders) {
@@ -4344,7 +4347,7 @@ public class MessagingController implements Runnable {
                         Log.i(K9.LOG_TAG, "messagesArrived newCount = " + newCount + ", unread count = " + unreadMessageCount);
 
                     if (unreadMessageCount == 0) {
-                        notifyAccountCancel(mApplication, account);
+                        notifyAccountCancel(mContext, account);
                     }
 
                     for (MessagingListener l : getListeners()) {
