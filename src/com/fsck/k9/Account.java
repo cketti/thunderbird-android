@@ -63,6 +63,8 @@ public class Account implements BaseAccount {
     private static final boolean DEFAULT_QUOTED_TEXT_SHOWN = true;
     private static final boolean DEFAULT_REPLY_AFTER_QUOTE = false;
 
+    private final Context mContext;
+
     /**
      * <pre>
      * 0 - Never (DELETE_POLICY_NEVER)
@@ -172,8 +174,9 @@ public class Account implements BaseAccount {
     }
 
     protected Account(Context context) {
+        mContext = context.getApplicationContext();
         mUuid = UUID.randomUUID().toString();
-        mLocalStorageProviderId = StorageManager.getInstance(context).getDefaultProviderId();
+        mLocalStorageProviderId = StorageManager.getInstance(mContext).getDefaultProviderId();
         mAutomaticCheckIntervalMinutes = -1;
         mIdleRefreshMinutes = 24;
         mSaveAllHeaders = true;
@@ -217,8 +220,8 @@ public class Account implements BaseAccount {
 
         Identity identity = new Identity();
         identity.setSignatureUse(true);
-        identity.setSignature(context.getString(R.string.default_signature));
-        identity.setDescription(context.getString(R.string.default_identity_description));
+        identity.setSignature(mContext.getString(R.string.default_signature));
+        identity.setDescription(mContext.getString(R.string.default_identity_description));
         identities.add(identity);
 
         mNotificationSetting = new NotificationSetting();
@@ -231,19 +234,20 @@ public class Account implements BaseAccount {
     }
 
     protected Account(Context context, Preferences preferences, String uuid) {
+        mContext = context.getApplicationContext();
         this.mUuid = uuid;
-        loadAccount(context, preferences);
+        loadAccount(preferences);
     }
 
     /**
      * Load stored settings for this account.
      */
-    private synchronized void loadAccount(Context context, Preferences preferences) {
+    private void loadAccount(Preferences preferences) {
 
         SharedPreferences prefs = preferences.getPreferences();
 
         mStoreUri = Utility.base64Decode(prefs.getString(mUuid + ".storeUri", null));
-        mLocalStorageProviderId = prefs.getString(mUuid + ".localStorageProvider", StorageManager.getInstance(context).getDefaultProviderId());
+        mLocalStorageProviderId = prefs.getString(mUuid + ".localStorageProvider", StorageManager.getInstance(mContext).getDefaultProviderId());
         mTransportUri = Utility.base64Decode(prefs.getString(mUuid + ".transportUri", null));
         mDescription = prefs.getString(mUuid + ".description", null);
         mAlwaysBcc = prefs.getString(mUuid + ".alwaysBcc", mAlwaysBcc);
@@ -569,7 +573,7 @@ public class Account implements BaseAccount {
      * @param context
      * @return <code>null</code> if not available
      * @throws MessagingException
-     * @see {@link #isAvailable(Context)}
+     * @see #isAvailable(Context)
      */
     public AccountStats getStats(Context context) throws MessagingException {
         if (!isAvailable(context)) {
@@ -970,7 +974,7 @@ public class Account implements BaseAccount {
     }
 
     public LocalStore getLocalStore() throws MessagingException {
-        return Store.getLocalInstance(this, K9.app);
+        return Store.getLocalInstance(this, mContext);
     }
 
     public Store getRemoteStore() throws MessagingException {
