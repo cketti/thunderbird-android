@@ -524,6 +524,10 @@ public class K9 extends Application {
          * Enable background sync of messages
          */
 
+        /*
+        Temporarily disabled until MessagingController has been rewritten to use EmailProvider.
+        Until then we don't want services to do things in the background.
+
         setServicesEnabled(this);
         registerReceivers();
 
@@ -580,6 +584,7 @@ public class K9 extends Application {
             }
 
         });
+        */
 
         notifyObservers();
     }
