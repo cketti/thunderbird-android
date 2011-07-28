@@ -1,7 +1,6 @@
 
 package com.fsck.k9.mail;
 
-import android.app.Application;
 import android.content.Context;
 
 import com.fsck.k9.Account;
@@ -77,10 +76,10 @@ public abstract class Store {
      * Get an instance of a local mail store.
      * @throws UnavailableStorageException if not {@link StorageProvider#isReady(Context)}
      */
-    public synchronized static LocalStore getLocalInstance(Account account, Application application) throws MessagingException {
+    public synchronized static LocalStore getLocalInstance(Account account, Context context) throws MessagingException {
         Store store = mLocalStores.get(account.getUuid());
         if (store == null) {
-            store = new LocalStore(account, application);
+            store = new LocalStore(account);
             mLocalStores.put(account.getUuid(), store);
         }
 
