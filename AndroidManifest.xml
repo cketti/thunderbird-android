@@ -375,6 +375,7 @@ otherwise it would make K-9 start at the wrong time
             android:grantUriPermissions="true"
             android:readPermission="com.fsck.k9.permission.READ_ATTACHMENT"
             />
+        <!-- Disable while changing MessagingController from LocalStore to EmailProvider
         <provider
             android:name="com.fsck.k9.provider.MessageProvider"
             android:authorities="com.fsck.k9.messageprovider"
@@ -383,6 +384,7 @@ otherwise it would make K-9 start at the wrong time
             android:readPermission="com.fsck.k9.permission.READ_MESSAGES"
             android:writePermission="com.fsck.k9.permission.DELETE_MESSAGES"
             />
+        -->
         <provider
             android:name=".provider.EmailProvider"
             android:authorities="com.fsck.k9.emailprovider"
