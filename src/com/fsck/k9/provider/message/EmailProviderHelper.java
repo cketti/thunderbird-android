@@ -10,6 +10,7 @@ import android.net.Uri;
 import com.fsck.k9.mail.Flag;
 import com.fsck.k9.mail.internet.MimeUtility;
 import com.fsck.k9.message.Body;
+import com.fsck.k9.message.Folder;
 import com.fsck.k9.message.Message;
 import com.fsck.k9.message.MessageContainer;
 import com.fsck.k9.message.Metadata;
@@ -18,6 +19,7 @@ import com.fsck.k9.message.Part;
 import com.fsck.k9.message.Body.StreamType;
 import com.fsck.k9.provider.EmailProvider;
 import com.fsck.k9.provider.EmailProviderConstants;
+import com.fsck.k9.provider.EmailProviderConstants.FolderColumns;
 import com.fsck.k9.provider.EmailProviderConstants.MessageColumns;
 import com.fsck.k9.provider.EmailProviderConstants.MessagePartAttributeColumns;
 import com.fsck.k9.provider.EmailProviderConstants.MessagePartColumns;
@@ -37,6 +39,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
@@ -82,6 +85,18 @@ public class EmailProviderHelper {
         MessagePartColumns.EPILOGUE,
         MessagePartColumns.PREAMBLE,
         MessagePartColumns.SIZE,
+    };
+
+    public static final String[] MESSAGE_PART_ATTRIBUTE_PROJECTION = {
+        MessagePartAttributeColumns.ID,
+        MessagePartAttributeColumns.MESSAGE_PART_ID,
+        MessagePartAttributeColumns.KEY,
+        MessagePartAttributeColumns.VALUE
+    };
+
+    public static final String[] FOLDER_PROJECTION = {
+        FolderColumns.ID,
+        FolderColumns.NAME,
     };
 
     /**
@@ -545,14 +560,7 @@ public class EmailProviderHelper {
         sb.append(')');
         String attributeSelection = sb.toString();
 
-        String[] attributeProjection = new String[] {
-            MessagePartAttributeColumns.ID,
-            MessagePartAttributeColumns.MESSAGE_PART_ID,
-            MessagePartAttributeColumns.KEY,
-            MessagePartAttributeColumns.VALUE
-        };
-
-        Cursor cursor = resolver.query(attributesUri, attributeProjection, attributeSelection, attributeSelectionArgs, null);
+        Cursor cursor = resolver.query(attributesUri, MESSAGE_PART_ATTRIBUTE_PROJECTION, attributeSelection, attributeSelectionArgs, null);
         try {
             while (cursor.moveToNext()) {
                 long partId = cursor.getLong(cursor.getColumnIndex(MessagePartAttributeColumns.MESSAGE_PART_ID));
@@ -564,5 +572,54 @@ public class EmailProviderHelper {
         } finally {
             cursor.close();
         }
+    }
+
+    public static List<EmailProviderFolder> getFolders(Context context, String accountUuid) {
+        ContentResolver resolver = context.getContentResolver();
+
+        Uri uri = EmailProviderConstants.Folder.getContentUri(accountUuid);
+
+        List<EmailProviderFolder> folders = new ArrayList<EmailProviderFolder>();
+        Cursor cursor = resolver.query(uri, FOLDER_PROJECTION, null, null, null);
+        try {
+            while (cursor.moveToNext()) {
+                long id = cursor.getLong(cursor.getColumnIndex(FolderColumns.ID));
+                String name = cursor.getString(cursor.getColumnIndex(FolderColumns.NAME));
+
+                folders.add(new EmailProviderFolder(name, id));
+            }
+        } finally {
+            cursor.close();
+        }
+
+        return folders;
+    }
+
+    public static void createFolders(Context context, String accountUuid,
+            List<EmailProviderFolder> folders, int visibleLimit) {
+
+        ContentResolver resolver = context.getContentResolver();
+
+        Uri uri = EmailProviderConstants.Folder.getContentUri(accountUuid);
+
+        ContentValues[] values = new ContentValues[folders.size()];
+        int i = 0;
+        for (Folder folder : folders) {
+            ContentValues cv = new ContentValues();
+            cv.put(FolderColumns.NAME, folder.getInternalName());
+            cv.put(FolderColumns.VISIBLE_LIMIT, visibleLimit);
+            values[i++] = cv;
+        }
+
+        resolver.bulkInsert(uri, values);
+    }
+
+    public static void deleteFolder(Context context, String accountUuid, EmailProviderFolder folder) {
+        ContentResolver resolver = context.getContentResolver();
+
+        Uri uri = ContentUris.withAppendedId(
+                EmailProviderConstants.Folder.getContentUri(accountUuid), folder.getId());
+
+        resolver.delete(uri, null, null);
     }
 }

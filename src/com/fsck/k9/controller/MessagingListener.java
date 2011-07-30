@@ -5,9 +5,10 @@ import android.content.Context;
 import com.fsck.k9.Account;
 import com.fsck.k9.AccountStats;
 import com.fsck.k9.BaseAccount;
-import com.fsck.k9.mail.Folder;
 import com.fsck.k9.mail.Message;
 import com.fsck.k9.mail.Part;
+import com.fsck.k9.mail.Store;
+import com.fsck.k9.provider.message.EmailProviderFolder;
 
 import java.util.List;
 
@@ -30,8 +31,16 @@ public class MessagingListener {
     public void listFoldersStarted(Account account) {
     }
 
-    public void listFolders(Account account, Folder[] folders) {
-    }
+    /**
+     * Called when the list of folders has been retrieved from the database and/or the
+     * {@code Account}'s remote {@link Store}.
+     *
+     * @param account
+     *         The {@link Account} the folders in {@code folders} belong to.
+     * @param folders
+     *         The list of {@link EmailProviderFolder}s belonging to the specified account.
+     */
+    public void listFolders(Account account, EmailProviderFolder[] folders) { /* Do nothing */ }
 
     public void listFoldersFailed(Account account, String message) {
     }

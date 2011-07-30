@@ -63,6 +63,8 @@ import com.fsck.k9.mail.store.UnavailableStorageException;
 import com.fsck.k9.mail.store.LocalStore.LocalFolder;
 import com.fsck.k9.mail.store.LocalStore.LocalMessage;
 import com.fsck.k9.mail.store.LocalStore.PendingCommand;
+import com.fsck.k9.provider.message.EmailProviderFolder;
+import com.fsck.k9.provider.message.EmailProviderHelper;
 
 
 /**
@@ -90,9 +92,9 @@ public class MessagingController implements Runnable {
     private static final Message[] EMPTY_MESSAGE_ARRAY = new Message[0];
 
     /**
-     * Immutable empty {@link Folder} array
+     * Immutable empty {@link EmailProviderFolder} array
      */
-    private static final Folder[] EMPTY_FOLDER_ARRAY = new Folder[0];
+    private static final EmailProviderFolder[] EMPTY_FOLDER_ARRAY = new EmailProviderFolder[0];
 
     /**
      * The maximum message size that we'll consider to be "small". A small message is downloaded
@@ -462,36 +464,51 @@ public class MessagingController implements Runnable {
     }
 
     /**
-     * Lists folders that are available locally and remotely. This method calls
-     * listFoldersCallback for local folders before it returns, and then for
-     * remote folders at some later point. If there are no local folders
-     * includeRemote is forced by this method. This method is called in the
-     * foreground.
-     * TODO this needs to cache the remote folder list
+     * Lists folders that are available locally and remotely.
+     *
+     * <p>
+     * This method calls the {@code listFolders*} callbacks synchronously (i.e. before returning)
+     * if {@code refreshRemote} is {@code false}. Otherwise the callbacks are called
+     * asynchronously after the folder list has been retrieved from the remote {@link Store}.
+     * </p><p>
+     * If there are no local folders {@code refreshRemote} is forced by this method.
+     * </p>
      *
      * @param account
+     *         The {@link Account} to get the folder list for.
+     * @param refreshRemote
+     *         If {@code true} the folder list is retrieved from this account's remote store.
      * @param listener
-     * @throws MessagingException
+     *         {@link MessagingListener} object whose {@code listFolders*} callback methods will
+     *         be called. May be {@code null}.
+     *
+     * @see MessagingListener#listFoldersStarted(Account)
+     * @see MessagingListener#listFolders(Account, EmailProviderFolder[])
+     * @see MessagingListener#listFoldersFinished(Account)
+     * @see MessagingListener#listFoldersFailed(Account, String)
      */
-    public void listFoldersSynchronous(final Account account, final boolean refreshRemote, final MessagingListener listener) {
+    public void listFoldersSynchronous(final Account account, final boolean refreshRemote,
+            final MessagingListener listener) {
+
+        //TODO: combine with doRefreshRemote() and always be synchronous
+
         for (MessagingListener l : getListeners(listener)) {
             l.listFoldersStarted(account);
         }
-        List <? extends Folder > localFolders = null;
+        List<EmailProviderFolder> localFolders = null;
         if (!account.isAvailable(mContext)) {
             Log.i(K9.LOG_TAG, "not listing folders of unavailable account");
         } else {
             try {
-                Store localStore = account.getLocalStore();
-                localFolders = localStore.getPersonalNamespaces(false);
-
-                Folder[] folderArray = localFolders.toArray(EMPTY_FOLDER_ARRAY);
+                String accountUuid = account.getUuid();
+                localFolders = EmailProviderHelper.getFolders(mContext, accountUuid);
 
                 if (refreshRemote || localFolders.size() == 0) {
                     doRefreshRemote(account, listener);
                     return;
                 }
 
+                EmailProviderFolder[] folderArray = localFolders.toArray(EMPTY_FOLDER_ARRAY);
                 for (MessagingListener l : getListeners(listener)) {
                     l.listFolders(account, folderArray);
                 }
@@ -502,12 +519,6 @@ public class MessagingController implements Runnable {
 
                 addErrorMessage(account, null, e);
                 return;
-            } finally {
-                if (localFolders != null) {
-                    for (Folder localFolder : localFolders) {
-                        closeFolder(localFolder);
-                    }
-                }
             }
         }
 
@@ -516,72 +527,65 @@ public class MessagingController implements Runnable {
         }
     }
 
-    private void doRefreshRemote(final Account account, MessagingListener listener) {
+    private void doRefreshRemote(final Account account, final MessagingListener listener) {
         put("doRefreshRemote", listener, new Runnable() {
             @Override
             public void run() {
-                List <? extends Folder > localFolders = null;
+                List<EmailProviderFolder> localFolders = null;
                 try {
                     Store store = account.getRemoteStore();
+                    String accountUuid = account.getUuid();
 
-                    List <? extends Folder > remoteFolders = store.getPersonalNamespaces(false);
+                    List<? extends Folder> remoteFolders = store.getPersonalNamespaces(false);
 
-                    LocalStore localStore = account.getLocalStore();
                     HashSet<String> remoteFolderNames = new HashSet<String>();
-                    List<LocalFolder> foldersToCreate = new LinkedList<LocalFolder>();
+                    List<EmailProviderFolder> foldersToCreate = new LinkedList<EmailProviderFolder>();
 
-                    localFolders = localStore.getPersonalNamespaces(false);
+                    localFolders = EmailProviderHelper.getFolders(mContext, accountUuid);
                     HashSet<String> localFolderNames = new HashSet<String>();
-                    for (Folder localFolder : localFolders) {
-                        localFolderNames.add(localFolder.getName());
+                    for (EmailProviderFolder localFolder : localFolders) {
+                        localFolderNames.add(localFolder.getInternalName());
                     }
                     for (Folder remoteFolder : remoteFolders) {
-                        if (localFolderNames.contains(remoteFolder.getName()) == false) {
-                            LocalFolder localFolder = localStore.getFolder(remoteFolder.getName());
+                        String remoteFolderName = remoteFolder.getName();
+                        if (!localFolderNames.contains(remoteFolderName)) {
+                            EmailProviderFolder localFolder = new EmailProviderFolder(remoteFolderName);
                             foldersToCreate.add(localFolder);
                         }
-                        remoteFolderNames.add(remoteFolder.getName());
+                        remoteFolderNames.add(remoteFolderName);
                     }
-                    localStore.createFolders(foldersToCreate, account.getDisplayCount());
-
-                    localFolders = localStore.getPersonalNamespaces(false);
+                    EmailProviderHelper.createFolders(mContext, accountUuid, foldersToCreate,
+                            account.getDisplayCount());
 
                     /*
                      * Clear out any folders that are no longer on the remote store.
                      */
-                    for (Folder localFolder : localFolders) {
-                        String localFolderName = localFolder.getName();
-                        if (!account.isSpecialFolder(localFolderName) && !remoteFolderNames.contains(localFolderName)) {
-                            localFolder.delete(false);
+                    for (EmailProviderFolder localFolder : localFolders) {
+                        String localFolderName = localFolder.getInternalName();
+                        if (!account.isSpecialFolder(localFolderName) &&
+                            !remoteFolderNames.contains(localFolderName)) {
+                            EmailProviderHelper.deleteFolder(mContext, accountUuid, localFolder);
                         }
                     }
 
-                    localFolders = localStore.getPersonalNamespaces(false);
-                    Folder[] folderArray = localFolders.toArray(EMPTY_FOLDER_ARRAY);
+                    localFolders = EmailProviderHelper.getFolders(mContext, accountUuid);
+                    EmailProviderFolder[] folderArray = localFolders.toArray(EMPTY_FOLDER_ARRAY);
 
-                    for (MessagingListener l : getListeners()) {
+                    for (MessagingListener l : getListeners(listener)) {
                         l.listFolders(account, folderArray);
                     }
-                    for (MessagingListener l : getListeners()) {
+                    for (MessagingListener l : getListeners(listener)) {
                         l.listFoldersFinished(account);
                     }
                 } catch (Exception e) {
-                    for (MessagingListener l : getListeners()) {
+                    for (MessagingListener l : getListeners(listener)) {
                         l.listFoldersFailed(account, "");
                     }
                     addErrorMessage(account, null, e);
-                } finally {
-                    if (localFolders != null) {
-                        for (Folder localFolder : localFolders) {
-                            closeFolder(localFolder);
-                        }
-                    }
                 }
             }
         });
     }
-
-
 
     /**
      * List the messages in the local message store for the given folder asynchronously.

@@ -34,6 +34,7 @@ import com.fsck.k9.mail.Folder;
 import com.fsck.k9.mail.Message;
 import com.fsck.k9.mail.store.LocalStore.LocalFolder;
 import com.fsck.k9.mail.MessagingException;
+import com.fsck.k9.provider.message.EmailProviderFolder;
 import com.fsck.k9.service.MailService;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -793,7 +794,10 @@ public class FolderList extends K9ListActivity {
             }
 
             @Override
-            public void listFolders(Account account, Folder[] folders) {
+            public void listFolders(Account account, EmailProviderFolder[] _folders) {
+                if (true) throw new RuntimeException("TODO: Change code to work with the new Folder class");
+                Folder[] folders = null;
+
                 if (account.equals(mAccount)) {
 
                     List<FolderInfoHolder> newFolders = new LinkedList<FolderInfoHolder>();
@@ -849,7 +853,7 @@ public class FolderList extends K9ListActivity {
                     topFolders.addAll(newFolders);
                     mHandler.newFolders(topFolders);
                 }
-                super.listFolders(account, folders);
+                super.listFolders(account, _folders);
             }
 
             @Override

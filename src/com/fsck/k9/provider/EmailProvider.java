@@ -144,6 +144,7 @@ public class EmailProvider extends ContentProvider {
         switch (match) {
             case FOLDERS:
             case MESSAGES:
+            case MESSAGE_PARTS:
             case MESSAGE_PART_ATTRIBUTES:
             case ADDRESSES:
             {
@@ -368,7 +369,7 @@ public class EmailProvider extends ContentProvider {
         }
     }
 
-    protected void deleteDatabase(String accountUuid) throws UnavailableStorageException {
+    public void deleteDatabase(String accountUuid) throws UnavailableStorageException {
         getDatabase(accountUuid).delete();
     }
 

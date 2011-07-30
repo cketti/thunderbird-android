@@ -20,6 +20,8 @@ import com.fsck.k9.controller.MessagingController;
 import com.fsck.k9.controller.MessagingListener;
 import com.fsck.k9.mail.Folder;
 import com.fsck.k9.mail.MessagingException;
+import com.fsck.k9.provider.message.EmailProviderFolder;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -237,7 +239,10 @@ public class ChooseFolder extends K9ListActivity {
             mHandler.progress(false);
         }
         @Override
-        public void listFolders(Account account, Folder[] folders) {
+        public void listFolders(Account account, EmailProviderFolder[] _folders) {
+            if (true) throw new RuntimeException("TODO: Change code to work with the new Folder class");
+            Folder[] folders = null;
+
             if (!account.equals(mAccount)) {
                 return;
             }
