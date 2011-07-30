@@ -131,6 +131,29 @@ public class MessagingController implements Runnable {
     private BlockingQueue<Command> mCommands = new PriorityBlockingQueue<Command>();
 
     private Thread mThread;
+
+    /**
+     * Object used to synchronize when stopping the background thread.
+     *
+     * @see #STOP_BACKGROUND_THREAD
+     * @see #BACKGROUND_THREAD_RUNNING
+     */
+    private boolean[] mStop = new boolean[] { false, false };
+
+    /**
+     * Index of the flag that indicates if the background thread should be stopped.
+     *
+     * @see #mStop
+     */
+    private static final int STOP_BACKGROUND_THREAD = 0;
+
+    /**
+     * Index of the flag that indicates whether or not the background thread is running.
+     *
+     * @see #mStop
+     */
+    private static final int BACKGROUND_THREAD_RUNNING = 1;
+
     private Set<MessagingListener> mListeners = new CopyOnWriteArraySet<MessagingListener>();
 
     private HashMap<SORT_TYPE, Boolean> sortAscending = new HashMap<SORT_TYPE, Boolean>();
@@ -236,22 +259,14 @@ public class MessagingController implements Runnable {
     /**
      * Gets or creates the singleton instance of MessagingController.
      *
-     * <p>
-     * <strong>Note:</strong>
-     * This will also work with {@code Context} instances other than the application context. But
-     * it would leak the component that this context belongs to. See this
-     * <a href="http://developer.android.com/resources/articles/avoiding-memory-leaks.html">article
-     * on memory leaks</a> for more information.
-     * </p>
-     *
      * @param context
-     *         The application {@link Context} instance. Never {@code null}.
+     *         A {@link Context} instance. Never {@code null}.
      *
      * @return The {@link MessagingController} instance.
      */
     public synchronized static MessagingController getInstance(Context context) {
         if (inst == null) {
-            inst = new MessagingController(context);
+            inst = new MessagingController(context.getApplicationContext());
         }
         return inst;
     }
@@ -260,15 +275,57 @@ public class MessagingController implements Runnable {
         return mBusy;
     }
 
+    /**
+     * Stop the background thread.
+     *
+     * <p>
+     * This method blocks until the background thread has terminated. The background thread will
+     * run until all {@link Command}s in the queue have been processed.
+     * </p>
+     */
+    public void stop() {
+        synchronized (mStop) {
+            // Set the flag that indicates that we want to stop the background thread
+            mStop[STOP_BACKGROUND_THREAD] = true;
+
+            // Insert dummy command into mCommands so mCommands.take() will return
+            mCommands.add(Command.NOOP);
+
+            // Wait for the background thread to exit
+            while (mStop[BACKGROUND_THREAD_RUNNING]) {
+                try {
+                    mStop.wait();
+                } catch (InterruptedException e) { /* do nothing */ }
+            }
+        }
+    }
+
     @Override
     public void run() {
+        synchronized (mStop) {
+            mStop[BACKGROUND_THREAD_RUNNING] = true;
+        }
+        if (K9.DEBUG) {
+            Log.v(K9.LOG_TAG, "Starting MessagingController background thread.");
+        }
+
         Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
         while (true) {
             String commandDescription = null;
             try {
+                if (mCommands.isEmpty()) {
+                    synchronized (mStop) {
+                        if (mStop[STOP_BACKGROUND_THREAD]) {
+                            mStop[BACKGROUND_THREAD_RUNNING] = false;
+                            mStop.notify();
+                            break;
+                        }
+                    }
+                }
+
                 final Command command = mCommands.take();
 
-                if (command != null) {
+                if (command != null && command != Command.NOOP) {
                     commandDescription = command.description;
 
                     if (K9.DEBUG)
@@ -307,6 +364,10 @@ public class MessagingController implements Runnable {
             }
             mBusy = false;
         }
+
+        if (K9.DEBUG) {
+            Log.v(K9.LOG_TAG, "Stopping MessagingController background thread.");
+        }
     }
 
     private void put(String description, MessagingListener listener, Runnable runnable) {
@@ -321,6 +382,12 @@ public class MessagingController implements Runnable {
         int retries = 10;
         Exception e = null;
         while (retries-- > 0) {
+            synchronized (mStop) {
+                if (mStop[STOP_BACKGROUND_THREAD]) {
+                    // Don't add new commands if the background thread should be stopped
+                    return;
+                }
+            }
             try {
                 Command command = new Command();
                 command.listener = listener;
@@ -4144,6 +4211,8 @@ public class MessagingController implements Runnable {
 
     static AtomicInteger sequencing = new AtomicInteger(0);
     static class Command implements Comparable<Command> {
+        public static final Command NOOP = new Command();
+
         public Runnable runnable;
 
         public MessagingListener listener;
