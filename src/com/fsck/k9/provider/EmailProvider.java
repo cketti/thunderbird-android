@@ -6,6 +6,7 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.UriMatcher;
 import android.database.Cursor;
+import android.database.MatrixCursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.ParcelFileDescriptor;
@@ -55,6 +56,8 @@ public class EmailProvider extends ContentProvider {
     private static final int ADDRESSES = ADDRESS_BASE;
     private static final int ADDRESS_ID = ADDRESS_BASE + 1;
 
+    private static final int EXTRA_BASE = 0x10000;
+    private static final int ACCOUNT_STATS = EXTRA_BASE;
 
     private static final String FOLDERS_TABLE = "folders";
     private static final String MESSAGES_TABLE = "messages";
@@ -100,6 +103,9 @@ public class EmailProvider extends ContentProvider {
 
         // EmailProviderMessage part attributes
         matcher.addURI(EmailProviderConstants.AUTHORITY, "account/*/message_part_attribute", MESSAGE_PART_ATTRIBUTES);
+
+        // Account statistics (e.g. occupied storage space of database + message bodies/attachments)
+        matcher.addURI(EmailProviderConstants.AUTHORITY, "account/*/stats", ACCOUNT_STATS);
     }
 
 
@@ -194,6 +200,42 @@ public class EmailProvider extends ContentProvider {
                 String accountUuid = segments.get(1);
                 String id = uri.getLastPathSegment();
                 cursor = getMessageParts(accountUuid, id, projection, selection, selectionArgs);
+                break;
+            }
+            case ACCOUNT_STATS:
+            {
+                final String accountUuid = segments.get(1);
+                try {
+                    Context context = getContext();
+                    final StorageManager storageManager = StorageManager.getInstance(context);
+                    Account account = Preferences.getPreferences(context).getAccount(accountUuid);
+                    final String storageProviderId = account.getLocalStorageProviderId();
+                    final File attachmentDirectory = storageManager.getAttachmentDirectory(
+                            accountUuid, storageProviderId);
+
+                    long size = getDatabase(accountUuid).execute(false, new DbCallback<Long>() {
+                        @Override
+                        public Long doDbWork(SQLiteDatabase db) throws WrappedException,
+                                UnavailableStorageException {
+                            final File[] files = attachmentDirectory.listFiles();
+                            long attachmentLength = 0;
+                            for (File file : files) {
+                                if (file.exists()) {
+                                    attachmentLength += file.length();
+                                }
+                            }
+
+                            final File dbFile = storageManager.getDatabase(accountUuid, storageProviderId);
+                            return dbFile.length() + attachmentLength;
+                        }
+                    });
+
+                    MatrixCursor matrixCursor = new MatrixCursor(EmailProviderConstants.ACCOUNT_STATS_PROJECTION);
+                    matrixCursor.addRow(new Object[] { size });
+                    cursor = matrixCursor;
+                } catch (UnavailableStorageException e) {
+                    throw new RuntimeException(e);
+                }
                 break;
             }
             default:

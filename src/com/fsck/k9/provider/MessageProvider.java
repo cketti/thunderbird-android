@@ -378,21 +378,14 @@ public class MessageProvider extends ContentProvider {
             for (Account account : Preferences.getPreferences(getContext()).getAvailableAccounts()) {
                 if (account.getAccountNumber() == accountNumber) {
                     myAccount = account;
-                    try {
-                        myAccountStats = account.getStats(getContext());
-                        values[0] = myAccount.getDescription();
-                        if (myAccountStats == null) {
-                            values[1] = 0;
-                        } else {
-                            values[1] = myAccountStats.unreadMessageCount;
-                        }
-
-                        ret.addRow(values);
-                    } catch (MessagingException e) {
-                        Log.e(K9.LOG_TAG, e.getMessage());
-                        values[0] = "Unknown";
+                    myAccountStats = account.getStats(getContext());
+                    values[0] = myAccount.getDescription();
+                    if (myAccountStats == null) {
                         values[1] = 0;
+                    } else {
+                        values[1] = myAccountStats.unreadMessageCount;
                     }
+                    ret.addRow(values);
                 }
             }
 

@@ -16,6 +16,7 @@ import com.fsck.k9.mail.Store;
 import com.fsck.k9.mail.store.LocalStore;
 import com.fsck.k9.mail.store.StorageManager;
 import com.fsck.k9.mail.store.StorageManager.StorageProvider;
+import com.fsck.k9.provider.message.EmailProviderHelper;
 import com.fsck.k9.view.ColorChip;
 
 import java.util.ArrayList;
@@ -570,25 +571,40 @@ public class Account implements BaseAccount {
     }
 
     /**
+     * Get account statistics.
+     *
+     * <p>
+     * The field {@link AccountStats#size size} of the returned {@code AccountStats} instance will
+     * only be populated if {@link K9#measureAccounts()} returns {@code true}.
+     * </p>
+     *
      * @param context
-     * @return <code>null</code> if not available
-     * @throws MessagingException
+     *         A {@link Context} instance.
+     *
+     * @return An {@link AccountStats} instance containing the information. {@code null} if the
+     *         account is currently not available.
+     *
      * @see #isAvailable(Context)
      */
-    public AccountStats getStats(Context context) throws MessagingException {
+    public AccountStats getStats(Context context) {
         if (!isAvailable(context)) {
             return null;
         }
+
         long startTime = System.currentTimeMillis();
+
         AccountStats stats = new AccountStats();
-        LocalStore localStore = getLocalStore();
         if (K9.measureAccounts()) {
-            stats.size = localStore.getSize();
+            stats.size = EmailProviderHelper.getAccountSize(context, getUuid());
         }
-        localStore.getMessageCounts(stats);
-        long endTime = System.currentTimeMillis();
-        if (K9.DEBUG)
-            Log.d(K9.LOG_TAG, "Account.getStats() on " + getDescription() + " took " + (endTime - startTime) + " ms;");
+        EmailProviderHelper.getMessageCounts(context, this, stats);
+
+        if (K9.DEBUG) {
+            long endTime = System.currentTimeMillis();
+            Log.d(K9.LOG_TAG, "Account.getStats() on " + getDescription() + " took " +
+                    (endTime - startTime) + " ms;");
+        }
+
         return stats;
     }
 

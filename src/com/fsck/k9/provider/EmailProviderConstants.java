@@ -21,6 +21,7 @@ public class EmailProviderConstants {
     public static final ContentUri MessageParts = new ContentUri("message_parts");
     public static final ContentUri MessagePartAttibute = new ContentUri("message_part_attribute");
     public static final ContentUri Address = new ContentUri("address");
+    public static final ContentUri AccountStats = new ContentUri("stats");
 
     public static final String[] FOLDER_PROJECTION = new String[] {
         FolderColumns.ID,
@@ -32,6 +33,10 @@ public class EmailProviderConstants {
         FolderColumns.TOP_GROUP,
         FolderColumns.DISPLAY_CLASS,
         FolderColumns.VISIBLE_LIMIT
+    };
+
+    public static final String[] ACCOUNT_STATS_PROJECTION = new String[] {
+        AccountStatsColumns.SIZE
     };
 
 
@@ -119,5 +124,9 @@ public class EmailProviderConstants {
         public static final String TYPE = "type";
         public static final String NAME = "name";
         public static final String EMAIL = "email";
+    }
+
+    public interface AccountStatsColumns {
+        public static final String SIZE = "size";
     }
 }

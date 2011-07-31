@@ -1296,14 +1296,8 @@ public class MessagingController implements Runnable {
         }
         final String folder = remoteFolder.getName();
 
-        int unreadBeforeStart = 0;
-        try {
-            AccountStats stats = account.getStats(mContext);
-            unreadBeforeStart = stats.unreadMessageCount;
-
-        } catch (MessagingException e) {
-            Log.e(K9.LOG_TAG, "Unable to getUnreadMessageCount for account: " + account, e);
-        }
+        AccountStats stats = account.getStats(mContext);
+        int unreadBeforeStart = stats.unreadMessageCount;
 
         ArrayList<Message> syncFlagMessages = new ArrayList<Message>();
         List<Message> unsyncedMessages = new ArrayList<Message>();
@@ -1436,6 +1430,7 @@ public class MessagingController implements Runnable {
         }
         return newMessages.get();
     }
+
     private void evaluateMessageForDownload(final Message message, final String folder,
                                             final LocalFolder localFolder,
                                             final Folder remoteFolder,
@@ -3254,14 +3249,8 @@ public class MessagingController implements Runnable {
         Runnable unreadRunnable = new Runnable() {
             @Override
             public void run() {
-                try {
-                    AccountStats stats = account.getStats(context);
-                    l.accountStatusChanged(account, stats);
-                } catch (MessagingException me) {
-                    Log.e(K9.LOG_TAG, "Count not get unread count for account " + account.getDescription(),
-                          me);
-                }
-
+                AccountStats stats = account.getStats(context);
+                l.accountStatusChanged(account, stats);
             }
         };
 
@@ -3826,17 +3815,12 @@ public class MessagingController implements Runnable {
                     if (K9.DEBUG)
                         Log.v(K9.LOG_TAG, "Clearing notification flag for " + account.getDescription());
                     account.setRingNotified(false);
-                    try {
-                        AccountStats stats = account.getStats(context);
-                        if (stats == null || stats.unreadMessageCount == 0) {
-                            notifyAccountCancel(context, account);
-                        }
-                    } catch (MessagingException e) {
-                        Log.e(K9.LOG_TAG, "Unable to getUnreadMessageCount for account: " + account, e);
+                    AccountStats stats = account.getStats(context);
+                    if (stats == null || stats.unreadMessageCount == 0) {
+                        notifyAccountCancel(context, account);
                     }
                 }
-            }
-                         );
+            });
         }
 
 

@@ -6,8 +6,13 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.net.Uri;
+import android.util.Log;
 
+import com.fsck.k9.Account;
+import com.fsck.k9.AccountStats;
+import com.fsck.k9.K9;
 import com.fsck.k9.mail.Flag;
+import com.fsck.k9.mail.Folder.FolderClass;
 import com.fsck.k9.mail.internet.MimeUtility;
 import com.fsck.k9.message.Body;
 import com.fsck.k9.message.Folder;
@@ -19,6 +24,7 @@ import com.fsck.k9.message.Part;
 import com.fsck.k9.message.Body.StreamType;
 import com.fsck.k9.provider.EmailProvider;
 import com.fsck.k9.provider.EmailProviderConstants;
+import com.fsck.k9.provider.EmailProviderConstants.AccountStatsColumns;
 import com.fsck.k9.provider.EmailProviderConstants.FolderColumns;
 import com.fsck.k9.provider.EmailProviderConstants.MessageColumns;
 import com.fsck.k9.provider.EmailProviderConstants.MessagePartAttributeColumns;
@@ -44,6 +50,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Stack;
 import java.util.Map.Entry;
@@ -53,6 +60,10 @@ import java.util.Map.Entry;
  * {@link EmailProvider}.
  */
 public class EmailProviderHelper {
+    /**
+     * Immutable empty {@link String} array
+     */
+    private static final String[] EMPTY_STRING_ARRAY = new String[0];
 
     public static final String[] MESSAGE_PROJECTION = {
         MessageColumns.ID,
@@ -724,7 +735,94 @@ public class EmailProviderHelper {
         sb.append(')');
         String selection = sb.toString();
 
-        android.util.Log.d(com.fsck.k9.K9.LOG_TAG, "delete " + selection);
         resolver.delete(uri, selection, selectionArgs);
+    }
+
+    public static void getMessageCounts(Context context, Account account, AccountStats stats) {
+        ContentResolver resolver = context.getContentResolver();
+        Uri uri = EmailProviderConstants.Folder.getContentUri(account.getUuid());
+
+        String[] projection = {
+            "SUM(" + FolderColumns.UNREAD_COUNT + ")",
+            "SUM(" + FolderColumns.FLAGGED_COUNT + ")"
+        };
+
+        String baseSelection =
+            "(" + FolderColumns.NAME + " = ?)" +  /* INBOX */
+            " OR (" +
+            FolderColumns.NAME + " NOT IN (?, ?, ?, ?, ?)" +  /* special folders */
+            "%s)";  /* placeholder for additional constraints */
+
+        List<String> queryParam = new ArrayList<String>();
+        queryParam.add(account.getInboxFolderName());
+
+        queryParam.add((account.getTrashFolderName() != null) ?
+                account.getTrashFolderName() : "");
+        queryParam.add((account.getDraftsFolderName() != null) ?
+                account.getDraftsFolderName() : "");
+        queryParam.add((account.getSpamFolderName() != null) ?
+                account.getSpamFolderName() : "");
+        queryParam.add((account.getOutboxFolderName() != null) ?
+                account.getOutboxFolderName() : "");
+        queryParam.add((account.getSentFolderName() != null) ?
+                account.getSentFolderName() : "");
+
+        final String extraSelection;
+        switch (account.getFolderDisplayMode()) {
+            case FIRST_CLASS:
+                // Count messages in the INBOX and non-special first class folders
+                extraSelection = " AND (" + FolderColumns.DISPLAY_CLASS + " = ?)";
+                queryParam.add(FolderClass.FIRST_CLASS.name());
+                break;
+            case FIRST_AND_SECOND_CLASS:
+                // Count messages in the INBOX and non-special first and second class folders
+                extraSelection = " AND (" + FolderColumns.DISPLAY_CLASS + " IN (?, ?))";
+                queryParam.add(FolderClass.FIRST_CLASS.name());
+                queryParam.add(FolderClass.SECOND_CLASS.name());
+                break;
+            case NOT_SECOND_CLASS:
+                // Count messages in the INBOX and non-special non-second-class folders
+                extraSelection = " AND (" + FolderColumns.DISPLAY_CLASS + " != ?)";
+                queryParam.add(FolderClass.SECOND_CLASS.name());
+                break;
+            case ALL:
+                // Count messages in the INBOX and non-special folders
+                extraSelection = "";
+                break;
+            default:
+                Log.w(K9.LOG_TAG, "asked to compute account statistics for an invalid folder " +
+                        "mode: " + account.getFolderDisplayMode());
+                stats.unreadMessageCount = 0;
+                stats.flaggedMessageCount = 0;
+                return;
+        }
+
+        String selection = String.format(Locale.US, baseSelection, extraSelection);
+
+        Cursor cursor = resolver.query(uri, projection, selection,
+                queryParam.toArray(EMPTY_STRING_ARRAY), null);
+
+        try {
+            cursor.moveToFirst();
+
+            stats.unreadMessageCount = cursor.getInt(0);
+            stats.flaggedMessageCount = cursor.getInt(1);
+        } finally {
+            cursor.close();
+        }
+
+    }
+
+    public static long getAccountSize(Context context, String accountUuid) {
+        ContentResolver resolver = context.getContentResolver();
+        Uri uri = EmailProviderConstants.AccountStats.getContentUri(accountUuid);
+
+        Cursor cursor = resolver.query(uri, null, null, null, null);
+        try {
+            cursor.moveToFirst();
+            return cursor.getLong(cursor.getColumnIndex(AccountStatsColumns.SIZE));
+        } finally {
+            cursor.close();
+        }
     }
 }
