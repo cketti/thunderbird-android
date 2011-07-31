@@ -94,11 +94,6 @@ public class EmailProviderHelper {
         MessagePartAttributeColumns.VALUE
     };
 
-    public static final String[] FOLDER_PROJECTION = {
-        FolderColumns.ID,
-        FolderColumns.NAME,
-    };
-
     /**
      * Cache for {@link EmailProviderMessageFactory} objects (one per account).
      */
@@ -380,46 +375,52 @@ public class EmailProviderHelper {
         try {
             //TODO: check return value
             cursor.moveToFirst();
-            long folderId = cursor.getLong(cursor.getColumnIndex(MessageColumns.FOLDER_ID));
-            String uid = cursor.getString(cursor.getColumnIndex(MessageColumns.UID));
-            boolean localOnly = (cursor.getInt(cursor.getColumnIndex(MessageColumns.LOCAL_ONLY)) == 1);
-            boolean deleted = (cursor.getInt(cursor.getColumnIndex(MessageColumns.DELETED)) == 1);
-            //boolean notified = (cursor.getInt(cursor.getColumnIndex(MessageColumns.NOTIFIED)) == 1);
-            //long date = cursor.getLong(cursor.getColumnIndex(MessageColumns.DATE));
-            long internalDate = cursor.getLong(cursor.getColumnIndex(MessageColumns.INTERNAL_DATE));
-            boolean seen = (cursor.getInt(cursor.getColumnIndex(MessageColumns.SEEN)) == 1);
-            boolean flagged = (cursor.getInt(cursor.getColumnIndex(MessageColumns.FLAGGED)) == 1);
-            boolean answered = (cursor.getInt(cursor.getColumnIndex(MessageColumns.ANSWERED)) == 1);
-            //boolean forwarded = (cursor.getInt(cursor.getColumnIndex(MessageColumns.FORWARDED)) == 1);
-            boolean destroyed = (cursor.getInt(cursor.getColumnIndex(MessageColumns.DESTROYED)) == 1);
-            boolean sendFailed = (cursor.getInt(cursor.getColumnIndex(MessageColumns.SEND_FAILED)) == 1);
-            boolean sendInProgress = (cursor.getInt(cursor.getColumnIndex(MessageColumns.SEND_IN_PROGRESS)) == 1);
-            boolean downloadedFull = (cursor.getInt(cursor.getColumnIndex(MessageColumns.DOWNLOADED_FULL)) == 1);
-            boolean downloadedPartial = (cursor.getInt(cursor.getColumnIndex(MessageColumns.DOWNLOADED_PARTIAL)) == 1);
-            boolean remoteCopyStarted = (cursor.getInt(cursor.getColumnIndex(MessageColumns.REMOTE_COPY_STARTED)) == 1);
-            boolean gotAllHeaders = (cursor.getInt(cursor.getColumnIndex(MessageColumns.GOT_ALL_HEADERS)) == 1);
-
-            metadata.setFolderId(folderId);
-            metadata.setServerId(uid);
-            metadata.setLocalOnly(localOnly);
-            metadata.setDate(new Date(internalDate));
-
-            metadata.setFlag(Flag.DELETED, deleted);
-            metadata.setFlag(Flag.SEEN, seen);
-            metadata.setFlag(Flag.FLAGGED, flagged);
-            metadata.setFlag(Flag.ANSWERED, answered);
-            //metadata.setFlag(Flag.FORWARDED, forwarded);
-            metadata.setFlag(Flag.X_DESTROYED, destroyed);
-            metadata.setFlag(Flag.X_SEND_FAILED, sendFailed);
-            metadata.setFlag(Flag.X_SEND_IN_PROGRESS, sendInProgress);
-            metadata.setFlag(Flag.X_DOWNLOADED_FULL, downloadedFull);
-            metadata.setFlag(Flag.X_DOWNLOADED_PARTIAL, downloadedPartial);
-            metadata.setFlag(Flag.X_REMOTE_COPY_STARTED, remoteCopyStarted);
-            metadata.setFlag(Flag.X_GOT_ALL_HEADERS, gotAllHeaders);
+            populateMetadataFromCursor(metadata, cursor);
 
         } finally {
             cursor.close();
         }
+    }
+
+    private static void populateMetadataFromCursor(EmailProviderMetadata metadata, Cursor cursor) {
+        long id = cursor.getLong(cursor.getColumnIndex(MessageColumns.ID));
+        long folderId = cursor.getLong(cursor.getColumnIndex(MessageColumns.FOLDER_ID));
+        String uid = cursor.getString(cursor.getColumnIndex(MessageColumns.UID));
+        boolean localOnly = (cursor.getInt(cursor.getColumnIndex(MessageColumns.LOCAL_ONLY)) == 1);
+        boolean deleted = (cursor.getInt(cursor.getColumnIndex(MessageColumns.DELETED)) == 1);
+        //boolean notified = (cursor.getInt(cursor.getColumnIndex(MessageColumns.NOTIFIED)) == 1);
+        //long date = cursor.getLong(cursor.getColumnIndex(MessageColumns.DATE));
+        long internalDate = cursor.getLong(cursor.getColumnIndex(MessageColumns.INTERNAL_DATE));
+        boolean seen = (cursor.getInt(cursor.getColumnIndex(MessageColumns.SEEN)) == 1);
+        boolean flagged = (cursor.getInt(cursor.getColumnIndex(MessageColumns.FLAGGED)) == 1);
+        boolean answered = (cursor.getInt(cursor.getColumnIndex(MessageColumns.ANSWERED)) == 1);
+        //boolean forwarded = (cursor.getInt(cursor.getColumnIndex(MessageColumns.FORWARDED)) == 1);
+        boolean destroyed = (cursor.getInt(cursor.getColumnIndex(MessageColumns.DESTROYED)) == 1);
+        boolean sendFailed = (cursor.getInt(cursor.getColumnIndex(MessageColumns.SEND_FAILED)) == 1);
+        boolean sendInProgress = (cursor.getInt(cursor.getColumnIndex(MessageColumns.SEND_IN_PROGRESS)) == 1);
+        boolean downloadedFull = (cursor.getInt(cursor.getColumnIndex(MessageColumns.DOWNLOADED_FULL)) == 1);
+        boolean downloadedPartial = (cursor.getInt(cursor.getColumnIndex(MessageColumns.DOWNLOADED_PARTIAL)) == 1);
+        boolean remoteCopyStarted = (cursor.getInt(cursor.getColumnIndex(MessageColumns.REMOTE_COPY_STARTED)) == 1);
+        boolean gotAllHeaders = (cursor.getInt(cursor.getColumnIndex(MessageColumns.GOT_ALL_HEADERS)) == 1);
+
+        metadata.setId(id);
+        metadata.setFolderId(folderId);
+        metadata.setServerId(uid);
+        metadata.setLocalOnly(localOnly);
+        metadata.setDate(new Date(internalDate));
+
+        metadata.setFlag(Flag.DELETED, deleted);
+        metadata.setFlag(Flag.SEEN, seen);
+        metadata.setFlag(Flag.FLAGGED, flagged);
+        metadata.setFlag(Flag.ANSWERED, answered);
+        //metadata.setFlag(Flag.FORWARDED, forwarded);
+        metadata.setFlag(Flag.X_DESTROYED, destroyed);
+        metadata.setFlag(Flag.X_SEND_FAILED, sendFailed);
+        metadata.setFlag(Flag.X_SEND_IN_PROGRESS, sendInProgress);
+        metadata.setFlag(Flag.X_DOWNLOADED_FULL, downloadedFull);
+        metadata.setFlag(Flag.X_DOWNLOADED_PARTIAL, downloadedPartial);
+        metadata.setFlag(Flag.X_REMOTE_COPY_STARTED, remoteCopyStarted);
+        metadata.setFlag(Flag.X_GOT_ALL_HEADERS, gotAllHeaders);
     }
 
     private static void loadMessageParts(Context context, MessageContainer container) {
@@ -580,13 +581,10 @@ public class EmailProviderHelper {
         Uri uri = EmailProviderConstants.Folder.getContentUri(accountUuid);
 
         List<EmailProviderFolder> folders = new ArrayList<EmailProviderFolder>();
-        Cursor cursor = resolver.query(uri, FOLDER_PROJECTION, null, null, null);
+        Cursor cursor = resolver.query(uri, EmailProviderConstants.FOLDER_PROJECTION, null, null, null);
         try {
             while (cursor.moveToNext()) {
-                long id = cursor.getLong(cursor.getColumnIndex(FolderColumns.ID));
-                String name = cursor.getString(cursor.getColumnIndex(FolderColumns.NAME));
-
-                folders.add(new EmailProviderFolder(name, id));
+                folders.add(restoreFolderFromCursor(cursor));
             }
         } finally {
             cursor.close();
@@ -621,5 +619,112 @@ public class EmailProviderHelper {
                 EmailProviderConstants.Folder.getContentUri(accountUuid), folder.getId());
 
         resolver.delete(uri, null, null);
+    }
+
+    public static EmailProviderFolder getFolderByName(Context context, String accountUuid,
+            String folderName) {
+        ContentResolver resolver = context.getContentResolver();
+
+        Uri uri = EmailProviderConstants.Folder.getContentUri(accountUuid);
+
+        String selection = FolderColumns.NAME + "=?";
+        String[] selectionArgs = new String[] { folderName };
+
+        Cursor cursor = resolver.query(uri, EmailProviderConstants.FOLDER_PROJECTION, selection,
+                selectionArgs, null);
+
+        try {
+            cursor.moveToFirst();
+            return restoreFolderFromCursor(cursor);
+        } finally {
+            cursor.close();
+        }
+    }
+
+    private static EmailProviderFolder restoreFolderFromCursor(Cursor cursor) {
+        long id = cursor.getLong(cursor.getColumnIndex(FolderColumns.ID));
+        String name = cursor.getString(cursor.getColumnIndex(FolderColumns.NAME));
+        boolean integrate = (cursor.getInt(cursor.getColumnIndex(FolderColumns.INTEGRATE)) == 1);
+        boolean topGroup = (cursor.getInt(cursor.getColumnIndex(FolderColumns.TOP_GROUP)) == 1);
+        int visibleLimit = cursor.getInt(cursor.getColumnIndex(FolderColumns.VISIBLE_LIMIT));
+
+        EmailProviderFolder folder = new EmailProviderFolder(name, id);
+        folder.setIntegrate(integrate);
+        folder.setInTopGroup(topGroup);
+        folder.setVisibleLimit(visibleLimit);
+
+        return folder;
+    }
+
+    public static List<EmailProviderMetadata> getMetadata(Context context, String accountUuid, long folderId) {
+        ContentResolver resolver = context.getContentResolver();
+
+        Uri uri = EmailProviderConstants.Message.getContentUri(accountUuid);
+
+        String selection = MessageColumns.FOLDER_ID + "=?";
+        String[] selectionArgs = new String[] { Long.toString(folderId) };
+
+        Cursor cursor = resolver.query(uri, MESSAGE_PROJECTION, selection,
+                selectionArgs, null);
+
+        List<EmailProviderMetadata> metadataList = new ArrayList<EmailProviderMetadata>();
+        try {
+            while (cursor.moveToNext()) {
+                EmailProviderMetadata metadata = new EmailProviderMetadata(accountUuid);
+                populateMetadataFromCursor(metadata, cursor);
+                metadataList.add(metadata);
+            }
+        } finally {
+            cursor.close();
+        }
+
+        return metadataList;
+    }
+
+    public static boolean olderThan(EmailProviderMetadata metadata, Date date) {
+        if (date == null) {
+            return false;
+        }
+        Date messageDate = metadata.getDate();
+
+        return messageDate.before(date);
+    }
+
+    public static void destroyMessages(Context context, List<EmailProviderMetadata> metadataList) {
+        if (metadataList.isEmpty()) {
+            return;
+        }
+
+        ContentResolver resolver = context.getContentResolver();
+        EmailProviderMetadata first = metadataList.get(0);
+        String accountUuid = first.getAccountUuid();
+        long folderId = first.getFolderId();
+
+        Uri uri = EmailProviderConstants.Message.getContentUri(accountUuid);
+
+        //TODO: Handle cases where metadataList is very large. Split into batches of 100?
+        StringBuilder sb = new StringBuilder();
+        sb.append(MessageColumns.ID);
+        sb.append(" IN (");
+        String[] selectionArgs = new String[metadataList.size()];
+        int i = 0;
+        for (EmailProviderMetadata metadata : metadataList) {
+            if (metadata.getFolderId() != folderId ||
+                    !accountUuid.equals(metadata.getAccountUuid())) {
+                throw new IllegalArgumentException("All objects in metadataList need to be from " +
+                        "the same folder of the same account");
+            }
+
+            if (i != 0) {
+                sb.append(',');
+            }
+            sb.append('?');
+            selectionArgs[i++] = Long.toString(metadata.getId());
+        }
+        sb.append(')');
+        String selection = sb.toString();
+
+        android.util.Log.d(com.fsck.k9.K9.LOG_TAG, "delete " + selection);
+        resolver.delete(uri, selection, selectionArgs);
     }
 }

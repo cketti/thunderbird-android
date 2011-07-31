@@ -22,6 +22,18 @@ public class EmailProviderConstants {
     public static final ContentUri MessagePartAttibute = new ContentUri("message_part_attribute");
     public static final ContentUri Address = new ContentUri("address");
 
+    public static final String[] FOLDER_PROJECTION = new String[] {
+        FolderColumns.ID,
+        FolderColumns.NAME,
+        FolderColumns.LOCAL_ONLY,
+        FolderColumns.UNREAD_COUNT,
+        FolderColumns.FLAGGED_COUNT,
+        FolderColumns.INTEGRATE,
+        FolderColumns.TOP_GROUP,
+        FolderColumns.DISPLAY_CLASS,
+        FolderColumns.VISIBLE_LIMIT
+    };
+
 
     public static class ContentUri {
         public final String URI_PATH;

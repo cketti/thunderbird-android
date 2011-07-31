@@ -1,0 +1,5 @@
+outgoing.serverType=imap+ssl+
+outgoing.username=user
+outgoing.password=password
+outgoing.host=imap.example.com
+outgoing.port=993

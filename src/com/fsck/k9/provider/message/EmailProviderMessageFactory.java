@@ -6,7 +6,6 @@ import com.fsck.k9.mail.internet.MimeUtility;
 import com.fsck.k9.message.Body;
 import com.fsck.k9.message.Message;
 import com.fsck.k9.message.MessageFactory;
-import com.fsck.k9.message.Metadata;
 import com.fsck.k9.message.Multipart;
 import com.fsck.k9.message.Part;
 
@@ -40,7 +39,7 @@ public class EmailProviderMessageFactory implements MessageFactory {
     }
 
     @Override
-    public Metadata createMetadata() {
+    public EmailProviderMetadata createMetadata() {
         return new EmailProviderMetadata(mAccountUuid);
     }
 

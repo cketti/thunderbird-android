@@ -268,9 +268,54 @@ public class EmailProvider extends ContentProvider {
     }
 
     @Override
-    public int delete(Uri uri, String selection, String[] selectionArgs) {
-        // TODO Auto-generated method stub
-        return 0;
+    public int delete(Uri uri, final String selection, final String[] selectionArgs) {
+        int result = 0;
+        int match = sURIMatcher.match(uri);
+        List<String> segments = uri.getPathSegments();
+        switch (match) {
+            case FOLDERS:
+            {
+                String accountUuid = segments.get(1);
+                final String tableName = TABLE_NAMES[match >> 12];
+                try {
+                    result = getDatabase(accountUuid).execute(false, new DbCallback<Integer>() {
+                        @Override
+                        public Integer doDbWork(SQLiteDatabase db) throws WrappedException,
+                                UnavailableStorageException {
+                            return db.delete(tableName, selection, selectionArgs);
+                        }
+                    });
+                } catch (UnavailableStorageException e) {
+                    throw new RuntimeException(e);
+                }
+                break;
+            }
+            case MESSAGES:
+            {
+                String accountUuid = segments.get(1);
+                try {
+                    result = getDatabase(accountUuid).execute(false, new DbCallback<Integer>() {
+                        @Override
+                        public Integer doDbWork(SQLiteDatabase db) throws WrappedException,
+                                UnavailableStorageException {
+
+                            //TODO: delete all message parts etc.
+
+                            return db.delete(MESSAGES_TABLE, selection, selectionArgs);
+                        }
+                    });
+                } catch (UnavailableStorageException e) {
+                    throw new RuntimeException(e);
+                }
+                break;
+            }
+            default:
+            {
+                throw new IllegalArgumentException("Unknown URI " + uri);
+            }
+        }
+
+        return result;
     }
 
     @Override

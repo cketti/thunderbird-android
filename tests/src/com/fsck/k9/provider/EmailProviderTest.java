@@ -4,9 +4,9 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Method;
 import com.fsck.k9.Account;
 import com.fsck.k9.Preferences;
+import com.fsck.k9.TestHelper;
 import com.fsck.k9.mail.store.UnavailableStorageException;
 import com.fsck.k9.message.Body;
 import com.fsck.k9.message.Header;
@@ -26,7 +26,6 @@ import android.content.Context;
 import android.content.res.AssetManager;
 import android.database.Cursor;
 import android.net.Uri;
-import android.test.AndroidTestCase;
 import android.test.ProviderTestCase2;
 
 public class EmailProviderTest extends ProviderTestCase2<EmailProvider>
@@ -44,18 +43,6 @@ public class EmailProviderTest extends ProviderTestCase2<EmailProvider>
     public EmailProviderTest()
     {
         super(EmailProvider.class, EmailProviderConstants.AUTHORITY);
-    }
-
-    private Context getTestContext() {
-        Context context = null;
-        try {
-            Method m = AndroidTestCase.class.getMethod("getTestContext", new Class[0]);
-            context = (Context) m.invoke(this, new Object[0]);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-
-        return context;
     }
 
     private void assertEquals(String message, InputStream expected, byte[] actual) throws IOException {
@@ -263,7 +250,7 @@ public class EmailProviderTest extends ProviderTestCase2<EmailProvider>
 
     public void testMessageFromFile() throws IOException {
         MessageFactory factory = EmailProviderHelper.getFactory(mContext, mAccountUuid);
-        AssetManager assetManager = getTestContext().getAssets();
+        AssetManager assetManager = TestHelper.getTestContext(this).getAssets();
 
         String[] testFiles = new String[] {
             "simple_text_message.eml",

@@ -65,6 +65,7 @@ import com.fsck.k9.mail.store.LocalStore.LocalMessage;
 import com.fsck.k9.mail.store.LocalStore.PendingCommand;
 import com.fsck.k9.provider.message.EmailProviderFolder;
 import com.fsck.k9.provider.message.EmailProviderHelper;
+import com.fsck.k9.provider.message.EmailProviderMetadata;
 
 
 /**
@@ -256,6 +257,15 @@ public class MessagingController implements Runnable {
         if (memorizingListener != null) {
             addListener(memorizingListener);
         }
+
+        // Wait for the thread being started
+        synchronized (mStop) {
+            while (!mStop[BACKGROUND_THREAD_RUNNING]) {
+                try {
+                    mStop.wait();
+                } catch (InterruptedException e) { /* Do nothing */ }
+            }
+        }
     }
 
     /**
@@ -306,6 +316,7 @@ public class MessagingController implements Runnable {
     public void run() {
         synchronized (mStop) {
             mStop[BACKGROUND_THREAD_RUNNING] = true;
+            mStop.notify();
         }
         if (K9.DEBUG) {
             Log.v(K9.LOG_TAG, "Starting MessagingController background thread.");
@@ -900,30 +911,36 @@ public class MessagingController implements Runnable {
     }
 
     /**
-     * Start foreground synchronization of the specified folder. This is generally only called
-     * by synchronizeMailbox.
-     * @param account
-     * @param folder
+     * Start foreground synchronization of the specified folder.
      *
-     * TODO Break this method up into smaller chunks.
-     * @param providedRemoteFolder TODO
+     * <p>
+     * This is generally only called by
+     * {@link #synchronizeMailbox(Account, String, MessagingListener, Folder)}.
+     * </p>
+     *
+     * @param account
+     * @param folderName
+     * @param listener
+     * @param providedRemoteFolder
      */
-    private void synchronizeMailboxSynchronous(final Account account, final String folder, final MessagingListener listener, Folder providedRemoteFolder) {
+    //TODO Break this method up into smaller chunks.
+    private void synchronizeMailboxSynchronous(final Account account, final String folderName,
+            final MessagingListener listener, Folder providedRemoteFolder) {
         Folder remoteFolder = null;
         LocalFolder tLocalFolder = null;
 
         if (K9.DEBUG)
-            Log.i(K9.LOG_TAG, "Synchronizing folder " + account.getDescription() + ":" + folder);
+            Log.i(K9.LOG_TAG, "Synchronizing folder " + account.getDescription() + ":" + folderName);
 
         for (MessagingListener l : getListeners(listener)) {
-            l.synchronizeMailboxStarted(account, folder);
+            l.synchronizeMailboxStarted(account, folderName);
         }
         /*
          * We don't ever sync the Outbox or errors folder
          */
-        if (folder.equals(account.getOutboxFolderName()) || folder.equals(account.getErrorFolderName())) {
+        if (folderName.equals(account.getOutboxFolderName()) || folderName.equals(account.getErrorFolderName())) {
             for (MessagingListener l : getListeners(listener)) {
-                l.synchronizeMailboxFinished(account, folder, 0, 0);
+                l.synchronizeMailboxFinished(account, folderName, 0, 0);
             }
 
             return;
@@ -948,31 +965,33 @@ public class MessagingController implements Runnable {
              * the uids within the list.
              */
             if (K9.DEBUG)
-                Log.v(K9.LOG_TAG, "SYNC: About to get local folder " + folder);
+                Log.v(K9.LOG_TAG, "SYNC: About to get local folder " + folderName);
 
-            final LocalStore localStore = account.getLocalStore();
-            tLocalFolder = localStore.getFolder(folder);
-            final LocalFolder localFolder = tLocalFolder;
-            localFolder.open(OpenMode.READ_WRITE);
-            localFolder.updateLastUid();
-            Message[] localMessages = localFolder.getMessages(null);
-            HashMap<String, Message> localUidMap = new HashMap<String, Message>();
-            for (Message message : localMessages) {
-                localUidMap.put(message.getUid(), message);
+            String accountUuid = account.getUuid();
+
+            EmailProviderFolder folder = EmailProviderHelper.getFolderByName(mContext, accountUuid,
+                    folderName);
+
+            List<EmailProviderMetadata> metadataList = EmailProviderHelper.getMetadata(mContext,
+                    accountUuid, folder.getId());
+
+            HashMap<String, EmailProviderMetadata> localUidMap = new HashMap<String, EmailProviderMetadata>();
+            for (EmailProviderMetadata metadata : metadataList) {
+                localUidMap.put(metadata.getServerId(), metadata);
             }
 
             if (providedRemoteFolder != null) {
                 if (K9.DEBUG)
-                    Log.v(K9.LOG_TAG, "SYNC: using providedRemoteFolder " + folder);
+                    Log.v(K9.LOG_TAG, "SYNC: using providedRemoteFolder " + folderName);
                 remoteFolder = providedRemoteFolder;
             } else {
                 Store remoteStore = account.getRemoteStore();
 
                 if (K9.DEBUG)
-                    Log.v(K9.LOG_TAG, "SYNC: About to get remote folder " + folder);
-                remoteFolder = remoteStore.getFolder(folder);
+                    Log.v(K9.LOG_TAG, "SYNC: About to get remote folder " + folderName);
+                remoteFolder = remoteStore.getFolder(folderName);
 
-                if (! verifyOrCreateRemoteSpecialFolder(account, folder, remoteFolder, listener)) {
+                if (! verifyOrCreateRemoteSpecialFolder(account, folderName, remoteFolder, listener)) {
                     return;
                 }
 
@@ -999,12 +1018,12 @@ public class MessagingController implements Runnable {
                  * Open the remote folder. This pre-loads certain metadata like message count.
                  */
                 if (K9.DEBUG)
-                    Log.v(K9.LOG_TAG, "SYNC: About to open remote folder " + folder);
+                    Log.v(K9.LOG_TAG, "SYNC: About to open remote folder " + folderName);
 
                 remoteFolder.open(OpenMode.READ_WRITE);
                 if (Account.EXPUNGE_ON_POLL.equals(account.getExpungePolicy())) {
                     if (K9.DEBUG)
-                        Log.d(K9.LOG_TAG, "SYNC: Expunging folder " + account.getDescription() + ":" + folder);
+                        Log.d(K9.LOG_TAG, "SYNC: Expunging folder " + account.getDescription() + ":" + folderName);
                     remoteFolder.expunge();
                 }
 
@@ -1015,7 +1034,7 @@ public class MessagingController implements Runnable {
              */
             int remoteMessageCount = remoteFolder.getMessageCount();
 
-            int visibleLimit = localFolder.getVisibleLimit();
+            int visibleLimit = folder.getVisibleLimit();
 
             if (visibleLimit < 0) {
                 visibleLimit = K9.DEFAULT_VISIBLE_LIMIT;
@@ -1026,7 +1045,7 @@ public class MessagingController implements Runnable {
             HashMap<String, Message> remoteUidMap = new HashMap<String, Message>();
 
             if (K9.DEBUG)
-                Log.v(K9.LOG_TAG, "SYNC: Remote message count for folder " + folder + " is " + remoteMessageCount);
+                Log.v(K9.LOG_TAG, "SYNC: Remote message count for folder " + folderName + " is " + remoteMessageCount);
             final Date earliestDate = account.getEarliestPollDate();
 
 
@@ -1041,11 +1060,11 @@ public class MessagingController implements Runnable {
                 int remoteEnd = remoteMessageCount;
 
                 if (K9.DEBUG)
-                    Log.v(K9.LOG_TAG, "SYNC: About to get messages " + remoteStart + " through " + remoteEnd + " for folder " + folder);
+                    Log.v(K9.LOG_TAG, "SYNC: About to get messages " + remoteStart + " through " + remoteEnd + " for folder " + folderName);
 
                 final AtomicInteger headerProgress = new AtomicInteger(0);
                 for (MessagingListener l : getListeners(listener)) {
-                    l.synchronizeMailboxHeadersStarted(account, folder);
+                    l.synchronizeMailboxHeadersStarted(account, folderName);
                 }
 
 
@@ -1056,51 +1075,60 @@ public class MessagingController implements Runnable {
                 for (Message thisMess : remoteMessageArray) {
                     headerProgress.incrementAndGet();
                     for (MessagingListener l : getListeners(listener)) {
-                        l.synchronizeMailboxHeadersProgress(account, folder, headerProgress.get(), messageCount);
+                        l.synchronizeMailboxHeadersProgress(account, folderName, headerProgress.get(), messageCount);
                     }
-                    Message localMessage = localUidMap.get(thisMess.getUid());
-                    if (localMessage == null || !localMessage.olderThan(earliestDate)) {
+                    EmailProviderMetadata metadata = localUidMap.get(thisMess.getUid());
+                    if (metadata == null || !EmailProviderHelper.olderThan(metadata, earliestDate)) {
                         remoteMessages.add(thisMess);
                         remoteUidMap.put(thisMess.getUid(), thisMess);
                     }
                 }
                 if (K9.DEBUG)
-                    Log.v(K9.LOG_TAG, "SYNC: Got " + remoteUidMap.size() + " messages for folder " + folder);
+                    Log.v(K9.LOG_TAG, "SYNC: Got " + remoteUidMap.size() + " messages for folder " + folderName);
 
                 remoteMessageArray = null;
                 for (MessagingListener l : getListeners(listener)) {
-                    l.synchronizeMailboxHeadersFinished(account, folder, headerProgress.get(), remoteUidMap.size());
+                    l.synchronizeMailboxHeadersFinished(account, folderName, headerProgress.get(), remoteUidMap.size());
                 }
 
             } else if (remoteMessageCount < 0) {
-                throw new Exception("Message count " + remoteMessageCount + " for folder " + folder);
+                throw new Exception("Message count " + remoteMessageCount + " for folder " + folderName);
             }
 
             /*
              * Remove any messages that are in the local store but no longer on the remote store or are too old
              */
+            //TODO: Mark messages as local-only if they are no longer in the remote store
             if (account.syncRemoteDeletions()) {
-                ArrayList<Message> destroyMessages = new ArrayList<Message>();
-                for (Message localMessage : localMessages) {
-                    if (remoteUidMap.get(localMessage.getUid()) == null) {
-                        destroyMessages.add(localMessage);
+                List<EmailProviderMetadata> destroyMessages = new ArrayList<EmailProviderMetadata>();
+                for (EmailProviderMetadata metadata : metadataList) {
+                    if (remoteUidMap.get(metadata.getServerId()) == null) {
+                        destroyMessages.add(metadata);
                     }
                 }
 
+                //FIXME: Load extra message data (subject, sender, recipients) before deleting the messages.
+                // This is necessary to send the broadcast intent when a message is deleted.
+                // see K9...broadcastIntent()
 
-                localFolder.destroyMessages(destroyMessages.toArray(EMPTY_MESSAGE_ARRAY));
+                EmailProviderHelper.destroyMessages(mContext, destroyMessages);
 
-                for (Message destroyMessage : destroyMessages) {
+                for (EmailProviderMetadata metadata : destroyMessages) {
                     for (MessagingListener l : getListeners(listener)) {
-                        l.synchronizeMailboxRemovedMessage(account, folder, destroyMessage);
+                        //FIXME: hand over enough data so the broadcast intent can be sent
+                        l.synchronizeMailboxRemovedMessage(account, folderName, null);
                     }
                 }
             }
-            localMessages = null;
+            metadataList = null;
 
             /*
              * Now we download the actual content of messages.
              */
+
+            //XXX: The code below this line still needs to be changed from using LocalStore to using EmailProvider
+            final LocalFolder localFolder = null;
+
             int newMessages = downloadMessages(account, remoteFolder, localFolder, remoteMessages, false);
 
             int unreadMessageCount = setLocalUnreadCountToRemote(localFolder, remoteFolder,  newMessages);
@@ -1108,7 +1136,7 @@ public class MessagingController implements Runnable {
 
 
             for (MessagingListener l : getListeners()) {
-                l.folderStatusChanged(account, folder, unreadMessageCount);
+                l.folderStatusChanged(account, folderName, unreadMessageCount);
             }
 
             /* Notify listeners that we're finally done. */
@@ -1117,11 +1145,11 @@ public class MessagingController implements Runnable {
             localFolder.setStatus(null);
 
             if (K9.DEBUG)
-                Log.d(K9.LOG_TAG, "Done synchronizing folder " + account.getDescription() + ":" + folder +
+                Log.d(K9.LOG_TAG, "Done synchronizing folder " + account.getDescription() + ":" + folderName +
                       " @ " + new Date() + " with " + newMessages + " new messages");
 
             for (MessagingListener l : getListeners(listener)) {
-                l.synchronizeMailboxFinished(account, folder, remoteMessageCount, newMessages);
+                l.synchronizeMailboxFinished(account, folderName, remoteMessageCount, newMessages);
             }
 
 
@@ -1131,12 +1159,12 @@ public class MessagingController implements Runnable {
                       tLocalFolder.getName() + " was '" + rootMessage + "'");
                 localFolder.setStatus(rootMessage);
                 for (MessagingListener l : getListeners(listener)) {
-                    l.synchronizeMailboxFailed(account, folder, rootMessage);
+                    l.synchronizeMailboxFailed(account, folderName, rootMessage);
                 }
             }
 
             if (K9.DEBUG)
-                Log.i(K9.LOG_TAG, "Done synchronizing folder " + account.getDescription() + ":" + folder);
+                Log.i(K9.LOG_TAG, "Done synchronizing folder " + account.getDescription() + ":" + folderName);
 
         } catch (Exception e) {
             Log.e(K9.LOG_TAG, "synchronizeMailbox", e);
@@ -1154,10 +1182,10 @@ public class MessagingController implements Runnable {
             }
 
             for (MessagingListener l : getListeners(listener)) {
-                l.synchronizeMailboxFailed(account, folder, rootMessage);
+                l.synchronizeMailboxFailed(account, folderName, rootMessage);
             }
             addErrorMessage(account, null, e);
-            Log.e(K9.LOG_TAG, "Failed synchronizing folder " + account.getDescription() + ":" + folder + " @ " + new Date());
+            Log.e(K9.LOG_TAG, "Failed synchronizing folder " + account.getDescription() + ":" + folderName + " @ " + new Date());
 
         } finally {
             if (providedRemoteFolder == null) {
