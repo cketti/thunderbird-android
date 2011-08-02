@@ -11,7 +11,7 @@ import org.apache.james.mime4j.io.EOLConvertingInputStream;
 import org.apache.james.mime4j.parser.MimeStreamParser;
 import org.apache.james.mime4j.stream.MimeEntityConfig;
 import org.apache.james.mime4j.dom.field.DateTimeField;
-import org.apache.james.mime4j.dom.field.Field;
+import org.apache.james.mime4j.dom.field.ParsedField;
 import org.apache.james.mime4j.field.DefaultFieldParser;
 
 import org.apache.james.mime4j.MimeException;
@@ -460,7 +460,7 @@ public class MimeMessage extends Message {
         public void field(RawField field) {
             expect(Part.class);
             try {
-                Field parsedField = DefaultFieldParser.parse(field.getRaw(), null);
+                ParsedField parsedField = DefaultFieldParser.parse(field.getRaw(), null);
                 ((Part)stack.peek()).addHeader(parsedField.getName(), parsedField.getBody().trim());
             } catch (MessagingException me) {
                 throw new Error(me);
@@ -551,5 +551,10 @@ public class MimeMessage extends Message {
         public void raw(InputStream is) throws IOException {
             throw new UnsupportedOperationException("Not supported");
         }
+    }
+
+    @Override
+    public List<Field> getHeaders() {
+        return mHeader.getHeaders();
     }
 }

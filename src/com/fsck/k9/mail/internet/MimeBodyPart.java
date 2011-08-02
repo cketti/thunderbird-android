@@ -9,6 +9,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.util.List;
 
 /**
  * TODO this is a close approximation of Message, need to update along with
@@ -121,5 +122,10 @@ public class MimeBodyPart extends BodyPart {
         if (mBody != null) {
             mBody.writeTo(out);
         }
+    }
+
+    @Override
+    public List<Field> getHeaders() {
+        return mHeader.getHeaders();
     }
 }

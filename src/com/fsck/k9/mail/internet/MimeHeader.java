@@ -2,6 +2,7 @@
 package com.fsck.k9.mail.internet;
 
 import com.fsck.k9.helper.Utility;
+import static com.fsck.k9.mail.Part.Field;
 
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -129,25 +130,11 @@ public class MimeHeader {
         return false;
     }
 
-    static class Field {
-        String name;
-
-        String value;
-
-        public Field(String name, String value) {
-            this.name = name;
-            this.value = value;
-        }
-
-        @Override
-        public String toString() {
-            StringBuilder sb = new StringBuilder("(");
-            sb.append(name).append('=').append(value).append(')');
-            return sb.toString();
-        }
-    }
-
     public void setCharset(String charset) {
         mCharset = charset;
+    }
+
+    public List<Field> getHeaders() {
+        return mFields;
     }
 }
