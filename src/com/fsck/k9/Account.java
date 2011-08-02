@@ -395,6 +395,7 @@ public class Account implements BaseAccount {
         editor.putString("accountUuids", accountUuids);
 
         editor.remove(mUuid + ".storeUri");
+        editor.remove(mUuid + ".localStorageProvider");
         editor.remove(mUuid + ".localStoreUri");
         editor.remove(mUuid + ".transportUri");
         editor.remove(mUuid + ".description");
@@ -403,13 +404,16 @@ public class Account implements BaseAccount {
         editor.remove(mUuid + ".alwaysBcc");
         editor.remove(mUuid + ".automaticCheckIntervalMinutes");
         editor.remove(mUuid + ".pushPollOnConnect");
+        editor.remove(mUuid + ".displayCount");
         editor.remove(mUuid + ".saveAllHeaders");
         editor.remove(mUuid + ".idleRefreshMinutes");
         editor.remove(mUuid + ".lastAutomaticCheckTime");
         editor.remove(mUuid + ".latestOldMessageSeenTime");
         editor.remove(mUuid + ".notifyNewMail");
         editor.remove(mUuid + ".notifySelfNewMail");
+        editor.remove(mUuid + ".notifyMailCheck");
         editor.remove(mUuid + ".deletePolicy");
+        editor.remove(mUuid + ".inboxFolderName");
         editor.remove(mUuid + ".draftsFolderName");
         editor.remove(mUuid + ".sentFolderName");
         editor.remove(mUuid + ".trashFolderName");
@@ -441,8 +445,10 @@ public class Account implements BaseAccount {
         editor.remove(mUuid + ".subscribedFoldersOnly");
         editor.remove(mUuid + ".maximumPolledMessageAge");
         editor.remove(mUuid + ".maximumAutoDownloadMessageSize");
+        editor.remove(mUuid + ".messageFormat");
         editor.remove(mUuid + ".quoteStyle");
         editor.remove(mUuid + ".quotePrefix");
+        editor.remove(mUuid + ".defaultQuotedTextShown");
         editor.remove(mUuid + ".showPicturesEnum");
         editor.remove(mUuid + ".replyAfterQuote");
         editor.remove(mUuid + ".cryptoApp");
