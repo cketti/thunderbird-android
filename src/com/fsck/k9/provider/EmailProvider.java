@@ -402,9 +402,63 @@ public class EmailProvider extends ContentProvider {
     }
 
     @Override
-    public int update(Uri uri, ContentValues values, String selection, String[] selectionArgs) {
-        // TODO Auto-generated method stub
-        return 0;
+    public int update(Uri uri, final ContentValues values, final String selection,
+            final String[] selectionArgs) {
+        int match = sURIMatcher.match(uri);
+        List<String> segments = uri.getPathSegments();
+        int rows;
+        switch (match) {
+            case FOLDERS:
+            case MESSAGES:
+            case MESSAGE_PARTS:
+            case MESSAGE_PART_ATTRIBUTES:
+            case ADDRESSES:
+            {
+                String accountUuid = segments.get(1);
+                final String tableName = TABLE_NAMES[match >> 12];
+                try {
+                    rows = getDatabase(accountUuid).execute(false, new DbCallback<Integer>() {
+                        @Override
+                        public Integer doDbWork(SQLiteDatabase db) throws WrappedException,
+                                UnavailableStorageException {
+                            return db.update(tableName, values, selection, selectionArgs);
+                        }
+                    });
+                } catch (UnavailableStorageException e) {
+                    throw new RuntimeException(e);
+                }
+                break;
+            }
+            case FOLDER_ID:
+            case MESSAGE_ID:
+            case MESSAGE_PART_ID:
+            case MESSAGE_PART_ATTRIBUTE_ID:
+            case ADDRESS_ID:
+            {
+                String accountUuid = segments.get(1);
+                String id = uri.getLastPathSegment();
+                final String tableName = TABLE_NAMES[match >> 12];
+                try {
+                    final String selectionWithId = whereWithId(id, selection);
+
+                    rows = getDatabase(accountUuid).execute(false, new DbCallback<Integer>() {
+                        @Override
+                        public Integer doDbWork(SQLiteDatabase db) throws WrappedException,
+                                UnavailableStorageException {
+                            return db.update(tableName, values, selectionWithId, selectionArgs);
+                        }
+                    });
+                } catch (UnavailableStorageException e) {
+                    throw new RuntimeException(e);
+                }
+                break;
+            }
+            default:
+            {
+                throw new IllegalArgumentException("Unknown URI " + uri);
+            }
+        }
+        return rows;
     }
 
     @Override
