@@ -52,6 +52,10 @@ public class EmailProviderMetadata extends Metadata {
         return mIdPartMapping.get(partId);
     }
 
+    public Long getPartId(Part part) {
+        return mPartIdMapping.get(part);
+    }
+
     public void updateMapping(Part part, long partId) {
         mPartIdMapping.put(part, partId);
         mIdPartMapping.put(partId, part);
