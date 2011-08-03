@@ -23,6 +23,11 @@ public class TempFileBody implements Body {
     private Part mPart;
     private File mFile;
 
+    TempFileBody(Part part, File file) {
+        mPart = part;
+        mFile = file;
+    }
+
     TempFileBody(Context context, String accountUuid, Part part, InputStream in) {
         mPart = part;
 
