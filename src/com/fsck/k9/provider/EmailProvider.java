@@ -525,10 +525,12 @@ public class EmailProvider extends ContentProvider {
 
         @Override
         public void doDbUpgrade(final SQLiteDatabase db) {
+            //TODO: deal with SQLITE_FULL because of AUTOINCREMENT / see http://www.sqlite.org/autoinc.html
+
             if (db.getVersion() < 43) {
                 db.execSQL("DROP TABLE IF EXISTS folders");
                 db.execSQL("CREATE TABLE folders (" +
-                        "id INTEGER PRIMARY KEY," +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT," +
                         "name TEXT," +
                         "local_only BOOLEAN," +
                         "unread_count INTEGER," +
@@ -540,14 +542,14 @@ public class EmailProvider extends ContentProvider {
 
                 db.execSQL("DROP TABLE IF EXISTS folder_attributes");
                 db.execSQL("CREATE TABLE folder_attributes (" +
-                        "id INTEGER PRIMARY KEY," +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT," +
                         "folder_id INTEGER," +
                         "key TEXT," +
                         "value TEXT)");
 
                 db.execSQL("DROP TABLE IF EXISTS messages");
                 db.execSQL("CREATE TABLE messages (" +
-                        "id INTEGER PRIMARY KEY," +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT," +
                         "folder_id INTEGER," +
                         "uid TEXT," +
                         "root INTEGER," +
@@ -572,7 +574,7 @@ public class EmailProvider extends ContentProvider {
 
                 db.execSQL("DROP TABLE IF EXISTS addresses");
                 db.execSQL("CREATE TABLE addresses (" +
-                        "id INTEGER PRIMARY KEY," +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT," +
                         "message_id INTEGER," +
                         "type INTEGER," +
                         "name TEXT," +
@@ -580,7 +582,7 @@ public class EmailProvider extends ContentProvider {
 
                 db.execSQL("DROP TABLE IF EXISTS message_parts");
                 db.execSQL("CREATE TABLE message_parts (" +
-                        "id INTEGER PRIMARY KEY," +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT," +
                         "message_id INTEGER," +
                         "type INTEGER," +
                         "mime_type TEXT," +
@@ -596,21 +598,21 @@ public class EmailProvider extends ContentProvider {
 
                 db.execSQL("DROP TABLE IF EXISTS message_part_attributes");
                 db.execSQL("CREATE TABLE message_part_attributes (" +
-                        "id INTEGER PRIMARY KEY," +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT," +
                         "message_part_id INTEGER," +
                         "key TEXT," +
                         "value TEXT)");
 
                 db.execSQL("DROP TABLE IF EXISTS message_cache");
                 db.execSQL("CREATE TABLE message_cache (" +
-                        "id INTEGER PRIMARY KEY," +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT," +
                         "message_id INTEGER," +
                         "subject TEXT," +
                         "preview TEXT)");
 
                 db.execSQL("DROP TABLE IF EXISTS message_part_cache");
                 db.execSQL("CREATE TABLE message_part_cache (" +
-                        "id INTEGER PRIMARY KEY," +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT," +
                         "message_part_id INTEGER," +
                         "type INTEGER," +
                         "name TEXT," +
@@ -622,11 +624,30 @@ public class EmailProvider extends ContentProvider {
 
                 db.execSQL("DROP TABLE IF EXISTS pending_commands");
                 db.execSQL("CREATE TABLE pending_commands (" +
-                        "id INTEGER PRIMARY KEY," +
+                        "id INTEGER PRIMARY KEY AUTOINCREMENT," +
                         "command TEXT," +
                         "arguments TEXT)");
 
                 db.execSQL("CREATE INDEX IF NOT EXISTS folder_name ON folders (name)");
+
+                db.execSQL("CREATE TRIGGER delete_folder BEFORE DELETE ON folders " +
+                        "BEGIN " +
+                            "DELETE FROM folder_attributes WHERE old.id = folder_id; " +
+                            "DELETE FROM messages WHERE old.id = folder_id; " +
+                        "END;");
+
+                db.execSQL("CREATE TRIGGER delete_message BEFORE DELETE ON messages " +
+                        "BEGIN " +
+                            "DELETE FROM message_parts WHERE old.id = message_id; " +
+                            "DELETE FROM addresses WHERE old.id = message_id; " +
+                            "DELETE FROM message_cache WHERE old.id = message_id; " +
+                        "END;");
+
+                db.execSQL("CREATE TRIGGER delete_message_part BEFORE DELETE ON message_parts " +
+                        "BEGIN " +
+                            "DELETE FROM message_part_attributes WHERE old.id = message_part_id; " +
+                            "DELETE FROM message_part_cache WHERE old.id = message_part_id; " +
+                        "END;");
             }
         }
     }
