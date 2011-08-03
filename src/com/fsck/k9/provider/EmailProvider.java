@@ -316,6 +316,9 @@ public class EmailProvider extends ContentProvider {
         List<String> segments = uri.getPathSegments();
         switch (match) {
             case FOLDERS:
+            case MESSAGE_PARTS:
+            case MESSAGE_PART_ATTRIBUTES:
+            case ADDRESSES:
             {
                 String accountUuid = segments.get(1);
                 final String tableName = TABLE_NAMES[match >> 12];
