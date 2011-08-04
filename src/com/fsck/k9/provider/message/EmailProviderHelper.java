@@ -11,11 +11,16 @@ import android.util.Log;
 import com.fsck.k9.Account;
 import com.fsck.k9.AccountStats;
 import com.fsck.k9.K9;
+import com.fsck.k9.mail.BodyPart;
 import com.fsck.k9.mail.Flag;
+import com.fsck.k9.mail.MessagingException;
 import com.fsck.k9.mail.Folder.FolderClass;
+import com.fsck.k9.mail.Part.Field;
+import com.fsck.k9.mail.internet.BinaryTempFileBody;
 import com.fsck.k9.mail.internet.MimeUtility;
 import com.fsck.k9.message.Body;
 import com.fsck.k9.message.Folder;
+import com.fsck.k9.message.Header;
 import com.fsck.k9.message.Message;
 import com.fsck.k9.message.MessageContainer;
 import com.fsck.k9.message.Metadata;
@@ -42,6 +47,7 @@ import org.apache.james.mime4j.stream.RawField;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -279,9 +285,8 @@ public class EmailProviderHelper {
             }
 
             Long partIdLong = metadata.getPartId(part);
-            boolean createPart = (partIdLong == null);
             long partId;
-            if (createPart) {
+            if (partIdLong == null) {
                 Uri createdPartUri = resolver.insert(partUri, cv);
                 partId = Long.parseLong(createdPartUri.getLastPathSegment());
                 metadata.updateMapping(part, partId);
@@ -308,12 +313,10 @@ public class EmailProviderHelper {
                 }
             }
 
-            if (!createPart) {
-                // Delete message part attributes that might already exist
-                String selection = MessagePartAttributeColumns.MESSAGE_PART_ID + "=?";
-                String[] selectionArgs = new String[] { Long.toString(partId) };
-                resolver.delete(attributesUri, selection, selectionArgs);
-            }
+            // Delete message part attributes that might already exist
+            String selection = MessagePartAttributeColumns.MESSAGE_PART_ID + "=?";
+            String[] selectionArgs = new String[] { Long.toString(partId) };
+            resolver.delete(attributesUri, selection, selectionArgs);
 
             // Write message part attributes
             Map<String, String> attributes = metadata.getAttributes(part);
@@ -910,5 +913,136 @@ public class EmailProviderHelper {
         } finally {
             cursor.close();
         }
+    }
+
+    public static EmailProviderMetadata getMetadataByServerId(Context context, String accountUuid,
+            EmailProviderFolder folder, String serverId) {
+        ContentResolver resolver = context.getContentResolver();
+        final Uri uri = EmailProviderConstants.Message.getContentUri(accountUuid);
+
+        final String selection = MessageColumns.FOLDER_ID + "=? AND " + MessageColumns.UID + "=?";
+        final String[] selectionArgs = new String[] { Long.toString(folder.getId()), serverId };
+        Cursor cursor = resolver.query(uri, MESSAGE_PROJECTION, selection, selectionArgs, null);
+
+        try {
+            if (cursor.moveToFirst()) {
+                EmailProviderMetadata metadata = new EmailProviderMetadata(accountUuid);
+                populateMetadataFromCursor(metadata, cursor);
+                return metadata;
+            }
+            return null;
+        } finally {
+            cursor.close();
+        }
+    }
+
+    public static MessageContainer oldMessage2MessageContainer(Context context, long folderId,
+            com.fsck.k9.mail.Message oldMessage) {
+
+        // Load message from database
+        String accountUuid = oldMessage.getFolder().getAccount().getUuid();
+        String serverId = oldMessage.getUid();
+        MessageContainer container = restoreMessageWithServerId(context, accountUuid, folderId,
+                serverId);
+
+        // If there wasn't one, create a new EmailProviderMessage instance
+        EmailProviderMessage message;
+        EmailProviderMetadata metadata;
+        if (container != null) {
+            message = (EmailProviderMessage) container.getMessage();
+            metadata = (EmailProviderMetadata) container.getMetadata();
+        } else {
+            message = new EmailProviderMessage();
+            metadata = new EmailProviderMetadata(accountUuid);
+            metadata.setFolderId(folderId);
+            metadata.setServerId(serverId);
+            container = new MessageContainer(metadata, message);
+        }
+
+        // Copy meta data
+        Date internalDate = oldMessage.getInternalDate();
+        Date date = (internalDate != null) ? internalDate : new Date();
+        metadata.setDate(date);
+        //TODO: copy flags?
+
+        // Copy message data
+        Map<com.fsck.k9.mail.Part, Part> partMapping = new HashMap<com.fsck.k9.mail.Part, Part>();
+        if (message != null) {
+            partMapping.put(oldMessage, message);
+        }
+
+        Stack<com.fsck.k9.mail.Part> stack = new Stack<com.fsck.k9.mail.Part>();
+        stack.push(oldMessage);
+        while (!stack.isEmpty()) {
+            com.fsck.k9.mail.Part oldPart = stack.pop();
+            Part part = partMapping.get(oldPart);
+
+            // Create part if it doesn't exist
+            if (part == null) {
+                if (oldPart instanceof Message) {
+                    part = new EmailProviderMessage();
+                } else {
+                    part = new EmailProviderBodyPart();
+                }
+            }
+            // Copy headers
+            Header header = part.getHeader();
+            if (!header.isComplete()) {
+                // Throw away old header object
+                header = new EmailProviderHeader();
+                part.setHeader(header);
+                for (Field field : oldPart.getHeaders()) {
+                    header.addEncoded(field.name, field.value);
+                }
+                //TODO: call header.setComplete() with the correct value
+            }
+
+            com.fsck.k9.mail.Body oldBody = oldPart.getBody();
+            if (oldBody != null) {
+                if (oldBody instanceof com.fsck.k9.mail.Multipart) {
+                    com.fsck.k9.mail.Multipart oldMimepart = (com.fsck.k9.mail.Multipart) oldBody;
+
+                    Body body = part.getBody();
+                    if (body == null) {
+                        body = new EmailProviderMultipart();
+                        part.setBody(body);
+                    }
+
+                    Multipart multipart = (Multipart) body;
+                    List<Part> children = multipart.getParts();
+
+                    int count = oldMimepart.getCount();
+                    for (int i = 0; i < count; i++) {
+                        BodyPart oldBodyPart = oldMimepart.getBodyPart(i);
+                        Part bodyPart;
+                        if (children.size() > i) {
+                            bodyPart = children.get(i);
+                        } else {
+                            bodyPart = new EmailProviderBodyPart();
+                            multipart.addPart(bodyPart);
+                        }
+                        partMapping.put(oldBodyPart, bodyPart);
+                        stack.push(oldBodyPart);
+                    }
+                } else if (oldBody instanceof BinaryTempFileBody) {
+                    File file = ((BinaryTempFileBody)oldBody).getFile();
+                    Body body = new TempFileBody(part, file);
+                    part.setBody(body);
+                } else {
+                    try {
+                        InputStream in = oldBody.getInputStream();
+                        Body body = new TempFileBody(context, accountUuid, part, in);
+                        part.setBody(body);
+                    } catch (MessagingException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+
+        //TODO: copy message part attributes!
+
+        return container;
     }
 }

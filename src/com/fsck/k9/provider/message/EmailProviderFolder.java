@@ -67,4 +67,19 @@ public class EmailProviderFolder implements Folder {
     public void setVisibleLimit(int visibleLimit) {
         mVisibleLimit = visibleLimit;
     }
+
+    public String getPushState() {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    public void setPushState(String newPushState) {
+        // TODO Auto-generated method stub
+
+    }
+
+    public Integer getLastUid() {
+        // TODO Auto-generated method stub
+        return null;
+    }
 }
