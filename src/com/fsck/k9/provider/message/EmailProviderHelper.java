@@ -279,8 +279,9 @@ public class EmailProviderHelper {
             }
 
             Long partIdLong = metadata.getPartId(part);
+            boolean createPart = (partIdLong == null);
             long partId;
-            if (partIdLong == null) {
+            if (createPart) {
                 Uri createdPartUri = resolver.insert(partUri, cv);
                 partId = Long.parseLong(createdPartUri.getLastPathSegment());
                 metadata.updateMapping(part, partId);
@@ -305,6 +306,13 @@ public class EmailProviderHelper {
                 } else {
                     writeMessagePart(context, metadata, body, partId);
                 }
+            }
+
+            if (!createPart) {
+                // Delete message part attributes that might already exist
+                String selection = MessagePartAttributeColumns.MESSAGE_PART_ID + "=?";
+                String[] selectionArgs = new String[] { Long.toString(partId) };
+                resolver.delete(attributesUri, selection, selectionArgs);
             }
 
             // Write message part attributes
