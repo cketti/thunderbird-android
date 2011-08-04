@@ -376,6 +376,7 @@ public class EmailProviderHelper {
      *         The UUID of the account the message should be loaded from.
      * @param messageId
      *         The ID of the message that is to be loaded.
+     *
      * @return A {@link MessageContainer} instance describing the loaded message. May be
      *         {@code null} in case the message couldn't be found.
      */
@@ -384,33 +385,95 @@ public class EmailProviderHelper {
 
         EmailProviderMetadata metadata = new EmailProviderMetadata(accountUuid);
         metadata.setId(messageId);
-        Message message = new EmailProviderMessage();
 
-        MessageContainer container = new MessageContainer(metadata, message);
+        return restoreMessageWithMetadata(context, metadata);
+    }
 
-        // Load data from the "messages" table
-        loadMetadata(context, metadata);
+    /**
+     * Restore a message along with it's metadata from {@link EmailProvider}.
+     *
+     * @param context
+     *         A {@link Context} instance.
+     * @param accountUuid
+     *         The UUID of the account the message should be loaded from.
+     * @param folderId
+     *         The ID of the folder the message should be loaded from.
+     * @param serverId
+     *         The server ID of the message that is to be loaded.
+     *
+     * @return A {@link MessageContainer} instance describing the loaded message. May be
+     *         {@code null} in case the message couldn't be found.
+     */
+    public static MessageContainer restoreMessageWithServerId(Context context, String accountUuid,
+                long folderId, String serverId) {
 
-        // Load data from the "message_parts" table
-        loadMessageParts(context, container);
+        EmailProviderMetadata metadata = new EmailProviderMetadata(accountUuid);
+        metadata.setFolderId(folderId);
+        metadata.setServerId(serverId);
 
-        // Load data from the "message_part_attributes" table
-        loadMessagePartAttributes(context, metadata);
+        return restoreMessageWithMetadata(context, metadata);
+    }
+
+    /**
+     * Restore a message along with it's metadata from {@link EmailProvider}.
+     *
+     * @param context
+     *         A {@link Context} instance.
+     * @param metadata
+     *         A {@link EmailProviderMetadata} that contains information on how to load the message
+     *         from the database (either by message ID or by folder ID and message server ID)
+     *
+     * @return A {@link MessageContainer} instance describing the loaded message. May be
+     *         {@code null} in case the message couldn't be found.
+     */
+    public static MessageContainer restoreMessageWithMetadata(Context context,
+            EmailProviderMetadata metadata) {
+        MessageContainer container = null;
+
+        // Load data from the "messages" table (if message exists in database)
+        if (loadMetadata(context, metadata)) {
+
+            Message message = new EmailProviderMessage();
+            container = new MessageContainer(metadata, message);
+
+            // Load data from the "message_parts" table
+            loadMessageParts(context, container);
+
+            // Load data from the "message_part_attributes" table
+            loadMessagePartAttributes(context, metadata);
+        }
 
         return container;
     }
 
-    private static void loadMetadata(Context context, EmailProviderMetadata metadata) {
+    private static boolean loadMetadata(Context context, EmailProviderMetadata metadata) {
         ContentResolver resolver = context.getContentResolver();
         Uri messageUri = EmailProviderConstants.Message.getContentUri(metadata.getAccountUuid());
-        Uri uri = ContentUris.withAppendedId(messageUri, metadata.getId());
-        Cursor cursor = resolver.query(uri, MESSAGE_PROJECTION, null, null, null);
+        Uri uri;
+        String selection;
+        String[] selectionArgs;
+        if (metadata.getId() > 0) {
+            // Load by message ID
+            uri = ContentUris.withAppendedId(messageUri, metadata.getId());
+            selection = null;
+            selectionArgs = null;
+        } else {
+            // Load by server ID
+            uri = messageUri;
+            selection = MessageColumns.FOLDER_ID + "=? AND " + MessageColumns.UID + "=?";
+            selectionArgs = new String[] {
+                Long.toString(metadata.getFolderId()),
+                metadata.getServerId()
+            };
+        }
+        Cursor cursor = resolver.query(uri, MESSAGE_PROJECTION, selection, selectionArgs, null);
 
         try {
-            //TODO: check return value
-            cursor.moveToFirst();
-            populateMetadataFromCursor(metadata, cursor);
-
+            if (cursor.moveToFirst()) {
+                populateMetadataFromCursor(metadata, cursor);
+                return true;
+            }
+            return false;
         } finally {
             cursor.close();
         }
