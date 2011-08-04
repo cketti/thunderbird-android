@@ -152,6 +152,8 @@ public class EmailProviderHelper {
             throw new IllegalArgumentException("container.getMetadata() must be of type EmailProviderMetadata");
         }
 
+        //TODO: delete message parts and stuff if the deleted flag is set
+
         EmailProviderMetadata metadata = (EmailProviderMetadata) meta;
         Message message = container.getMessage();
 
@@ -214,8 +216,14 @@ public class EmailProviderHelper {
                 msg.put(MessageColumns.DATE, messageTimestamp);
                 msg.put(MessageColumns.INTERNAL_DATE, serverTimestamp);
 
-                Uri createUri = resolver.insert(messageUri, msg);
-                messageId = Long.parseLong(createUri.getLastPathSegment());
+                if (metadata.getId() == 0) {
+                    Uri createUri = resolver.insert(messageUri, msg);
+                    messageId = Long.parseLong(createUri.getLastPathSegment());
+                } else {
+                    messageId = metadata.getId();
+                    Uri messageIdUri = ContentUris.withAppendedId(messageUri, messageId);
+                    resolver.update(messageIdUri, msg, null, null);
+                }
 
                 if (rootMessageId == 0) {
                     rootMessageId = messageId;
@@ -270,10 +278,17 @@ public class EmailProviderHelper {
                 cv.put(MessagePartColumns.COMPLETE, false);
             }
 
-            Uri createdPartUri = resolver.insert(partUri, cv);
-            long partId = Long.parseLong(createdPartUri.getLastPathSegment());
-
-            metadata.updateMapping(part, partId);
+            Long partIdLong = metadata.getPartId(part);
+            long partId;
+            if (partIdLong == null) {
+                Uri createdPartUri = resolver.insert(partUri, cv);
+                partId = Long.parseLong(createdPartUri.getLastPathSegment());
+                metadata.updateMapping(part, partId);
+            } else {
+                partId = partIdLong;
+                Uri partIdUri = ContentUris.withAppendedId(partUri, partId);
+                resolver.update(partIdUri, cv, null, null);
+            }
 
             if (isMultipart) {
                 Multipart multipart = (Multipart) body;
