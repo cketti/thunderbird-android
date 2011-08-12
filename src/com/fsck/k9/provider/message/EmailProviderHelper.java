@@ -1045,4 +1045,60 @@ public class EmailProviderHelper {
 
         return container;
     }
+
+    public static int countUnreadMessages(Context context, String accountUuid,
+            EmailProviderFolder folder) {
+        ContentResolver resolver = context.getContentResolver();
+        
+        Uri uri = EmailProviderConstants.Message.getContentUri(accountUuid);
+        String[] projection = {
+                "COUNT(id)"
+        };
+        String selection = MessageColumns.ID + "=? AND " + MessageColumns.SEEN + "=0 AND " +
+                MessageColumns.DELETED + "=0";
+        String[] selectionArgs = { Long.toString(folder.getId()) };
+        
+        Cursor cursor = resolver.query(uri, projection, selection, selectionArgs, null);
+        
+        cursor.moveToFirst();
+        int unreadCount = cursor.getInt(0);
+        
+        return unreadCount;
+    }
+
+    public static int countFlaggedMessages(Context context, String accountUuid,
+            EmailProviderFolder folder) {
+        ContentResolver resolver = context.getContentResolver();
+        
+        Uri uri = EmailProviderConstants.Message.getContentUri(accountUuid);
+        String[] projection = {
+                "COUNT(id)"
+        };
+        String selection = MessageColumns.ID + "=? AND " + MessageColumns.FLAGGED + "=1 AND " +
+                MessageColumns.DELETED + "=0";
+        String[] selectionArgs = { Long.toString(folder.getId()) };
+        
+        Cursor cursor = resolver.query(uri, projection, selection, selectionArgs, null);
+        
+        cursor.moveToFirst();
+        int unreadCount = cursor.getInt(0);
+        
+        return unreadCount;
+    }
+
+    public static void updateFolderState(Context context, String accountUuid,
+            EmailProviderFolder folder) {
+        ContentResolver resolver = context.getContentResolver();
+        
+        Uri uri = ContentUris.withAppendedId(EmailProviderConstants.Folder.getContentUri(accountUuid), folder.getId());
+        ContentValues cv = new ContentValues();
+        cv.put(FolderColumns.LAST_CHECKED, folder.getLastChecked());
+        cv.put(FolderColumns.STATUS, folder.getStatus());
+        cv.put(FolderColumns.UNREAD_COUNT, folder.getUnreadCount());
+        cv.put(FolderColumns.FLAGGED_COUNT, folder.getFlaggedCount());        
+        
+        resolver.update(uri, cv, null, null);
+        
+        //TODO: push state, last uid, attributes
+    }
 }

@@ -8,6 +8,13 @@ public class EmailProviderFolder implements Folder {
     private int mVisibleLimit;
     private boolean mInTopGroup;
     private boolean mIntegrate;
+    private Integer mLastUid;
+    private int mUnreadCount;
+    private int mFlaggedCount;
+    private String mStatus;
+    private long mLastChecked;
+    private String mPushState;
+    private boolean mPushStateModified;
 
     public EmailProviderFolder(String name) {
         this(name, -1);
@@ -69,17 +76,63 @@ public class EmailProviderFolder implements Folder {
     }
 
     public String getPushState() {
-        // TODO Auto-generated method stub
-        return null;
+        return mPushState;
     }
 
-    public void setPushState(String newPushState) {
-        // TODO Auto-generated method stub
-
+    public void setPushState(String pushState) {
+        if (pushState == null) {
+            mPushStateModified = (mPushState != null);
+        } else {
+            mPushStateModified = !pushState.equals(mPushState);
+        }
+        mPushState = pushState;
+    }
+    
+    public boolean isPushStateModified() {
+        return mPushStateModified;
+    }
+    
+    public void resetPushStateModified() {
+        mPushStateModified = false;
     }
 
     public Integer getLastUid() {
-        // TODO Auto-generated method stub
-        return null;
+        return mLastUid;
+    }
+    
+    public void setLastUid(int uid) {
+        mLastUid = uid;
+    }
+
+    public int getUnreadCount() {
+        return mUnreadCount;
+    }
+    
+    public void setUnreadCount(int unreadCount) {
+        mUnreadCount = unreadCount;
+    }
+
+    public int getFlaggedCount() {
+        return mFlaggedCount;
+    }
+    
+    public void setFlaggedCount(int flaggedCount) {
+        mFlaggedCount = flaggedCount;
+    }
+
+    public String getStatus() {
+        return mStatus;
+    }
+    
+    public void setStatus(String status) {
+        mStatus = status;
+    }
+
+    public long getLastChecked() {
+        return mLastChecked;
+    }
+    
+    public void setLastChecked(long timestamp) {
+        mLastChecked = timestamp;
     }
 }

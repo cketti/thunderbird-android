@@ -68,6 +68,9 @@ public class EmailProviderConstants {
         public static final String TOP_GROUP = "top_group";
         public static final String DISPLAY_CLASS = "display_class";
         public static final String VISIBLE_LIMIT = "visible_limit";
+        
+        public static final String LAST_CHECKED = "last_checked";
+        public static final String STATUS = "status";
     }
 
     public interface MessageColumns {

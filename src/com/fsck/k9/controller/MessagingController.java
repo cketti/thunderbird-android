@@ -929,8 +929,9 @@ public class MessagingController implements Runnable {
     private void synchronizeMailboxSynchronous(final Account account, final String folderName,
             final MessagingListener listener, Folder providedRemoteFolder) {
         Folder remoteFolder = null;
-        LocalFolder tLocalFolder = null;
-
+        EmailProviderFolder localFolder = null;
+        String accountUuid = account.getUuid();
+        
         if (K9.DEBUG)
             Log.i(K9.LOG_TAG, "Synchronizing folder " + account.getDescription() + ":" + folderName);
 
@@ -969,13 +970,10 @@ public class MessagingController implements Runnable {
             if (K9.DEBUG)
                 Log.v(K9.LOG_TAG, "SYNC: About to get local folder " + folderName);
 
-            String accountUuid = account.getUuid();
-
-            EmailProviderFolder folder = EmailProviderHelper.getFolderByName(mContext, accountUuid,
-                    folderName);
+            localFolder = EmailProviderHelper.getFolderByName(mContext, accountUuid, folderName);
 
             List<EmailProviderMetadata> metadataList = EmailProviderHelper.getMetadata(mContext,
-                    accountUuid, folder.getId());
+                    accountUuid, localFolder.getId());
 
             HashMap<String, EmailProviderMetadata> localUidMap = new HashMap<String, EmailProviderMetadata>();
             for (EmailProviderMetadata metadata : metadataList) {
@@ -1036,7 +1034,7 @@ public class MessagingController implements Runnable {
              */
             int remoteMessageCount = remoteFolder.getMessageCount();
 
-            int visibleLimit = folder.getVisibleLimit();
+            int visibleLimit = localFolder.getVisibleLimit();
 
             if (visibleLimit < 0) {
                 visibleLimit = K9.DEFAULT_VISIBLE_LIMIT;
@@ -1129,12 +1127,9 @@ public class MessagingController implements Runnable {
              * Now we download the actual content of messages.
              */
 
-            int newMessages = downloadMessages(account, remoteFolder, folder, remoteMessages, false);
+            int newMessages = downloadMessages(account, remoteFolder, localFolder, remoteMessages, false);
             remoteMessages.clear();
 
-            //XXX: The code below this line still needs to be changed from using LocalStore to using EmailProvider
-
-            final LocalFolder localFolder = null;
             int unreadMessageCount = setLocalUnreadCountToRemote(localFolder, remoteFolder,  newMessages);
             setLocalFlaggedCountToRemote(localFolder, remoteFolder);
 
@@ -1160,29 +1155,27 @@ public class MessagingController implements Runnable {
             if (commandException != null) {
                 String rootMessage = getRootCauseMessage(commandException);
                 Log.e(K9.LOG_TAG, "Root cause failure in " + account.getDescription() + ":" +
-                      tLocalFolder.getName() + " was '" + rootMessage + "'");
+                     folderName + " was '" + rootMessage + "'");
                 localFolder.setStatus(rootMessage);
                 for (MessagingListener l : getListeners(listener)) {
                     l.synchronizeMailboxFailed(account, folderName, rootMessage);
                 }
             }
 
+            // Saving changes to the folder state (status, last time checked, etc.)
+            EmailProviderHelper.updateFolderState(mContext, accountUuid, localFolder);
+            
             if (K9.DEBUG)
                 Log.i(K9.LOG_TAG, "Done synchronizing folder " + account.getDescription() + ":" + folderName);
 
         } catch (Exception e) {
             Log.e(K9.LOG_TAG, "synchronizeMailbox", e);
-            // If we don't set the last checked, it can try too often during
-            // failure conditions
+            // If we don't set the last checked, it can try too often during failure conditions
             String rootMessage = getRootCauseMessage(e);
-            if (tLocalFolder != null) {
-                try {
-                    tLocalFolder.setStatus(rootMessage);
-                    tLocalFolder.setLastChecked(System.currentTimeMillis());
-                } catch (MessagingException me) {
-                    Log.e(K9.LOG_TAG, "Could not set last checked on folder " + account.getDescription() + ":" +
-                          tLocalFolder.getName(), e);
-                }
+            if (localFolder != null) {
+                localFolder.setStatus(rootMessage);
+                localFolder.setLastChecked(System.currentTimeMillis());
+                EmailProviderHelper.updateFolderState(mContext, accountUuid, localFolder);
             }
 
             for (MessagingListener l : getListeners(listener)) {
@@ -1195,8 +1188,6 @@ public class MessagingController implements Runnable {
             if (providedRemoteFolder == null) {
                 closeFolder(remoteFolder);
             }
-
-            closeFolder(tLocalFolder);
         }
 
     }
@@ -1234,37 +1225,33 @@ public class MessagingController implements Runnable {
         }
         return true;
     }
-    private int setLocalUnreadCountToRemote(LocalFolder localFolder, Folder remoteFolder, int newMessageCount) throws MessagingException {
-        int remoteUnreadMessageCount = remoteFolder.getUnreadMessageCount();
+    
+    private int setLocalUnreadCountToRemote(EmailProviderFolder localFolder, Folder remoteFolder, int newMessageCount) throws MessagingException {
+        String accountUuid = remoteFolder.getAccount().getUuid();
+    	
+    	int remoteUnreadMessageCount = remoteFolder.getUnreadMessageCount();
+    	int unreadCount;
         if (remoteUnreadMessageCount != -1) {
-            localFolder.setUnreadMessageCount(remoteUnreadMessageCount);
+            unreadCount = remoteUnreadMessageCount;
         } else {
-            int unreadCount = 0;
-            Message[] messages = localFolder.getMessages(null, false);
-            for (Message message : messages) {
-                if (!message.isSet(Flag.SEEN) && !message.isSet(Flag.DELETED)) {
-                    unreadCount++;
-                }
-            }
-            localFolder.setUnreadMessageCount(unreadCount);
+            unreadCount = EmailProviderHelper.countUnreadMessages(mContext, accountUuid, localFolder);
         }
-        return localFolder.getUnreadMessageCount();
+        localFolder.setUnreadCount(unreadCount);
+        
+        return unreadCount;
     }
 
-    private void setLocalFlaggedCountToRemote(LocalFolder localFolder, Folder remoteFolder) throws MessagingException {
+    private void setLocalFlaggedCountToRemote(EmailProviderFolder localFolder, Folder remoteFolder) throws MessagingException {
+        String accountUuid = remoteFolder.getAccount().getUuid();
+        
         int remoteFlaggedMessageCount = remoteFolder.getFlaggedMessageCount();
+        int flaggedCount;
         if (remoteFlaggedMessageCount != -1) {
-            localFolder.setFlaggedMessageCount(remoteFlaggedMessageCount);
+            flaggedCount = remoteFlaggedMessageCount;
         } else {
-            int flaggedCount = 0;
-            Message[] messages = localFolder.getMessages(null, false);
-            for (Message message : messages) {
-                if (message.isSet(Flag.FLAGGED) && !message.isSet(Flag.DELETED)) {
-                    flaggedCount++;
-                }
-            }
-            localFolder.setFlaggedMessageCount(flaggedCount);
+            flaggedCount = EmailProviderHelper.countFlaggedMessages(mContext, accountUuid, localFolder);
         }
+        localFolder.setFlaggedCount(flaggedCount);
     }
 
     /**
@@ -4464,9 +4451,9 @@ public class MessagingController implements Runnable {
 
                     account.setRingNotified(false);
                     int newCount = downloadMessages(account, remoteFolder, null/*FIXME localFolder*/, messages, flagSyncOnly);
-                    int unreadMessageCount = setLocalUnreadCountToRemote(localFolder, remoteFolder,  messages.size());
+                    int unreadMessageCount = setLocalUnreadCountToRemote(null/*FIXME localFolder*/, remoteFolder,  messages.size());
 
-                    setLocalFlaggedCountToRemote(localFolder, remoteFolder);
+                    setLocalFlaggedCountToRemote(null/*FIXME localFolder*/, remoteFolder);
 
                     localFolder.setLastPush(System.currentTimeMillis());
                     localFolder.setStatus(null);

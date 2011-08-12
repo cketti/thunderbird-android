@@ -538,7 +538,9 @@ public class EmailProvider extends ContentProvider {
                         "integrate BOOLEAN," +
                         "top_group BOOLEAN," +
                         "display_class TEXT," +
-                        "visible_limit TEXT)");
+                        "visible_limit TEXT," +
+                        "last_checked INTEGER," +
+                        "status TEXT)");
 
                 db.execSQL("DROP TABLE IF EXISTS folder_attributes");
                 db.execSQL("CREATE TABLE folder_attributes (" +
