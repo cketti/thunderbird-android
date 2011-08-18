@@ -18,8 +18,12 @@ import android.app.KeyguardManager;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
+import android.content.ContentResolver;
+import android.content.ContentUris;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.PowerManager;
@@ -62,9 +66,10 @@ import com.fsck.k9.mail.store.LocalStore;
 import com.fsck.k9.mail.store.UnavailableStorageException;
 import com.fsck.k9.mail.store.LocalStore.LocalFolder;
 import com.fsck.k9.mail.store.LocalStore.LocalMessage;
-import com.fsck.k9.mail.store.LocalStore.PendingCommand;
 import com.fsck.k9.message.MessageContainer;
 import com.fsck.k9.message.Metadata;
+import com.fsck.k9.provider.EmailProviderConstants;
+import com.fsck.k9.provider.EmailProviderConstants.PendingCommandColumns;
 import com.fsck.k9.provider.message.EmailProviderFolder;
 import com.fsck.k9.provider.message.EmailProviderHelper;
 import com.fsck.k9.provider.message.EmailProviderMetadata;
@@ -1959,8 +1964,7 @@ public class MessagingController implements Runnable {
 
     private void queuePendingCommand(Account account, PendingCommand command) {
         try {
-            LocalStore localStore = account.getLocalStore();
-            localStore.addPendingCommand(command);
+            addPendingCommand(account.getUuid(), command);
         } catch (Exception e) {
             addErrorMessage(account, null, e);
 
@@ -1992,8 +1996,7 @@ public class MessagingController implements Runnable {
     }
 
     private void processPendingCommandsSynchronous(Account account) throws MessagingException {
-        LocalStore localStore = account.getLocalStore();
-        ArrayList<PendingCommand> commands = localStore.getPendingCommands();
+        List<PendingCommand> commands = getPendingCommands(account.getUuid());
 
         int progress = 0;
         int todo = commands.size();
@@ -2041,14 +2044,14 @@ public class MessagingController implements Runnable {
                     } else if (PENDING_COMMAND_EXPUNGE.equals(command.command)) {
                         processPendingExpunge(command, account);
                     }
-                    localStore.removePendingCommand(command);
+                    removePendingCommand(account.getUuid(), command);
                     if (K9.DEBUG)
                         Log.d(K9.LOG_TAG, "Done processing pending command '" + command + "'");
                 } catch (MessagingException me) {
                     if (me.isPermanentFailure()) {
                         addErrorMessage(account, null, me);
                         Log.e(K9.LOG_TAG, "Failure of command '" + command + "' was permanent, removing command from queue");
-                        localStore.removePendingCommand(processingCommand);
+                        removePendingCommand(account.getUuid(), processingCommand);
                     } else {
                         throw me;
                     }
@@ -4756,5 +4759,62 @@ public class MessagingController implements Runnable {
 
     interface MessageActor {
         public void act(final Account account, final Folder folder, final List<Message> messages);
+    }
+
+    public static class PendingCommand {
+        public long id;
+        public String command;
+        public String[] arguments;
+    }
+
+    private void addPendingCommand(String accountUuid, PendingCommand command) {
+        ContentResolver resolver = mContext.getContentResolver();
+        Uri uri = EmailProviderConstants.PendingCommands.getContentUri(accountUuid);
+
+        ContentValues cv = new ContentValues();
+        cv.put(PendingCommandColumns.COMMAND, command.command);
+        cv.put(PendingCommandColumns.ARGUMENTS, Utility.combine(command.arguments, ','));
+        resolver.insert(uri, cv);
+    }
+
+    private List<PendingCommand> getPendingCommands(String accountUuid) {
+        List<PendingCommand> commands = new ArrayList<PendingCommand>();
+
+        ContentResolver resolver = mContext.getContentResolver();
+        Uri uri = EmailProviderConstants.PendingCommands.getContentUri(accountUuid);
+
+        String[] projection = EmailProviderConstants.PENDING_COMMANDS_PROJECTION;
+        String sortOrder = PendingCommandColumns.ID + " ASC";
+        Cursor cursor = resolver.query(uri, projection, null, null, sortOrder);
+
+        try {
+            while (cursor.moveToNext()) {
+                long id = cursor.getLong(cursor.getColumnIndex(PendingCommandColumns.ID));
+                String command = cursor.getString(cursor.getColumnIndex(PendingCommandColumns.COMMAND));
+                String arguments = cursor.getString(cursor.getColumnIndex(PendingCommandColumns.ARGUMENTS));
+
+                PendingCommand pendingCommand = new PendingCommand();
+                pendingCommand.id = id;
+                pendingCommand.command = command;
+                pendingCommand.arguments = arguments.split(",");
+                for (int i = 0; i < pendingCommand.arguments.length; i++) {
+                    pendingCommand.arguments[i] = Utility.fastUrlDecode(pendingCommand.arguments[i]);
+                }
+
+                commands.add(pendingCommand);
+            }
+        } finally {
+            cursor.close();
+        }
+
+        return commands;
+    }
+
+    private void removePendingCommand(String accountUuid, PendingCommand command) {
+        ContentResolver resolver = mContext.getContentResolver();
+        Uri uri = ContentUris.withAppendedId(
+                EmailProviderConstants.PendingCommands.getContentUri(accountUuid), command.id);
+
+        resolver.delete(uri, null, null);
     }
 }

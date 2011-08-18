@@ -56,6 +56,10 @@ public class EmailProvider extends ContentProvider {
     private static final int ADDRESSES = ADDRESS_BASE;
     private static final int ADDRESS_ID = ADDRESS_BASE + 1;
 
+    private static final int PENDING_COMMAND_BASE = 0x6000;
+    private static final int PENDING_COMMANDS = PENDING_COMMAND_BASE;
+    private static final int PENDING_COMMAND_ID = PENDING_COMMAND_BASE + 1;
+
     private static final int EXTRA_BASE = 0x10000;
     private static final int ACCOUNT_STATS = EXTRA_BASE;
 
@@ -64,6 +68,7 @@ public class EmailProvider extends ContentProvider {
     private static final String MESSAGE_PARTS_TABLE = "message_parts";
     private static final String MESSAGE_PART_ATTRIBUTES_TABLE = "message_part_attributes";
     private static final String ADDRESSES_TABLE = "addresses";
+    private static final String PENDING_COMMANDS_TABLE = "pending_commands";
 
     private static final String[] TABLE_NAMES = new String[] {
         "",                 // placeholder for accounts
@@ -71,7 +76,8 @@ public class EmailProvider extends ContentProvider {
         MESSAGES_TABLE,
         MESSAGE_PARTS_TABLE,
         MESSAGE_PART_ATTRIBUTES_TABLE,
-        ADDRESSES_TABLE
+        ADDRESSES_TABLE,
+        PENDING_COMMANDS_TABLE
     };
 
     private static final UriMatcher sURIMatcher = new UriMatcher(UriMatcher.NO_MATCH);
@@ -106,6 +112,12 @@ public class EmailProvider extends ContentProvider {
 
         // Account statistics (e.g. occupied storage space of database + message bodies/attachments)
         matcher.addURI(EmailProviderConstants.AUTHORITY, "account/*/stats", ACCOUNT_STATS);
+
+        // Pending commands
+        matcher.addURI(EmailProviderConstants.AUTHORITY, "account/*/pending_command", PENDING_COMMANDS);
+
+        // A specific pending command
+        matcher.addURI(EmailProviderConstants.AUTHORITY, "account/*/pending_command/#", PENDING_COMMAND_ID);
     }
 
 
@@ -153,6 +165,7 @@ public class EmailProvider extends ContentProvider {
             case MESSAGE_PARTS:
             case MESSAGE_PART_ATTRIBUTES:
             case ADDRESSES:
+            case PENDING_COMMANDS:
             {
                 String accountUuid = segments.get(1);
                 final String tableName = TABLE_NAMES[match >> 12];
@@ -319,6 +332,7 @@ public class EmailProvider extends ContentProvider {
             case MESSAGE_PARTS:
             case MESSAGE_PART_ATTRIBUTES:
             case ADDRESSES:
+            case PENDING_COMMANDS:
             {
                 String accountUuid = segments.get(1);
                 final String tableName = TABLE_NAMES[match >> 12];
@@ -354,6 +368,26 @@ public class EmailProvider extends ContentProvider {
                 }
                 break;
             }
+            case PENDING_COMMAND_ID:
+            {
+                String accountUuid = segments.get(1);
+                String id = uri.getLastPathSegment();
+                final String tableName = TABLE_NAMES[match >> 12];
+                try {
+                    final String selectionWithId = whereWithId(id, selection);
+
+                    result = getDatabase(accountUuid).execute(false, new DbCallback<Integer>() {
+                        @Override
+                        public Integer doDbWork(SQLiteDatabase db) throws WrappedException,
+                                UnavailableStorageException {
+                            return db.delete(tableName, selectionWithId, selectionArgs);
+                        }
+                    });
+                } catch (UnavailableStorageException e) {
+                    throw new RuntimeException(e);
+                }
+                break;
+            }
             default:
             {
                 throw new IllegalArgumentException("Unknown URI " + uri);
@@ -373,6 +407,7 @@ public class EmailProvider extends ContentProvider {
             case MESSAGES:
             case MESSAGE_PARTS:
             case ADDRESSES:
+            case PENDING_COMMANDS:
             {
                 String accountUuid = segments.get(1);
                 final String tableName = TABLE_NAMES[match >> 12];

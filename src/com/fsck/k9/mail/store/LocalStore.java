@@ -7,7 +7,6 @@ import android.net.Uri;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.util.ArrayList;
 import java.util.List;
 
 import com.fsck.k9.Account;
@@ -70,18 +69,6 @@ public class LocalStore extends Store {
         throw new RuntimeException("Stub");
     }
 
-    public void addPendingCommand(PendingCommand command) {
-        throw new RuntimeException("Stub");
-    }
-
-    public ArrayList<PendingCommand> getPendingCommands() {
-        throw new RuntimeException("Stub");
-    }
-
-    public void removePendingCommand(PendingCommand command) {
-        throw new RuntimeException("Stub");
-    }
-
 
     public abstract class LocalMessage extends Message {
 
@@ -126,14 +113,6 @@ public class LocalStore extends Store {
         public abstract void setPushClass(FolderClass valueOf);
         public abstract void save();
         public abstract void clearAllMessages();
-    }
-
-
-    public static class PendingCommand {
-
-        public String command;
-        public String[] arguments;
-
     }
 
 

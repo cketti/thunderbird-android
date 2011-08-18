@@ -22,6 +22,7 @@ public class EmailProviderConstants {
     public static final ContentUri MessagePartAttibute = new ContentUri("message_part_attribute");
     public static final ContentUri Address = new ContentUri("address");
     public static final ContentUri AccountStats = new ContentUri("stats");
+    public static final ContentUri PendingCommands = new ContentUri("pending_command");
 
     public static final String[] FOLDER_PROJECTION = new String[] {
         FolderColumns.ID,
@@ -37,6 +38,12 @@ public class EmailProviderConstants {
 
     public static final String[] ACCOUNT_STATS_PROJECTION = new String[] {
         AccountStatsColumns.SIZE
+    };
+
+    public static final String[] PENDING_COMMANDS_PROJECTION = new String[] {
+        PendingCommandColumns.ID,
+        PendingCommandColumns.COMMAND,
+        PendingCommandColumns.ARGUMENTS
     };
 
 
@@ -131,5 +138,11 @@ public class EmailProviderConstants {
 
     public interface AccountStatsColumns {
         public static final String SIZE = "size";
+    }
+
+    public interface PendingCommandColumns {
+        public static final String ID = "id";
+        public static final String COMMAND = "command";
+        public static final String ARGUMENTS = "arguments";
     }
 }
