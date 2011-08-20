@@ -98,7 +98,7 @@ public class MessagingControllerTest extends AndroidTestCase {
         mAccount = account;
     }
 
-    public void xtestListFolders() {
+    public void testListFolders() {
         Context context = getContext();
 
         // Create test folder
@@ -133,46 +133,46 @@ public class MessagingControllerTest extends AndroidTestCase {
 
         assertNull(listener.synchronizeMailboxFailed, listener.synchronizeMailboxFailed);
     }
-    
+
     public void testAddErrorMessage() {
-    	Context context = getContext();
-    	String accountUuid = mAccount.getUuid();
-    	
-    	String errorSubject = "Error subject";
-    	String errorText = "Error text";
-    	
+        Context context = getContext();
+        String accountUuid = mAccount.getUuid();
+
+        String errorSubject = "Error subject";
+        String errorText = "Error text";
+
         MessagingController controller = MessagingController.getInstance(context);
-    	controller.addErrorMessage(mAccount, errorSubject, errorText);
-    	
-    	controller.stop();
-    	
-    	EmailProviderFolder folder = EmailProviderHelper.getFolderByName(context,
-    			accountUuid, K9.ERROR_FOLDER_NAME);
-    	assertNotNull(folder);
-    	
-    	List<EmailProviderMetadata> metadataList = EmailProviderHelper.getMetadata(context,
-    			accountUuid, folder.getId());
-    	assertEquals(1, metadataList.size());
-    	
-    	EmailProviderMetadata metadata = metadataList.get(0);
-    	long messageId = metadata.getId();
-    	MessageContainer container = EmailProviderHelper.restoreMessageWithId(context, accountUuid,
-    			messageId);
-    	Message message = container.getMessage();
-    	assertEquals(errorSubject, message.getHeader().get("Subject")[0]);
-    	InputStream in = message.getBody().getInputStream(StreamType.UNMODIFIED);	//FIXME: use StreamType.DECODED when implemented
-    	ByteArrayOutputStream out = new ByteArrayOutputStream();
-    	try {
-    		//TODO: use IOUtils.copy()
-    		int x;
-			while ((x = in.read()) != -1) {
-				out.write(x);
-			}
-		} catch (IOException e) {
-			fail();
-		}
-    	String bodyText = out.toString();
-    	assertEquals(errorText, bodyText);
+        controller.addErrorMessage(mAccount, errorSubject, errorText);
+
+        controller.stop();
+
+        EmailProviderFolder folder = EmailProviderHelper.getFolderByName(context,
+                accountUuid, K9.ERROR_FOLDER_NAME);
+        assertNotNull(folder);
+
+        List<EmailProviderMetadata> metadataList = EmailProviderHelper.getMetadata(context,
+                accountUuid, folder.getId());
+        assertEquals(1, metadataList.size());
+
+        EmailProviderMetadata metadata = metadataList.get(0);
+        long messageId = metadata.getId();
+        MessageContainer container = EmailProviderHelper.restoreMessageWithId(context, accountUuid,
+                messageId);
+        Message message = container.getMessage();
+        assertEquals(errorSubject, message.getHeader().get("Subject")[0]);
+        InputStream in = message.getBody().getInputStream(StreamType.UNMODIFIED);	//FIXME: use StreamType.DECODED when implemented
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        try {
+            //TODO: use IOUtils.copy()
+            int x;
+            while ((x = in.read()) != -1) {
+                out.write(x);
+            }
+        } catch (IOException e) {
+            fail();
+        }
+        String bodyText = out.toString();
+        assertEquals(errorText, bodyText);
     }
 
 
