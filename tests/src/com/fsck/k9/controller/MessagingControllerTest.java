@@ -114,6 +114,26 @@ public class MessagingControllerTest extends AndroidTestCase {
         assertTrue(listener.listFoldersStarted);
         assertTrue(listener.listFolders);
         assertTrue(listener.listFoldersFinished);
+        assertFalse(listener.listFoldersFailed);
+    }
+
+    public void testListFoldersRemote() {
+        Context context = getContext();
+
+        // Create test folder (will be deleted when not in remote store)
+        createTestFolder(context, mAccount.getUuid(), "Test1");
+
+        MessagingController controller = MessagingController.getInstance(context);
+
+        ListFoldersMessageListener listener = new ListFoldersMessageListener();
+        controller.listFoldersSynchronous(mAccount, true, listener);
+
+        controller.stop();
+
+        assertTrue(listener.listFoldersStarted);
+        assertTrue(listener.listFolders);
+        assertTrue(listener.listFoldersFinished);
+        assertFalse(listener.listFoldersFailed);
     }
 
     public void testCheckMail() {
@@ -211,6 +231,7 @@ public class MessagingControllerTest extends AndroidTestCase {
     private static class ListFoldersMessageListener extends MessagingListener {
         public volatile boolean listFoldersStarted = false;
         public volatile boolean listFoldersFinished = false;
+        public volatile boolean listFoldersFailed = false;
         public volatile boolean listFolders = false;
 
         @Override
@@ -226,13 +247,11 @@ public class MessagingControllerTest extends AndroidTestCase {
         @Override
         public void listFolders(Account account, EmailProviderFolder[] folders) {
             listFolders = true;
-
-            assertNotNull(folders);
         }
 
         @Override
         public void listFoldersFailed(Account account, String message) {
-            fail("listFoldersFailed: " + message);
+            listFoldersFailed = true;
         }
     }
 

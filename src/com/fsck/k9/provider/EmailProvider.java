@@ -369,6 +369,7 @@ public class EmailProvider extends ContentProvider {
                 break;
             }
             case PENDING_COMMAND_ID:
+            case FOLDER_ID:
             {
                 String accountUuid = segments.get(1);
                 String id = uri.getLastPathSegment();

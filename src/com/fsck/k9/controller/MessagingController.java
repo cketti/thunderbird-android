@@ -317,6 +317,10 @@ public class MessagingController implements Runnable {
                     mStop.wait();
                 } catch (InterruptedException e) { /* do nothing */ }
             }
+
+            // We stopped the background thread so this MessagingController instance is rather
+            // useless. Make MessagingController.getInstance() return a new instance.
+            inst = null;
         }
     }
 
@@ -1235,8 +1239,8 @@ public class MessagingController implements Runnable {
     private int setLocalUnreadCountToRemote(EmailProviderFolder localFolder, Folder remoteFolder, int newMessageCount) throws MessagingException {
         String accountUuid = remoteFolder.getAccount().getUuid();
 
-    	int remoteUnreadMessageCount = remoteFolder.getUnreadMessageCount();
-    	int unreadCount;
+        int remoteUnreadMessageCount = remoteFolder.getUnreadMessageCount();
+        int unreadCount;
         if (remoteUnreadMessageCount != -1) {
             unreadCount = remoteUnreadMessageCount;
         } else {
