@@ -58,9 +58,7 @@ import com.fsck.k9.mail.PushReceiver;
 import com.fsck.k9.mail.Pusher;
 import com.fsck.k9.mail.Store;
 import com.fsck.k9.mail.Transport;
-import com.fsck.k9.mail.internet.MimeMessage;
 import com.fsck.k9.mail.internet.MimeUtility;
-import com.fsck.k9.mail.internet.TextBody;
 import com.fsck.k9.mail.store.UnavailableAccountException;
 import com.fsck.k9.mail.store.LocalStore;
 import com.fsck.k9.mail.store.UnavailableStorageException;
@@ -74,7 +72,6 @@ import com.fsck.k9.provider.EmailProviderConstants;
 import com.fsck.k9.provider.EmailProviderConstants.PendingCommandColumns;
 import com.fsck.k9.provider.message.EmailProviderFolder;
 import com.fsck.k9.provider.message.EmailProviderHelper;
-import com.fsck.k9.provider.message.EmailProviderMessage;
 import com.fsck.k9.provider.message.EmailProviderMessageFactory;
 import com.fsck.k9.provider.message.EmailProviderMetadata;
 
@@ -940,7 +937,7 @@ public class MessagingController implements Runnable {
         Folder remoteFolder = null;
         EmailProviderFolder localFolder = null;
         String accountUuid = account.getUuid();
-        
+
         if (K9.DEBUG)
             Log.i(K9.LOG_TAG, "Synchronizing folder " + account.getDescription() + ":" + folderName);
 
@@ -1173,7 +1170,7 @@ public class MessagingController implements Runnable {
 
             // Saving changes to the folder state (status, last time checked, etc.)
             EmailProviderHelper.updateFolderState(mContext, accountUuid, localFolder);
-            
+
             if (K9.DEBUG)
                 Log.i(K9.LOG_TAG, "Done synchronizing folder " + account.getDescription() + ":" + folderName);
 
@@ -1234,10 +1231,10 @@ public class MessagingController implements Runnable {
         }
         return true;
     }
-    
+
     private int setLocalUnreadCountToRemote(EmailProviderFolder localFolder, Folder remoteFolder, int newMessageCount) throws MessagingException {
         String accountUuid = remoteFolder.getAccount().getUuid();
-    	
+
     	int remoteUnreadMessageCount = remoteFolder.getUnreadMessageCount();
     	int unreadCount;
         if (remoteUnreadMessageCount != -1) {
@@ -1246,13 +1243,13 @@ public class MessagingController implements Runnable {
             unreadCount = EmailProviderHelper.countUnreadMessages(mContext, accountUuid, localFolder);
         }
         localFolder.setUnreadCount(unreadCount);
-        
+
         return unreadCount;
     }
 
     private void setLocalFlaggedCountToRemote(EmailProviderFolder localFolder, Folder remoteFolder) throws MessagingException {
         String accountUuid = remoteFolder.getAccount().getUuid();
-        
+
         int remoteFlaggedMessageCount = remoteFolder.getFlaggedMessageCount();
         int flaggedCount;
         if (remoteFlaggedMessageCount != -1) {
@@ -2609,10 +2606,10 @@ public class MessagingController implements Runnable {
             String accountUuid = account.getUuid();
             Date now = new Date();
             EmailProviderMessageFactory factory = EmailProviderHelper.getFactory(mContext, accountUuid);
-            
+
             EmailProviderFolder folder = EmailProviderHelper.getOrCreateFolder(mContext, account,
                     account.getErrorFolderName());
-            
+
             com.fsck.k9.message.Message message = factory.createMessage();
             Header header = message.getHeader();
             header.add(Header.CONTENT_TYPE, "text/plain");
@@ -2621,7 +2618,7 @@ public class MessagingController implements Runnable {
             //FIXME: header.add("Date", MimeUtility.x());
             Body messageBody = factory.createBody(message, body);
             message.setBody(messageBody);
-            
+
             EmailProviderMetadata metadata = factory.createMetadata();
             metadata.setFlag(Flag.X_DOWNLOADED_FULL, true);
             metadata.setDate(now);
@@ -2629,7 +2626,7 @@ public class MessagingController implements Runnable {
 
             MessageContainer container = new MessageContainer(metadata, message);
             EmailProviderHelper.saveMessage(mContext, container);
-            
+
             /*
             Store localStore = account.getLocalStore();
             LocalFolder localFolder = (LocalFolder)localStore.getFolder(account.getErrorFolderName());
