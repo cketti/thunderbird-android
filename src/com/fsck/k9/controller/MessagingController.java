@@ -66,12 +66,16 @@ import com.fsck.k9.mail.store.LocalStore;
 import com.fsck.k9.mail.store.UnavailableStorageException;
 import com.fsck.k9.mail.store.LocalStore.LocalFolder;
 import com.fsck.k9.mail.store.LocalStore.LocalMessage;
+import com.fsck.k9.message.Body;
+import com.fsck.k9.message.Header;
 import com.fsck.k9.message.MessageContainer;
 import com.fsck.k9.message.Metadata;
 import com.fsck.k9.provider.EmailProviderConstants;
 import com.fsck.k9.provider.EmailProviderConstants.PendingCommandColumns;
 import com.fsck.k9.provider.message.EmailProviderFolder;
 import com.fsck.k9.provider.message.EmailProviderHelper;
+import com.fsck.k9.provider.message.EmailProviderMessage;
+import com.fsck.k9.provider.message.EmailProviderMessageFactory;
 import com.fsck.k9.provider.message.EmailProviderMetadata;
 
 
@@ -2602,6 +2606,31 @@ public class MessagingController implements Runnable {
                 return;
             }
 
+            String accountUuid = account.getUuid();
+            Date now = new Date();
+            EmailProviderMessageFactory factory = EmailProviderHelper.getFactory(mContext, accountUuid);
+            
+            EmailProviderFolder folder = EmailProviderHelper.getOrCreateFolder(mContext, account,
+                    account.getErrorFolderName());
+            
+            com.fsck.k9.message.Message message = factory.createMessage();
+            Header header = message.getHeader();
+            header.add(Header.CONTENT_TYPE, "text/plain");
+            header.add(Header.SUBJECT, subject);
+            header.add(Header.FROM, new Address(account.getEmail(), "K9mail internal").toEncodedString());
+            //FIXME: header.add("Date", MimeUtility.x());
+            Body messageBody = factory.createBody(message, body);
+            message.setBody(messageBody);
+            
+            EmailProviderMetadata metadata = factory.createMetadata();
+            metadata.setFlag(Flag.X_DOWNLOADED_FULL, true);
+            metadata.setDate(now);
+            metadata.setFolderId(folder.getId());
+
+            MessageContainer container = new MessageContainer(metadata, message);
+            EmailProviderHelper.saveMessage(mContext, container);
+            
+            /*
             Store localStore = account.getLocalStore();
             LocalFolder localFolder = (LocalFolder)localStore.getFolder(account.getErrorFolderName());
             Message[] messages = new Message[1];
@@ -2620,8 +2649,9 @@ public class MessagingController implements Runnable {
             messages[0] = message;
 
             localFolder.appendMessages(messages);
+            */
 
-            localFolder.clearMessagesOlderThan(nowTime - (15 * 60 * 1000));
+            //FIXME: localFolder.clearMessagesOlderThan(nowTime - (15 * 60 * 1000));
 
         } catch (Throwable it) {
             Log.e(K9.LOG_TAG, "Could not save error message to " + account.getErrorFolderName(), it);

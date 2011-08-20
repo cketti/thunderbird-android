@@ -734,11 +734,30 @@ public class EmailProviderHelper {
                 selectionArgs, null);
 
         try {
-            cursor.moveToFirst();
-            return restoreFolderFromCursor(cursor);
+            if (cursor.moveToFirst()) {
+                return restoreFolderFromCursor(cursor);
+            }
+            
+            return null;
         } finally {
             cursor.close();
         }
+    }
+
+    public static EmailProviderFolder getOrCreateFolder(Context context, Account account,
+            String folderName) {
+        String accountUuid = account.getUuid();
+        EmailProviderFolder folder = getFolderByName(context, accountUuid, folderName);
+
+        if (folder == null) {
+            List<EmailProviderFolder> folders = new ArrayList<EmailProviderFolder>();
+            folders.add(new EmailProviderFolder(folderName));
+            createFolders(context, accountUuid, folders, account.getDisplayCount());
+
+            folder = getFolderByName(context, accountUuid, folderName);
+        }
+
+        return folder;
     }
 
     private static EmailProviderFolder restoreFolderFromCursor(Cursor cursor) {

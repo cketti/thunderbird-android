@@ -64,4 +64,17 @@ public interface MessageFactory {
      * @return A concrete {@link Body} instance.
      */
     public Body createBody(Part part, InputStream in);
+
+    /**
+     * Create a {@code Body} instance from the string {@code text}.
+     *
+     * @param part
+     *         The {@link Part} object the {@link Body} to be created belongs to. Never
+     *         {@code null}.
+     * @param text
+     *         A string containing the body data. Never {@code null}.
+     *
+     * @return A concrete {@link Body} instance.
+     */
+    public Body createBody(Part part, String text);
 }

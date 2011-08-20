@@ -1,8 +1,12 @@
 package com.fsck.k9.controller;
 
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.URI;
 import java.net.URLEncoder;
+import java.util.List;
 import java.util.Properties;
 import com.fsck.k9.Account;
 import com.fsck.k9.K9;
@@ -14,6 +18,7 @@ import com.fsck.k9.message.Body;
 import com.fsck.k9.message.Header;
 import com.fsck.k9.message.Message;
 import com.fsck.k9.message.MessageContainer;
+import com.fsck.k9.message.Body.StreamType;
 import com.fsck.k9.provider.EmailProvider;
 import com.fsck.k9.provider.EmailProviderConstants;
 import com.fsck.k9.provider.message.EmailProviderFolder;
@@ -119,7 +124,6 @@ public class MessagingControllerTest extends AndroidTestCase {
 
         createTestMessage(mContext, mAccount.getUuid(), folderId, "MessageText1");
 
-        K9.DEBUG = true;
         MessagingController controller = MessagingController.getInstance(context);
         CheckMailListener listener = new CheckMailListener();
 
@@ -128,6 +132,47 @@ public class MessagingControllerTest extends AndroidTestCase {
         controller.stop();
 
         assertNull(listener.synchronizeMailboxFailed, listener.synchronizeMailboxFailed);
+    }
+    
+    public void testAddErrorMessage() {
+    	Context context = getContext();
+    	String accountUuid = mAccount.getUuid();
+    	
+    	String errorSubject = "Error subject";
+    	String errorText = "Error text";
+    	
+        MessagingController controller = MessagingController.getInstance(context);
+    	controller.addErrorMessage(mAccount, errorSubject, errorText);
+    	
+    	controller.stop();
+    	
+    	EmailProviderFolder folder = EmailProviderHelper.getFolderByName(context,
+    			accountUuid, K9.ERROR_FOLDER_NAME);
+    	assertNotNull(folder);
+    	
+    	List<EmailProviderMetadata> metadataList = EmailProviderHelper.getMetadata(context,
+    			accountUuid, folder.getId());
+    	assertEquals(1, metadataList.size());
+    	
+    	EmailProviderMetadata metadata = metadataList.get(0);
+    	long messageId = metadata.getId();
+    	MessageContainer container = EmailProviderHelper.restoreMessageWithId(context, accountUuid,
+    			messageId);
+    	Message message = container.getMessage();
+    	assertEquals(errorSubject, message.getHeader().get("Subject")[0]);
+    	InputStream in = message.getBody().getInputStream(StreamType.UNMODIFIED);	//FIXME: use StreamType.DECODED when implemented
+    	ByteArrayOutputStream out = new ByteArrayOutputStream();
+    	try {
+    		//TODO: use IOUtils.copy()
+    		int x;
+			while ((x = in.read()) != -1) {
+				out.write(x);
+			}
+		} catch (IOException e) {
+			fail();
+		}
+    	String bodyText = out.toString();
+    	assertEquals(errorText, bodyText);
     }
 
 

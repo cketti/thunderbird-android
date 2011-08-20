@@ -4,6 +4,8 @@ package com.fsck.k9.mail.internet;
 import android.util.Log;
 import com.fsck.k9.K9;
 import com.fsck.k9.mail.*;
+import com.fsck.k9.message.Header;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.james.mime4j.MimeException;
 import org.apache.james.mime4j.codec.Base64InputStream;
@@ -24,6 +26,8 @@ import java.nio.charset.IllegalCharsetNameException;
 public class MimeUtility {
     public static final String DEFAULT_ATTACHMENT_MIME_TYPE = "application/octet-stream";
 
+    public static final String ENCODING_QUOTED_PRINTABLE = "quoted-printable";
+    public static final String ENCODING_BASE64 = "base64";
 
 
     /*
@@ -889,6 +893,8 @@ public class MimeUtility {
     private static final String[][] MIME_TYPE_REPLACEMENT_MAP = new String[][] {
         {"image/jpg", "image/jpeg"}
     };
+
+
 
     public static String unfold(String s) {
         if (s == null) {
@@ -2453,5 +2459,52 @@ public class MimeUtility {
         }
 
         return date;
+    }
+
+    /**
+     * Check if a string contains non-printable characters other than CR/LF.
+     * 
+     * @param text
+     *         The string to be checked.
+     * 
+     * @return {@code true} if the string {@code text} contains non-printable characters that need
+     *         to be encoded. {@code false} otherwise.
+     */
+    public static boolean hasToBeEncoded(String text) {
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c < 0x20 || 0x7e < c) { // non printable
+                if (c != 0x0a && c != 0x0d) { // non LF/CR
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    public static String getTransferEncoding(com.fsck.k9.message.Part mPart) {
+        String encoding = null;
+
+        String[] headerLines = mPart.getHeader().get(Header.CONTENT_TRANSFER_ENCODING);
+        if (headerLines.length >= 1) {
+            encoding = unfoldAndDecode(headerLines[0]);
+        }
+
+        return encoding;
+    }
+
+    public static InputStream encodeBody(InputStream in, String encoding) {
+        InputStream encoderStream;
+
+        if (ENCODING_QUOTED_PRINTABLE.equals(encoding)) {
+            encoderStream = new QuotedPrintableInputStream(in);
+        } else if (ENCODING_BASE64.equals(encoding)) {
+            encoderStream = new Base64InputStream(in);
+        } else {
+            throw new IllegalArgumentException("Unsupported encoding");
+        }
+
+        return encoderStream;
     }
 }

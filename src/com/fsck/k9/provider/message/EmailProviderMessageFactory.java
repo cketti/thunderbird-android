@@ -39,6 +39,11 @@ public class EmailProviderMessageFactory implements MessageFactory {
     }
 
     @Override
+    public Body createBody(Part part, String text) {
+        return new SimpleBody(part, text);
+    }
+
+    @Override
     public EmailProviderMetadata createMetadata() {
         return new EmailProviderMetadata(mAccountUuid);
     }
