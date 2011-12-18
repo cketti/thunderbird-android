@@ -2632,7 +2632,7 @@ public class ImapStore extends Store {
         }
     }
 
-    public class ImapFolderPusher extends ImapFolder implements UntaggedHandler {
+    public class ImapFolderPusher extends ImapFolder implements UntaggedHandler, Runnable {
         final PushReceiver receiver;
         Thread listeningThread = null;
         final AtomicBoolean stop = new AtomicBoolean(false);
@@ -2671,207 +2671,224 @@ public class ImapStore extends Store {
         }
 
         public void start() {
-            Runnable runner = new Runnable() {
-                public void run() {
-                    // Acquire wakelock
+            listeningThread = new Thread(this);
+            listeningThread.start();
+        }
+
+        @Override
+        public void run() {
+            // Acquire wakelock
+            wakeLock.acquire(K9.PUSH_WAKE_LOCK_TIMEOUT);
+
+            if (K9.DEBUG) {
+                Log.i(K9.LOG_TAG, "Pusher starting for " + getLogId());
+            }
+
+            while (!stop.get()) {
+                try {
+                    int oldUidNext = -1;
+
+                    // Retrieve persisted value for next UID
+                    try {
+                        String pushStateS = receiver.getPushState(getName());
+                        ImapPushState pushState = ImapPushState.parse(pushStateS);
+                        oldUidNext = pushState.uidNext;
+                        if (K9.DEBUG) {
+                            Log.i(K9.LOG_TAG, "Got oldUidNext " + oldUidNext + " for " +
+                                    getLogId());
+                        }
+                    } catch (Exception e) {
+                        Log.e(K9.LOG_TAG, "Unable to get oldUidNext for " + getLogId(), e);
+                    }
+
+                    // Open IMAP connection
+                    ImapConnection oldConnection = mConnection;
+                    internalOpen(OpenMode.READ_ONLY);
+                    ImapConnection conn = mConnection;
+                    if (conn == null) {
+                        receiver.pushError("Could not establish connection for IDLE", null);
+                        throw new MessagingException("Could not establish connection for IDLE");
+                    }
+
+                    // Check if the server supports the IDLE command
+                    if (!conn.isIdleCapable()) {
+                        stop.set(true);
+                        receiver.pushError("IMAP server is not IDLE capable: " +
+                                conn.toString(), null);
+
+                        throw new MessagingException("IMAP server is not IDLE capable:" +
+                                conn.toString());
+                    }
+
+                    // Poll if "poll when connecting for push" is enabled and we just (re)connected
+                    // to the server, or if a message was received
+                    if (!stop.get() && mAccount.isPushPollOnConnect() &&
+                            (conn != oldConnection || needsPoll.getAndSet(false))) {
+                        List<ImapResponse> untaggedResponses =
+                            new ArrayList<ImapResponse>(storedUntaggedResponses);
+                        storedUntaggedResponses.clear();
+                        processUntaggedResponses(untaggedResponses);
+                        if (mMessageCount == -1) {
+                            throw new MessagingException("Message count = -1 for idling");
+                        }
+                        receiver.syncFolder(ImapFolderPusher.this);
+                    }
+
+                    // Bail out if the pusher was stopped
+                    if (stop.get()) {
+                        continue;
+                    }
+
+                    int startUid = oldUidNext;
+                    int newUidNext = uidNext;
+
+                    // Use SEARCH command to get a UIDNEXT value if we didn't receive a UIDNEXT
+                    // response earlier (when SELECTing the folder)
+                    if (newUidNext == -1) {
+                        if (K9.DEBUG) {
+                            Log.d(K9.LOG_TAG, "uidNext is -1, using search to find highest UID");
+                        }
+                        int highestUid = getHighestUid();
+                        if (highestUid != -1) {
+                            newUidNext = highestUid + 1;
+                            if (K9.DEBUG) {
+                                Log.d(K9.LOG_TAG, "highest UID = " + highestUid +
+                                      ", set newUidNext to " + newUidNext);
+                            }
+                        } else {
+                            //FIXME: Handle this case
+                        }
+                    }
+
+                    //FIXME: Handle special case: display count = 0 (show all messages)
+                    if (startUid < newUidNext - mAccount.getDisplayCount()) {
+                        startUid = newUidNext - mAccount.getDisplayCount();
+                    }
+
+                    if (startUid < 1) {
+                        startUid = 1;
+                    }
+
+                    if (newUidNext > startUid) {
+                        // Fetch new messages
+                        if (K9.DEBUG) {
+                            Log.i(K9.LOG_TAG, "Needs sync from uid " + startUid  + " to " +
+                                    newUidNext + " for " + getLogId());
+                        }
+                        List<Message> messages = new ArrayList<Message>();
+                        for (int uid = startUid; uid < newUidNext; uid++) {
+                            ImapMessage message = new ImapMessage("" + uid, ImapFolderPusher.this);
+                            messages.add(message);
+                        }
+                        if (!messages.isEmpty()) {
+                            pushMessages(messages, true);
+                        }
+
+                        //FIXME: Make sure PushState is updated; otherwise we'll end up in this
+                        //       branch again (see issue 3348)
+
+                    } else {
+                        // Process stored untagged responses
+                        List<ImapResponse> untaggedResponses = null;
+                        while (!storedUntaggedResponses.isEmpty()) {
+                            if (K9.DEBUG) {
+                                Log.i(K9.LOG_TAG, "Processing " + storedUntaggedResponses.size() +
+                                        " untagged responses from previous commands for " +
+                                        getLogId());
+                            }
+                            untaggedResponses =
+                                new ArrayList<ImapResponse>(storedUntaggedResponses);
+                            storedUntaggedResponses.clear();
+                            processUntaggedResponses(untaggedResponses);
+                            //FIXME: make sure this can never be an endless loop
+                        }
+
+                        if (K9.DEBUG) {
+                            Log.i(K9.LOG_TAG, "About to IDLE for " + getLogId());
+                        }
+
+                        // Mark the pusher as active
+                        receiver.setPushActive(getName(), true);
+                        idling.set(true);
+                        doneSent.set(false);
+
+                        // Increase read timeout on the IMAP connection
+                        conn.setReadTimeout((getAccount().getIdleRefreshMinutes() * 60 * 1000) +
+                                IDLE_READ_TIMEOUT_INCREMENT);
+
+                        // Send IDLE command
+                        untaggedResponses = executeSimpleCommand(COMMAND_IDLE, false,
+                                ImapFolderPusher.this);
+                        //FIXME: Don't throw away the untagged responses
+
+                        // The IDLE command returned with an OK response
+                        idling.set(false);
+
+                        // Reset sleep time and failure count
+                        delayTime.set(NORMAL_DELAY_TIME);
+                        idleFailureCount.set(0);
+                    }
+                } catch (Exception e) {
+                    // Reacquire wakelock
                     wakeLock.acquire(K9.PUSH_WAKE_LOCK_TIMEOUT);
 
-                    if (K9.DEBUG) {
-                        Log.i(K9.LOG_TAG, "Pusher starting for " + getLogId());
-                    }
-
-                    while (!stop.get()) {
-                        try {
-                            int oldUidNext = -1;
-
-                            // Retrieve persisted value for next UID
-                            try {
-                                String pushStateS = receiver.getPushState(getName());
-                                ImapPushState pushState = ImapPushState.parse(pushStateS);
-                                oldUidNext = pushState.uidNext;
-                                if (K9.DEBUG) {
-                                    Log.i(K9.LOG_TAG, "Got oldUidNext " + oldUidNext + " for " + getLogId());
-                                }
-                            } catch (Exception e) {
-                                Log.e(K9.LOG_TAG, "Unable to get oldUidNext for " + getLogId(), e);
-                            }
-
-                            // Open IMAP connection
-                            ImapConnection oldConnection = mConnection;
-                            internalOpen(OpenMode.READ_ONLY);
-                            ImapConnection conn = mConnection;
-                            if (conn == null) {
-                                receiver.pushError("Could not establish connection for IDLE", null);
-                                throw new MessagingException("Could not establish connection for IDLE");
-                            }
-
-                            // Check if the server supports the IDLE command
-                            if (!conn.isIdleCapable()) {
-                                stop.set(true);
-                                receiver.pushError("IMAP server is not IDLE capable: " + conn.toString(), null);
-                                throw new MessagingException("IMAP server is not IDLE capable:" + conn.toString());
-                            }
-
-                            // Poll if "poll when connecting for push" is enabled and we just
-                            // (re)connected to the server, or if a message was received
-                            if (!stop.get() && mAccount.isPushPollOnConnect() &&
-                                    (conn != oldConnection || needsPoll.getAndSet(false))) {
-                                List<ImapResponse> untaggedResponses = new ArrayList<ImapResponse>(storedUntaggedResponses);
-                                storedUntaggedResponses.clear();
-                                processUntaggedResponses(untaggedResponses);
-                                if (mMessageCount == -1) {
-                                    throw new MessagingException("Message count = -1 for idling");
-                                }
-                                receiver.syncFolder(ImapFolderPusher.this);
-                            }
-
-                            // Bail out if the pusher was stopped
-                            if (stop.get()) {
-                                continue;
-                            }
-
-                            int startUid = oldUidNext;
-                            int newUidNext = uidNext;
-
-                            // Use SEARCH command to get a UIDNEXT value if we didn't receive a
-                            // UIDNEXT response earlier (when SELECTing the folder)
-                            if (newUidNext == -1) {
-                                if (K9.DEBUG) {
-                                    Log.d(K9.LOG_TAG, "uidNext is -1, using search to find highest UID");
-                                }
-                                int highestUid = getHighestUid();
-                                if (highestUid != -1) {
-                                    newUidNext = highestUid + 1;
-                                    if (K9.DEBUG) {
-                                        Log.d(K9.LOG_TAG, "highest UID = " + highestUid +
-                                              ", set newUidNext to " + newUidNext);
-                                    }
-                                } else {
-                                    //FIXME: Handle this case
-                                }
-                            }
-
-                            //FIXME: Handle special case: display count = 0 (show all messages)
-                            if (startUid < newUidNext - mAccount.getDisplayCount()) {
-                                startUid = newUidNext - mAccount.getDisplayCount();
-                            }
-
-                            if (startUid < 1) {
-                                startUid = 1;
-                            }
-
-                            if (newUidNext > startUid) {
-                                // Fetch new messages
-                                if (K9.DEBUG) {
-                                    Log.i(K9.LOG_TAG, "Needs sync from uid " + startUid  + " to " + newUidNext + " for " + getLogId());
-                                }
-                                List<Message> messages = new ArrayList<Message>();
-                                for (int uid = startUid; uid < newUidNext; uid++) {
-                                    ImapMessage message = new ImapMessage("" + uid, ImapFolderPusher.this);
-                                    messages.add(message);
-                                }
-                                if (!messages.isEmpty()) {
-                                    pushMessages(messages, true);
-                                }
-
-                                //FIXME: Make sure PushState is updated; otherwise we'll end up in this branch again (see issue 3348)
-
-                            } else {
-                                // Process stored untagged responses
-                                List<ImapResponse> untaggedResponses = null;
-                                while (!storedUntaggedResponses.isEmpty()) {
-                                    if (K9.DEBUG) {
-                                        Log.i(K9.LOG_TAG, "Processing " + storedUntaggedResponses.size() + " untagged responses from previous commands for " + getLogId());
-                                    }
-                                    untaggedResponses = new ArrayList<ImapResponse>(storedUntaggedResponses);
-                                    storedUntaggedResponses.clear();
-                                    processUntaggedResponses(untaggedResponses);
-                                    //FIXME: make sure this can never be an endless loop
-                                }
-
-                                if (K9.DEBUG) {
-                                    Log.i(K9.LOG_TAG, "About to IDLE for " + getLogId());
-                                }
-
-                                // Mark the pusher as active
-                                receiver.setPushActive(getName(), true);
-                                idling.set(true);
-                                doneSent.set(false);
-
-                                // Increase read timeout on the IMAP connection
-                                conn.setReadTimeout((getAccount().getIdleRefreshMinutes() * 60 * 1000) + IDLE_READ_TIMEOUT_INCREMENT);
-
-                                // Send IDLE command
-                                untaggedResponses = executeSimpleCommand(COMMAND_IDLE, false, ImapFolderPusher.this);
-                                //FIXME: Don't throw away the untagged responses
-
-                                // The IDLE command returned with an OK response
-                                idling.set(false);
-
-                                // Reset sleep time and failure count
-                                delayTime.set(NORMAL_DELAY_TIME);
-                                idleFailureCount.set(0);
-                            }
-                        } catch (Exception e) {
-                            // Reacquire wakelock
-                            wakeLock.acquire(K9.PUSH_WAKE_LOCK_TIMEOUT);
-
-                            storedUntaggedResponses.clear();
-                            idling.set(false);
-                            receiver.setPushActive(getName(), false);
-
-                            // Close connection
-                            try {
-                                close();
-                            } catch (Exception me) {
-                                Log.e(K9.LOG_TAG, "Got exception while closing for exception for " + getLogId(), me);
-                            }
-
-                            if (stop.get()) {
-                                Log.i(K9.LOG_TAG, "Got exception while idling, but stop is set for " + getLogId());
-                            } else {
-                                Log.e(K9.LOG_TAG, "Got exception while idling for " + getLogId(), e);
-
-                                // Notify PushReceiver of the error
-                                receiver.pushError("Push error for " + getName(), e);
-
-                                // Sleep some time before retrying
-                                int delayTimeInt = delayTime.get();
-                                receiver.sleep(wakeLock, delayTimeInt);
-
-                                // Increase sleep time for next failure
-                                delayTimeInt *= 2;
-                                if (delayTimeInt > MAX_DELAY_TIME) {
-                                    delayTimeInt = MAX_DELAY_TIME;
-                                }
-                                delayTime.set(delayTimeInt);
-
-                                // If failure count is too high, give up and stop the pusher to save battery
-                                if (idleFailureCount.incrementAndGet() > IDLE_FAILURE_COUNT_LIMIT) {
-                                    Log.e(K9.LOG_TAG, "Disabling pusher for " + getLogId() + " after " + idleFailureCount.get() + " consecutive errors");
-                                    receiver.pushError("Push disabled for " + getName() + " after " + idleFailureCount.get() + " consecutive errors", e);
-                                    stop.set(true);
-                                }
-                            }
-                        }
-                    }
-
-                    // Clean up
+                    storedUntaggedResponses.clear();
+                    idling.set(false);
                     receiver.setPushActive(getName(), false);
+
+                    // Close connection
                     try {
-                        if (K9.DEBUG) {
-                            Log.i(K9.LOG_TAG, "Pusher for " + getLogId() + " is exiting");
-                        }
                         close();
                     } catch (Exception me) {
-                        Log.e(K9.LOG_TAG, "Got exception while closing for " + getLogId(), me);
-                    } finally {
-                        wakeLock.release();
+                        Log.e(K9.LOG_TAG, "Got exception while closing for exception for " +
+                                getLogId(), me);
+                    }
+
+                    if (stop.get()) {
+                        Log.i(K9.LOG_TAG, "Got exception while idling, but stop is set for " +
+                                getLogId());
+                    } else {
+                        Log.e(K9.LOG_TAG, "Got exception while idling for " + getLogId(), e);
+
+                        // Notify PushReceiver of the error
+                        receiver.pushError("Push error for " + getName(), e);
+
+                        // Sleep some time before retrying
+                        int delayTimeInt = delayTime.get();
+                        receiver.sleep(wakeLock, delayTimeInt);
+
+                        // Increase sleep time for next failure
+                        delayTimeInt *= 2;
+                        if (delayTimeInt > MAX_DELAY_TIME) {
+                            delayTimeInt = MAX_DELAY_TIME;
+                        }
+                        delayTime.set(delayTimeInt);
+
+                        // If failure count is too high, give up and stop the pusher to save
+                        // battery
+                        if (idleFailureCount.incrementAndGet() > IDLE_FAILURE_COUNT_LIMIT) {
+                            Log.e(K9.LOG_TAG, "Disabling pusher for " + getLogId() + " after " +
+                                    idleFailureCount.get() + " consecutive errors");
+                            receiver.pushError("Push disabled for " + getName() + " after " +
+                                    idleFailureCount.get() + " consecutive errors", e);
+                            stop.set(true);
+                        }
                     }
                 }
-            };
-            listeningThread = new Thread(runner);
-            listeningThread.start();
+            }
+
+            // Clean up
+            receiver.setPushActive(getName(), false);
+            try {
+                if (K9.DEBUG) {
+                    Log.i(K9.LOG_TAG, "Pusher for " + getLogId() + " is exiting");
+                }
+                close();
+            } catch (Exception me) {
+                Log.e(K9.LOG_TAG, "Got exception while closing for " + getLogId(), me);
+            } finally {
+                wakeLock.release();
+            }
         }
 
         @Override
