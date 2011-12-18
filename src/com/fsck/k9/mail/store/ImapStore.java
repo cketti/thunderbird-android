@@ -2653,28 +2653,20 @@ public class ImapStore extends Store {
 
         }
 
-        public void refresh() throws IOException, MessagingException {
+        public void refresh() throws IOException {
             if (idling.get()) {
                 wakeLock.acquire(K9.PUSH_WAKE_LOCK_TIMEOUT);
                 sendDone();
             }
         }
 
-        private void sendDone() throws IOException, MessagingException {
+        private void sendDone() throws IOException {
             if (doneSent.compareAndSet(false, true)) {
                 ImapConnection conn = mConnection;
                 if (conn != null) {
                     conn.setReadTimeout(Store.SOCKET_READ_TIMEOUT);
-                    sendContinuation("DONE");
+                    conn.sendContinuation("DONE");
                 }
-            }
-        }
-
-        private void sendContinuation(String continuation)
-        throws IOException {
-            ImapConnection conn = mConnection;
-            if (conn != null) {
-                conn.sendContinuation(continuation);
             }
         }
 
