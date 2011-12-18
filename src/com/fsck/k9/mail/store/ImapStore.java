@@ -2652,6 +2652,7 @@ public class ImapStore extends Store {
             wakeLock.setReferenceCounted(false);
 
         }
+
         public void refresh() throws IOException, MessagingException {
             if (idling.get()) {
                 wakeLock.acquire(K9.PUSH_WAKE_LOCK_TIMEOUT);
@@ -2666,7 +2667,6 @@ public class ImapStore extends Store {
                     conn.setReadTimeout(Store.SOCKET_READ_TIMEOUT);
                     sendContinuation("DONE");
                 }
-
             }
         }
 
@@ -2958,7 +2958,6 @@ public class ImapStore extends Store {
             } catch (Exception e) {
                 Log.e(K9.LOG_TAG, "Cannot remove EXPUNGEd messages", e);
             }
-
         }
 
         protected int processUntaggedResponse(int oldMessageCount, ImapResponse response, List<Integer> flagSyncMsgSeqs, List<String> removeMsgUids) {
@@ -3031,7 +3030,6 @@ public class ImapStore extends Store {
             }
             return messageCountDelta;
         }
-
 
         private void pushMessages(List<Message> messages, boolean newArrivals) {
             RuntimeException holdException = null;
@@ -3109,6 +3107,7 @@ public class ImapStore extends Store {
             }
         }
     }
+
     @Override
     public Pusher getPusher(PushReceiver receiver) {
         return new ImapPusher(this, receiver);
@@ -3182,17 +3181,19 @@ public class ImapStore extends Store {
         public void setLastRefresh(long lastRefresh) {
             this.lastRefresh = lastRefresh;
         }
-
     }
+
     private interface UntaggedHandler {
         void handleAsyncUntaggedResponse(ImapResponse respose);
     }
 
     protected static class ImapPushState {
         protected int uidNext;
+
         protected ImapPushState(int nUidNext) {
             uidNext = nUidNext;
         }
+
         protected static ImapPushState parse(String pushState) {
             int newUidNext = -1;
             if (pushState != null) {
@@ -3216,12 +3217,13 @@ public class ImapStore extends Store {
             }
             return new ImapPushState(newUidNext);
         }
+
         @Override
         public String toString() {
             return "uidNext=" + uidNext;
         }
-
     }
+
     private interface ImapSearcher {
         List<ImapResponse> search() throws IOException, MessagingException;
     }
@@ -3273,5 +3275,4 @@ public class ImapStore extends Store {
             return null;
         }
     }
-
 }
