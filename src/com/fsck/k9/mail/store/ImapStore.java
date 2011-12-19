@@ -2782,7 +2782,7 @@ public class ImapStore extends Store {
                             messages.add(message);
                         }
                         if (!messages.isEmpty()) {
-                            pushMessages(messages, true);
+                            receiver.messagesArrived(this, messages);
                         }
 
                         //FIXME: Make sure PushState is updated; otherwise we'll end up in this
@@ -2986,7 +2986,7 @@ public class ImapStore extends Store {
                         messages.add(message);
                     }
                     if (!messages.isEmpty()) {
-                        pushMessages(messages, true);
+                        receiver.messagesArrived(this, messages);
                     }
                 }
             }
@@ -3000,7 +3000,7 @@ public class ImapStore extends Store {
 
                 List<Message> messages = new ArrayList<Message>();
                 messages.addAll(Arrays.asList(messageArray));
-                pushMessages(messages, false);
+                receiver.messagesFlagsChanged(this, messages);
 
             } catch (Exception e) {
                 receiver.pushError("Exception while processing Push untagged responses", e);
@@ -3103,23 +3103,6 @@ public class ImapStore extends Store {
                 }
             }
             return messageCountDelta;
-        }
-
-        private void pushMessages(List<Message> messages, boolean newArrivals) {
-            RuntimeException holdException = null;
-            try {
-                if (newArrivals) {
-                    receiver.messagesArrived(this, messages);
-                } else {
-                    receiver.messagesFlagsChanged(this, messages);
-                }
-            } catch (RuntimeException e) {
-                holdException = e;
-            }
-
-            if (holdException != null) {
-                throw holdException;
-            }
         }
 
         public void stop() {
