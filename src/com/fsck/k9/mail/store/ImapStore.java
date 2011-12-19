@@ -2760,9 +2760,10 @@ public class ImapStore extends Store {
                         }
                     }
 
-                    //FIXME: Handle special case: display count = 0 (show all messages)
-                    if (startUid < newUidNext - mAccount.getDisplayCount()) {
-                        startUid = newUidNext - mAccount.getDisplayCount();
+                    // Adjust start UID to respect the display count setting (0: show all messages)
+                    int displayCount = mAccount.getDisplayCount();
+                    if (displayCount != 0 && startUid < newUidNext - displayCount) {
+                        startUid = newUidNext - displayCount;
                     }
 
                     if (startUid < 1) {
