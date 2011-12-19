@@ -2817,9 +2817,7 @@ public class ImapStore extends Store {
                                 IDLE_READ_TIMEOUT_INCREMENT);
 
                         // Send IDLE command
-                        untaggedResponses = executeSimpleCommand(COMMAND_IDLE, false,
-                                ImapFolderPusher.this);
-                        //FIXME: Don't throw away the untagged responses
+                        executeSimpleCommand(COMMAND_IDLE, false, this);
 
                         // The IDLE command returned with an OK response
                         idling.set(false);
@@ -2891,6 +2889,19 @@ public class ImapStore extends Store {
             }
         }
 
+        /**
+         * Store untagged responses.
+         *
+         * <p>
+         * This is called by {@link ImapFolder#handleUntaggedResponses(List)} for every untagged
+         * response received while executing {@link ImapFolder#executeSimpleCommand(String)} or
+         * {@link ImapFolder#executeSimpleCommand(String, boolean, UntaggedHandler)}.
+         * </p>
+         * <p><strong>Note:</strong>
+         * See {@link #handleAsyncUntaggedResponse(ImapResponse)} for code that only handles
+         * untagged responses received while executing the IDLE command.
+         * </p>
+         */
         @Override
         protected void handleUntaggedResponse(ImapResponse response) {
             if (response.mTag == null && response.size() > 1) {
@@ -2898,8 +2909,10 @@ public class ImapStore extends Store {
                 if (ImapResponseParser.equalsIgnoreCase(responseType, "FETCH")
                         || ImapResponseParser.equalsIgnoreCase(responseType, "EXPUNGE")
                         || ImapResponseParser.equalsIgnoreCase(responseType, "EXISTS")) {
-                    if (K9.DEBUG)
-                        Log.d(K9.LOG_TAG, "Storing response " + response + " for later processing");
+                    if (K9.DEBUG) {
+                        Log.d(K9.LOG_TAG, "Storing response " + response +
+                                " for later processing");
+                    }
 
                     storedUntaggedResponses.add(response);
                 }
@@ -3123,13 +3136,19 @@ public class ImapStore extends Store {
             }
         }
 
+        /**
+         * Handle untagged responses received during the execution of the IDLE command.
+         */
         public void handleAsyncUntaggedResponse(ImapResponse response) {
-            if (K9.DEBUG)
+            if (K9.DEBUG) {
                 Log.v(K9.LOG_TAG, "Got async response: " + response);
+            }
 
             if (stop.get()) {
-                if (K9.DEBUG)
-                    Log.d(K9.LOG_TAG, "Got async untagged response: " + response + ", but stop is set for " + getLogId());
+                if (K9.DEBUG) {
+                    Log.d(K9.LOG_TAG, "Got async untagged response: " + response +
+                            ", but stop is set for " + getLogId());
+                }
 
                 try {
                     sendDone();
@@ -3141,25 +3160,30 @@ public class ImapStore extends Store {
                     if (response.size() > 1) {
                         boolean started = false;
                         Object responseType = response.get(1);
-                        if (ImapResponseParser.equalsIgnoreCase(responseType, "EXISTS") || ImapResponseParser.equalsIgnoreCase(responseType, "EXPUNGE") ||
+                        if (ImapResponseParser.equalsIgnoreCase(responseType, "EXISTS") ||
+                                ImapResponseParser.equalsIgnoreCase(responseType, "EXPUNGE") ||
                                 ImapResponseParser.equalsIgnoreCase(responseType, "FETCH")) {
                             if (!started) {
                                 wakeLock.acquire(K9.PUSH_WAKE_LOCK_TIMEOUT);
                                 started = true;
                             }
 
-                            if (K9.DEBUG)
-                                Log.d(K9.LOG_TAG, "Got useful async untagged response: " + response + " for " + getLogId());
+                            if (K9.DEBUG) {
+                                Log.d(K9.LOG_TAG, "Got useful async untagged response: " +
+                                        response + " for " + getLogId());
+                            }
 
                             try {
                                 sendDone();
                             } catch (Exception e) {
-                                Log.e(K9.LOG_TAG, "Exception while sending DONE for " + getLogId(), e);
+                                Log.e(K9.LOG_TAG, "Exception while sending DONE for " +
+                                        getLogId(), e);
                             }
                         }
                     } else if (response.mCommandContinuationRequested) {
-                        if (K9.DEBUG)
+                        if (K9.DEBUG) {
                             Log.d(K9.LOG_TAG, "Idling " + getLogId());
+                        }
 
                         wakeLock.release();
                     }
