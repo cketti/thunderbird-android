@@ -1091,7 +1091,7 @@ public class Account implements BaseAccount {
     }
 
     public LocalStore getLocalStore() throws MessagingException {
-        return Store.getLocalInstance(this, K9.app);
+        return LocalStore.getInstance(this, K9.app);
     }
 
     public Store getRemoteStore() throws MessagingException {

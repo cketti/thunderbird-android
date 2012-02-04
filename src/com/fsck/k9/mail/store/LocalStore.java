@@ -66,7 +66,7 @@ import com.fsck.k9.provider.AttachmentProvider;
  * Implements a SQLite database backed local store for Messages.
  * </pre>
  */
-public class LocalStore extends Store implements Serializable {
+public class LocalStore implements Serializable {
 
     private static final long serialVersionUID = -5142141896809423072L;
 
@@ -108,9 +108,37 @@ public class LocalStore extends Store implements Serializable {
 
     protected static final int DB_VERSION = 43;
 
+    /**
+     * Local stores indexed by UUID because the URI may change due to migration to/from SD-card.
+     */
+    private static HashMap<String, LocalStore> sLocalStores = new HashMap<String, LocalStore>();
+
+
+    /**
+     * Get an instance of a {@link LocalStore}.
+     *
+     * @throws MessagingException
+     *
+     * @throws UnavailableStorageException
+     *         if not {@link StorageProvider#isReady(Context)}
+     */
+    public synchronized static LocalStore getInstance(Account account, Application application)
+            throws UnavailableStorageException {
+        LocalStore localStore = sLocalStores.get(account.getUuid());
+        if (localStore == null) {
+            localStore = new LocalStore(account, application);
+            sLocalStores.put(account.getUuid(), localStore);
+        }
+
+        return localStore;
+    }
+
+
+
     protected String uUid = null;
 
     private final Application mApplication;
+    private final Account mAccount;
 
     private LockableDatabase database;
 
@@ -121,8 +149,8 @@ public class LocalStore extends Store implements Serializable {
      * @param application
      * @throws UnavailableStorageException if not {@link StorageProvider#isReady(Context)}
      */
-    public LocalStore(final Account account, final Application application) throws MessagingException {
-        super(account);
+    public LocalStore(final Account account, final Application application) throws UnavailableStorageException {
+        mAccount = account;
         database = new LockableDatabase(application, account.getUuid(), new StoreSchemaDefinition());
 
         mApplication = application;
@@ -619,13 +647,11 @@ public class LocalStore extends Store implements Serializable {
         });
     }
 
-    @Override
     public LocalFolder getFolder(String name) {
         return new LocalFolder(name);
     }
 
     // TODO this takes about 260-300ms, seems slow.
-    @Override
     public List <? extends Folder > getPersonalNamespaces(boolean forceListAll) throws MessagingException {
         final List<LocalFolder> folders = new LinkedList<LocalFolder>();
         try {
@@ -654,10 +680,6 @@ public class LocalStore extends Store implements Serializable {
             throw(MessagingException) e.getCause();
         }
         return folders;
-    }
-
-    @Override
-    public void checkSettings() throws MessagingException {
     }
 
     public void delete() throws UnavailableStorageException {
@@ -844,16 +866,6 @@ public class LocalStore extends Store implements Serializable {
             }
             return sb.toString();
         }
-    }
-
-    @Override
-    public boolean isMoveCapable() {
-        return true;
-    }
-
-    @Override
-    public boolean isCopyCapable() {
-        return true;
     }
 
     public Message[] searchForMessages(MessageRetrievalListener listener, String[] queryFields, String queryString,

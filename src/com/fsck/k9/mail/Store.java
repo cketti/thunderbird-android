@@ -1,15 +1,10 @@
 
 package com.fsck.k9.mail;
 
-import android.app.Application;
-import android.content.Context;
-
 import com.fsck.k9.Account;
 import com.fsck.k9.mail.store.ImapStore;
-import com.fsck.k9.mail.store.LocalStore;
 import com.fsck.k9.mail.store.Pop3Store;
 import com.fsck.k9.mail.store.WebDavStore;
-import com.fsck.k9.mail.store.StorageManager.StorageProvider;
 
 import java.util.HashMap;
 import java.util.List;
@@ -30,11 +25,6 @@ public abstract class Store {
      * Remote stores indexed by Uri.
      */
     private static HashMap<String, Store> sStores = new HashMap<String, Store>();
-
-    /**
-     * Local stores indexed by UUid because the Uri may change due to migration to/from SD-card.
-     */
-    private static HashMap<String, Store> sLocalStores = new HashMap<String, Store>();
 
 
     /**
@@ -67,20 +57,6 @@ public abstract class Store {
         }
 
         return store;
-    }
-
-    /**
-     * Get an instance of a local mail store.
-     * @throws UnavailableStorageException if not {@link StorageProvider#isReady(Context)}
-     */
-    public synchronized static LocalStore getLocalInstance(Account account, Application application) throws MessagingException {
-        Store store = sLocalStores.get(account.getUuid());
-        if (store == null) {
-            store = new LocalStore(account, application);
-            sLocalStores.put(account.getUuid(), store);
-        }
-
-        return (LocalStore) store;
     }
 
     /**
