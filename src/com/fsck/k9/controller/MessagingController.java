@@ -65,7 +65,7 @@ import com.fsck.k9.mail.store.UnavailableStorageException;
 import com.fsck.k9.mail.store.LocalStore.LocalFolder;
 import com.fsck.k9.mail.store.LocalStore.LocalMessage;
 import com.fsck.k9.mail.store.LocalStore.PendingCommand;
-import com.fsck.k9.mail.store.Pop3Store;
+
 
 /**
  * Starts a long running (application) Thread that will run through commands
@@ -116,10 +116,12 @@ public class MessagingController implements Runnable {
      * So 25k gives good performance and a reasonable data footprint. Sounds good to me.
      */
 
+    private static final String PENDING_COMMAND_MOVE_OR_COPY = "com.fsck.k9.MessagingController.moveOrCopy";
     private static final String PENDING_COMMAND_MOVE_OR_COPY_BULK = "com.fsck.k9.MessagingController.moveOrCopyBulk";
     private static final String PENDING_COMMAND_MOVE_OR_COPY_BULK_NEW = "com.fsck.k9.MessagingController.moveOrCopyBulkNew";
     private static final String PENDING_COMMAND_EMPTY_TRASH = "com.fsck.k9.MessagingController.emptyTrash";
     private static final String PENDING_COMMAND_SET_FLAG_BULK = "com.fsck.k9.MessagingController.setFlagBulk";
+    private static final String PENDING_COMMAND_SET_FLAG = "com.fsck.k9.MessagingController.setFlag";
     private static final String PENDING_COMMAND_APPEND = "com.fsck.k9.MessagingController.append";
     private static final String PENDING_COMMAND_MARK_ALL_AS_READ = "com.fsck.k9.MessagingController.markAllAsRead";
     private static final String PENDING_COMMAND_EXPUNGE = "com.fsck.k9.MessagingController.expunge";
@@ -1932,12 +1934,16 @@ public class MessagingController implements Runnable {
                         processPendingAppend(command, account);
                     } else if (PENDING_COMMAND_SET_FLAG_BULK.equals(command.command)) {
                         processPendingSetFlag(command, account);
+                    } else if (PENDING_COMMAND_SET_FLAG.equals(command.command)) {
+                        processPendingSetFlagOld(command, account);
                     } else if (PENDING_COMMAND_MARK_ALL_AS_READ.equals(command.command)) {
                         processPendingMarkAllAsRead(command, account);
                     } else if (PENDING_COMMAND_MOVE_OR_COPY_BULK.equals(command.command)) {
                         processPendingMoveOrCopyOld2(command, account);
                     } else if (PENDING_COMMAND_MOVE_OR_COPY_BULK_NEW.equals(command.command)) {
                         processPendingMoveOrCopy(command, account);
+                    } else if (PENDING_COMMAND_MOVE_OR_COPY.equals(command.command)) {
+                        processPendingMoveOrCopyOld(command, account);
                     } else if (PENDING_COMMAND_EMPTY_TRASH.equals(command.command)) {
                         processPendingEmptyTrash(command, account);
                     } else if (PENDING_COMMAND_EXPUNGE.equals(command.command)) {
@@ -2541,6 +2547,46 @@ public class MessagingController implements Runnable {
         }
     }
 
+    // TODO: This method is obsolete and is only for transition from K-9 2.0 to K-9 2.1
+    // Eventually, it should be removed
+    private void processPendingSetFlagOld(PendingCommand command, Account account)
+    throws MessagingException {
+        String folder = command.arguments[0];
+        String uid = command.arguments[1];
+
+        if (account.getErrorFolderName().equals(folder)) {
+            return;
+        }
+        if (K9.DEBUG)
+            Log.d(K9.LOG_TAG, "processPendingSetFlagOld: folder = " + folder + ", uid = " + uid);
+
+        boolean newState = Boolean.parseBoolean(command.arguments[2]);
+
+        Flag flag = Flag.valueOf(command.arguments[3]);
+        Folder remoteFolder = null;
+        try {
+            Store remoteStore = account.getRemoteStore();
+            remoteFolder = remoteStore.getFolder(folder);
+            if (!remoteFolder.exists()) {
+                return;
+            }
+            remoteFolder.open(OpenMode.READ_WRITE);
+            if (remoteFolder.getMode() != OpenMode.READ_WRITE) {
+                return;
+            }
+            Message remoteMessage = null;
+            if (!uid.startsWith(K9.LOCAL_UID_PREFIX)) {
+                remoteMessage = remoteFolder.getMessage(uid);
+            }
+            if (remoteMessage == null) {
+                return;
+            }
+            remoteMessage.setFlag(flag, newState);
+        } finally {
+            closeFolder(remoteFolder);
+        }
+    }
+
     private void queueExpunge(final Account account, final String folderName) {
         // ASH if folder.isLocalOnly() return ?
         putBackground("queueExpunge " + account.getDescription() + ":" + folderName, null, new Runnable() {
@@ -2584,6 +2630,71 @@ public class MessagingController implements Runnable {
         } finally {
             closeFolder(remoteFolder);
         }
+    }
+
+    // TODO: This method is obsolete and is only for transition from K-9 2.0 to K-9 2.1
+    // Eventually, it should be removed
+    private void processPendingMoveOrCopyOld(PendingCommand command, Account account)
+    throws MessagingException {
+        String srcFolder = command.arguments[0];
+        String uid = command.arguments[1];
+        String destFolder = command.arguments[2];
+        String isCopyS = command.arguments[3];
+
+        boolean isCopy = false;
+        if (isCopyS != null) {
+            isCopy = Boolean.parseBoolean(isCopyS);
+        }
+
+        if (account.getErrorFolderName().equals(srcFolder)) {
+            return;
+        }
+
+        Store remoteStore = account.getRemoteStore();
+        Folder remoteSrcFolder = remoteStore.getFolder(srcFolder);
+        Folder remoteDestFolder = remoteStore.getFolder(destFolder);
+
+        if (!remoteSrcFolder.exists()) {
+            throw new MessagingException("processPendingMoveOrCopyOld: remoteFolder " + srcFolder + " does not exist", true);
+        }
+        remoteSrcFolder.open(OpenMode.READ_WRITE);
+        if (remoteSrcFolder.getMode() != OpenMode.READ_WRITE) {
+            throw new MessagingException("processPendingMoveOrCopyOld: could not open remoteSrcFolder " + srcFolder + " read/write", true);
+        }
+
+        Message remoteMessage = null;
+        if (!uid.startsWith(K9.LOCAL_UID_PREFIX)) {
+            remoteMessage = remoteSrcFolder.getMessage(uid);
+        }
+        if (remoteMessage == null) {
+            throw new MessagingException("processPendingMoveOrCopyOld: remoteMessage " + uid + " does not exist", true);
+        }
+
+        if (K9.DEBUG)
+            Log.d(K9.LOG_TAG, "processPendingMoveOrCopyOld: source folder = " + srcFolder
+                  + ", uid = " + uid + ", destination folder = " + destFolder + ", isCopy = " + isCopy);
+
+        if (!isCopy && destFolder.equals(account.getTrashFolderName())) {
+            if (K9.DEBUG)
+                Log.d(K9.LOG_TAG, "processPendingMoveOrCopyOld doing special case for deleting message");
+
+            remoteSrcFolder.delete(new Message[] { remoteMessage }, account.getTrashFolderName());
+            remoteSrcFolder.close();
+            return;
+        }
+
+        remoteDestFolder.open(OpenMode.READ_WRITE);
+        if (remoteDestFolder.getMode() != OpenMode.READ_WRITE) {
+            throw new MessagingException("processPendingMoveOrCopyOld: could not open remoteDestFolder " + srcFolder + " read/write", true);
+        }
+
+        if (isCopy) {
+            remoteSrcFolder.copyMessages(new Message[] { remoteMessage }, remoteDestFolder);
+        } else {
+            remoteSrcFolder.moveMessages(new Message[] { remoteMessage }, remoteDestFolder);
+        }
+        remoteSrcFolder.close();
+        remoteDestFolder.close();
     }
 
     private void processPendingMarkAllAsRead(PendingCommand command, Account account) throws MessagingException {
