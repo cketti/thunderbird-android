@@ -20,7 +20,6 @@ import android.view.View.OnClickListener;
 import android.widget.*;
 import android.widget.AdapterView.AdapterContextMenuInfo;
 import android.widget.AdapterView.OnItemClickListener;
-
 import com.fsck.k9.*;
 import com.fsck.k9.Account.FolderMode;
 import com.fsck.k9.activity.FolderInfoHolder;
@@ -45,16 +44,14 @@ import com.fsck.k9.service.MailService;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
+
 
 /**
  * FolderList is the primary user interface for the program. This
  * Activity shows list of the Account's folders
  */
-
 public class FolderList extends K9ListActivity {
 
     private static final int DIALOG_MARK_ALL_AS_READ = 1;
