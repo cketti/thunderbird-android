@@ -1634,9 +1634,13 @@ public class MessageList
                 menu.findItem(R.id.batch_spam_op).setVisible(false);
             }
             try {
-                if (((com.fsck.k9.mail.store.LocalStore.LocalFolder)mCurrentFolder.folder).isLocalOnly() ||
-                        !mAccount.getRemoteStore().isAppendCapable()) {
+                boolean localOnly = ((com.fsck.k9.mail.store.LocalStore.LocalFolder)mCurrentFolder.folder).isLocalOnly();
+                if (localOnly) {
+                    menu.findItem(R.id.check_mail).setVisible(false);
+
+                    if (!mAccount.getRemoteStore().isAppendCapable()) {
                         menu.findItem(R.id.batch_upload_op).setVisible(false);
+                    }
                 }
             } catch (com.fsck.k9.mail.MessagingException e) {
                 Log.e(K9.LOG_TAG, "Error trying to get remote store: " + e);
