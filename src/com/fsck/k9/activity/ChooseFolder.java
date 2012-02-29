@@ -186,9 +186,12 @@ public class ChooseFolder extends K9ListActivity {
     @Override public boolean onCreateOptionsMenu(Menu menu) {
         super.onCreateOptionsMenu(menu);
         getMenuInflater().inflate(R.menu.folder_select_option, menu);
-        if (mAccount.getStoreUri().startsWith("webdav")) {
+
+        // For now we only allow folder creation for POP3 accounts
+        if (!mAccount.getStoreUri().startsWith("pop3")) {
             menu.findItem(R.id.create_folder).setVisible(false);
         }
+
         return true;
     }
 
