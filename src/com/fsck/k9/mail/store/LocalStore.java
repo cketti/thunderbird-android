@@ -369,44 +369,27 @@ public class LocalStore extends Store implements Serializable {
                         }
                     }
                     if (db.getVersion() < 44) {
-Log.d("ASH", "updatedb " + mAccount.getDescription());
                         try {
+                            // Add column to mark local-only folders
                             db.execSQL("ALTER TABLE folders ADD local_only INTEGER default 0");
 
-                            // ASH this might fuck things up if remoteStore is unavailable. queue it all somehow.
-                            List <? extends Folder > remoteFolders =
-                                    mAccount.getRemoteStore().getPersonalNamespaces(false);
-                            HashSet<String> remoteFolderNames = new HashSet<String>();
-                            for (Folder remoteFolder : remoteFolders) {
-                                remoteFolderNames.add(remoteFolder.getName());
-                            }
-                            // ASH verify that this works properly -- still untested! maybe need localFolder.save() somewhere?
-                            List <? extends LocalFolder > localFolders = getPersonalNamespaces(true);
-                            for (LocalFolder localFolder : localFolders) {
-                                if (remoteFolderNames.contains(localFolder.getName()) == false) {
-                                    db.execSQL("UPDATE messages SET local_only = 1 WHERE name = " +
-                                            localFolder.getName());
-                                    localFolder.setLocalOnly(true);
-                                    Log.w(K9.LOG_TAG, "Setting folder " + localFolder.getName() +
-                                            " to local-only folder.");
-                                } else if (localFolder.getName().equals(mAccount.getTrashFolderName())
-                                        && mAccount.getDeletePolicy() !=
-                                        Account.DELETE_POLICY_ON_DELETE) {
-                                    // trash folder is local-only depending on delete policy
-                                    db.execSQL("UPDATE messages SET local_only = 1 WHERE name = " +
-                                            localFolder.getName());
-                                    localFolder.setLocalOnly(true);
-                                    Log.w(K9.LOG_TAG, "Setting folder " + localFolder.getName() +
-                                            " to local-only folder due to delete policy.");
-                                }
+                            if (mAccount.getStoreUri().startsWith("pop3")) {
+                                // All folders of a POP3 account except the Inbox are local folders
+                                db.execSQL("UPDATE folders SET local_only = 1 WHERE name != ?",
+                                        new String[] { mAccount.getInboxFolderName() });
+                            } else {
+                                // For all other accounts only the Outbox and the error folder are
+                                // local
+                                db.execSQL("UPDATE folders SET local_only = 1 WHERE name IN (?,?)",
+                                        new String[] {
+                                            mAccount.getOutboxFolderName(),
+                                            mAccount.getErrorFolderName()
+                                        });
                             }
                         } catch (SQLiteException e) {
                             if (! e.getMessage().startsWith("duplicate column name: local_only")) {
                                 throw e;
                             }
-                        } catch (MessagingException e) {
-                            Log.e(K9.LOG_TAG, "MessagingException trying to update folders for local-only setting: "
-                                    + e);
                         }
                     }
                 }
@@ -1588,7 +1571,7 @@ Log.v("ASH", mAccount.getDescription() + ":" + name + " is " + (localOnly == 1 ?
                     // could not download all messages for some reason
                     //if (mAccount.getRemoteStore().getFolder(mName).exists()) {
                         Log.e(K9.LOG_TAG, "Unable to localize folder " + mName + " at this time");
-                        // ASH make toast? no, this should not be done in LocalFolder but in an activity. 
+                        // ASH make toast? no, this should not be done in LocalFolder but in an activity.
                         return false;
                     //}
                 }
