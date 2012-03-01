@@ -1,4 +1,3 @@
-
 package com.fsck.k9.activity.setup;
 
 import android.content.Context;
@@ -11,8 +10,6 @@ import android.preference.PreferenceCategory;
 import android.util.Log;
 import com.fsck.k9.*;
 import com.fsck.k9.activity.K9PreferenceActivity;
-import com.fsck.k9.controller.MessagingController;
-import com.fsck.k9.mail.Folder;
 import com.fsck.k9.mail.Folder.FolderClass;
 import com.fsck.k9.mail.Folder.OpenMode;
 import com.fsck.k9.mail.MessagingException;
@@ -21,6 +18,7 @@ import com.fsck.k9.mail.store.LocalStore;
 import com.fsck.k9.mail.store.LocalStore.LocalFolder;
 import com.fsck.k9.mail.store.Pop3Store;
 import com.fsck.k9.service.MailService;
+
 
 public class FolderSettings extends K9PreferenceActivity {
 
@@ -138,16 +136,16 @@ public class FolderSettings extends K9PreferenceActivity {
             category.removePreference(mPushClass);
         }
 
-        mLocalOnly = (CheckBoxPreference)findPreference(PREFERENCE_LOCAL_ONLY);
-        mLocalOnly.setChecked(mFolder.isLocalOnly());
         if (store instanceof Pop3Store || mAccount.getInboxFolderName().equals(folderName) ||
                 mAccount.getOutboxFolderName().equals(folderName) ||
                 mAccount.getTrashFolderName().equals(folderName)) {
             mLocalOnly.setEnabled(false);
         }
-        if (!K9.isShowAdvancedOptions() || store instanceof Pop3Store) {
+
+        // For now we only support local folders for POP3 accounts. So always hide this preference.
+        //if (!K9.isShowAdvancedOptions() || store instanceof Pop3Store) {
             category.removePreference(mLocalOnly);
-        }
+        //}
 
     }
 
