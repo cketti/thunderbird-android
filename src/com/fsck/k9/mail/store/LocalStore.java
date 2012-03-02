@@ -1,4 +1,3 @@
-
 package com.fsck.k9.mail.store;
 
 import java.io.*;
@@ -37,7 +36,6 @@ import com.fsck.k9.Preferences;
 import com.fsck.k9.R;
 import com.fsck.k9.controller.MessageRemovalListener;
 import com.fsck.k9.controller.MessageRetrievalListener;
-import com.fsck.k9.controller.MessagingController;
 import com.fsck.k9.helper.Utility;
 import com.fsck.k9.mail.Address;
 import com.fsck.k9.mail.Body;
@@ -1160,25 +1158,20 @@ Log.d("ASH", "newFolder.save() post");
                     }
                     folder.refresh(name, prefHolder);   // Recover settings from Preferences
 
-                    db.execSQL("INSERT INTO folders (name, visible_limit, top_group, display_class, poll_class, push_class, integrate) VALUES (?, ?, ?, ?, ?, ?, ?)", new Object[] {
-                                   name,
-                                   visibleLimit,
-                                   prefHolder.inTopGroup ? 1 : 0,
-                                   prefHolder.displayClass.name(),
-                                   prefHolder.syncClass.name(),
-                                   prefHolder.pushClass.name(),
-                                   prefHolder.integrate ? 1 : 0,
-                               });
-
-                    try {
-                        folder.setLocalOnly(localOnly);
-Log.d("ASH", "folder.save() pre");
-                        folder.save();
-Log.d("ASH", "folder.save() post");
-                    } catch (MessagingException me) {
-                        Log.e(K9.LOG_TAG, "Exception trying to set local-only status of folder " +
-                                name + " to " + localOnly);
-                    }
+                    db.execSQL("INSERT INTO folders " +
+                            "(name, visible_limit, top_group, display_class, poll_class, " +
+                            "push_class, integrate, local_only)" +
+                            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                            new Object[] {
+                                    name,
+                                    visibleLimit,
+                                    prefHolder.inTopGroup ? 1 : 0,
+                                    prefHolder.displayClass.name(),
+                                    prefHolder.syncClass.name(),
+                                    prefHolder.pushClass.name(),
+                                    prefHolder.integrate ? 1 : 0,
+                                    localOnly ? 1 : 0
+                            });
                 }
                 return null;
             }
@@ -1558,47 +1551,12 @@ Log.v("ASH", mAccount.getDescription() + ":" + name + " is " + (localOnly == 1 ?
             updateFolderColumn("integrate", mIntegrate ? 1 : 0);
         }
 
-        public boolean setLocalOnly(boolean localOnly) throws MessagingException {
-            // ASH was this here for a good reason?
-            /*if (isLocalOnly() != null && mLocalOnly == localOnly) {
-                Log.d("ASH", "setting folder " + mName + " to localOnly = " + localOnly + " UNNECESSARY");
-                return true;
-            }*/
-            Log.d("ASH", "setting folder " + mName + " to localOnly = " + localOnly);
-
-            if (localOnly) {
-                if (!MessagingController.getInstance(K9.app).localizeUids(this, true)) {
-                    // could not download all messages for some reason
-                    //if (mAccount.getRemoteStore().getFolder(mName).exists()) {
-                        Log.e(K9.LOG_TAG, "Unable to localize folder " + mName + " at this time");
-                        // ASH make toast? no, this should not be done in LocalFolder but in an activity.
-                        return false;
-                    //}
-                }
-                mLocalOnly = true;
-                updateFolderColumn("local_only", "1");
-            } else {
-                // ASH can maybe delete logic in onCreateFolder() and elsewhere.
-                Store store = mAccount.getRemoteStore();
-                if (store.isMoveCapable()) {
-                    Folder folder = store.getFolder(mName);
-                    if (!folder.exists()) {
-                        Log.i(K9.LOG_TAG, "Creating remote folder " + mName);
-                        if (!folder.create()) {
-                            Log.e(K9.LOG_TAG, "Unable to create remote folder " + mName);
-                            // ASH make toast? no, this should not be done in LocalFolder but in an activity.
-                            return false;
-                        }
-                    }
-                }
-                mLocalOnly = false;
-                updateFolderColumn("local_only", "0");
-            }
-            return true;
+        public void setLocalOnly(boolean localOnly) throws MessagingException {
+            mLocalOnly = localOnly;
+            updateFolderColumn("local_only", (localOnly) ? "1" : "0");
         }
 
         public Boolean isLocalOnly() {
-            Log.v("ASH", "### " + mName + " : " + mLocalOnly);
             if (mLocalOnly == null) {
                 try {
                     open(OpenMode.READ_ONLY);
@@ -1608,7 +1566,6 @@ Log.v("ASH", mAccount.getDescription() + ":" + name + " is " + (localOnly == 1 ?
                     close();
                 }
             }
-            Log.v("ASH", "#!# " + mName + " : " + mLocalOnly);
             return mLocalOnly;
         }
 

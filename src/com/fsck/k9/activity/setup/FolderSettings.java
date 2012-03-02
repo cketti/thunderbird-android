@@ -150,11 +150,14 @@ public class FolderSettings extends K9PreferenceActivity {
     }
 
     private void saveSettings() throws MessagingException {
-        if (!mFolder.setLocalOnly(mLocalOnly.isChecked())) {
-            Log.e(K9.LOG_TAG, "Setting local-only status of folder failed. Ignoring all changes.");
-            // ASH make toast
-            return;
+        // For now we don't allow to change the local-only state of a folder
+        /*
+        if (mFolder.isLocalOnly() != mLocalOnly.isChecked()) {
+            MessagingController controller = MessagingController.getInstance(getApplication());
+            controller.setLocalOnly(mAccount, mFolder.getName(), mLocalOnly.isChecked());
         }
+        */
+
         mFolder.setInTopGroup(mInTopGroup.isChecked());
         mFolder.setIntegrate(mIntegrate.isChecked());
         // We call getPushClass() because display class changes can affect push class when push class is set to inherit
