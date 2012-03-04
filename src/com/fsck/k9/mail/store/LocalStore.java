@@ -1091,6 +1091,10 @@ public class LocalStore extends Store implements Serializable {
         LocalFolder oldFolder = new LocalFolder(oldFolderName);
         LocalFolder newFolder = new LocalFolder(newFolderName);
         if (oldFolder.exists() && !newFolder.exists()) {
+            // Delete folder preferences
+            oldFolder.delete();
+
+            // Rename folder in database
             final ContentValues cv = new ContentValues();
             cv.put("name", newFolderName);
             database.execute(false, new DbCallback<Void>() {
@@ -1100,12 +1104,10 @@ public class LocalStore extends Store implements Serializable {
                     return null;
                 }
             });
-            Log.i(K9.LOG_TAG, "Renamed folder " + oldFolderName + " to " + newFolderName);
-Log.d("ASH", "OldFolder.delete() pre");
-            oldFolder.delete();
-Log.d("ASH", "newFolder.save() pre");
+
+            // Save folder preferences for the new folder name
             newFolder.save();
-Log.d("ASH", "newFolder.save() post");
+
             return true;
         }
         return false;
