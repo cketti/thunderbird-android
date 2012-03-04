@@ -152,7 +152,7 @@ public class AccountSettings extends K9PreferenceActivity {
     private CheckBoxPreference mStripSignature;
     private CheckBoxPreference mSyncRemoteDeletions;
     private CheckBoxPreference mSaveAllHeaders;
-    private CheckBoxPreference mAutoUploadOnMove;
+    //private CheckBoxPreference mAutoUploadOnMove;
     private CheckBoxPreference mPushPollOnConnect;
     private ListPreference mIdleRefreshPeriod;
     private ListPreference mMaxPushFolders;
@@ -361,12 +361,14 @@ public class AccountSettings extends K9PreferenceActivity {
         mSaveAllHeaders = (CheckBoxPreference) findPreference(PREFERENCE_SAVE_ALL_HEADERS);
         mSaveAllHeaders.setChecked(mAccount.saveAllHeaders());
 
+        /* XXX Disabled for now
         mAutoUploadOnMove = (CheckBoxPreference) findPreference(PREFERENCE_AUTO_UPLOAD_ON_MOVE);
         mAutoUploadOnMove.setChecked(mAccount.isAutoUploadOnMove() && mIsAppendCapable);
         if (!mIsAppendCapable || !K9.isShowAdvancedOptions()) {
             ((PreferenceScreen) findPreference(PREFERENCE_SCREEN_INCOMING)).
                     removePreference(mAutoUploadOnMove);
         }
+        */
 
         mSearchableFolders = (ListPreference) findPreference(PREFERENCE_SEARCHABLE_FOLDERS);
         mSearchableFolders.setValue(mAccount.getSearchableFolders().name());
@@ -703,7 +705,7 @@ Log.d("ASH", "Have set delete policy to " + mAccount.getDeletePolicy());
         }
         mAccount.setSyncRemoteDeletions(mSyncRemoteDeletions.isChecked());
         mAccount.setSaveAllHeaders(mSaveAllHeaders.isChecked());
-        mAccount.setAutoUploadOnMove(mAutoUploadOnMove.isChecked());
+        //mAccount.setAutoUploadOnMove(mAutoUploadOnMove.isChecked());
         mAccount.setSearchableFolders(Account.Searchable.valueOf(mSearchableFolders.getValue()));
         mAccount.setMessageFormat(Account.MessageFormat.valueOf(mMessageFormat.getValue()));
         mAccount.setMessageReadReceipt(mMessageReadReceipt.isChecked());

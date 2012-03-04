@@ -3816,7 +3816,8 @@ public class MessagingController implements Runnable {
                 fp.add(FetchProfile.Item.BODY);
                 localSrcFolder.fetch(localMessages, fp, null);
 
-                if (account.isAutoUploadOnMove() && !localDestFolder.isLocalOnly() &&
+                // XXX Disabled for now
+                if (false && account.isAutoUploadOnMove() && !localDestFolder.isLocalOnly() &&
                         (isCopy ? remoteStore.isCopyCapable() : remoteStore.isMoveCapable())) {
                     // local message copy/move to remote folder
                     appendMessages(account, localMessages, destFolder);

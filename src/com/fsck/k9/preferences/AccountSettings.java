@@ -150,9 +150,11 @@ public class AccountSettings {
         s.put("saveAllHeaders", Settings.versions(
                 new V(1, new BooleanSetting(true))
             ));
+        /* XXX Disabled for now
         s.put("autoUploadOnMove", Settings.versions(
                 new V(1, new BooleanSetting(true))
             ));
+        */
         s.put("searchableFolders", Settings.versions(
                 new V(1, new EnumSetting(Account.Searchable.class, Account.Searchable.ALL))
             ));
