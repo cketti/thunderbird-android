@@ -487,13 +487,15 @@ public class MessagingController implements Runnable {
                      */
                     for (LocalFolder localFolder : localFolders) {
                         String localFolderName = localFolder.getName();
+                        // For now we only allow POP3 accounts to have local folders...
+                        /*
                         if (!account.isSpecialFolder(localFolderName) &&
                                 !remoteFolderNames.contains(localFolderName) &&
                                 !localFolder.isLocalOnly()) {
                             for (Message message : localFolder.getMessages(null)) {
                                 if (message.getUid().startsWith(K9.LOCAL_UID_PREFIX)) {
                                     localFolder.clearAllMessages(false);
-                                    localFolder.setLocalOnly(true);
+                                    setLocalOnly(account, localFolderName, true);
                                     break;
                                 }
                             }
@@ -503,6 +505,14 @@ public class MessagingController implements Runnable {
                         }
                         if (!remoteFolderNames.contains(localFolderName) && localFolder.exists()) {
                             if (!localFolder.isLocalOnly()) localFolder.setLocalOnly(true);
+                        }
+                        */
+
+                        // ... so we delete all folders in LocalStore that can't be found on the
+                        // server (except special folders because that's how it used to be).
+                        if (!account.isSpecialFolder(localFolderName) &&
+                                !remoteFolderNames.contains(localFolderName)) {
+                            localFolder.delete(false);
                         }
                     }
 
@@ -2161,6 +2171,16 @@ public class MessagingController implements Runnable {
             if (account.getErrorFolderName().equals(srcFolder)) {
                 return;
             }
+            final ArrayList<String> remoteUids = new ArrayList<String>();
+            for (String uid : uids) {
+                // ignore unsynced messages
+                if (!uid.startsWith(K9.LOCAL_UID_PREFIX)) {
+                    remoteUids.add(uid);
+                }
+            }
+            if (remoteUids.size() == 0) {
+                return;
+            }
             PendingCommand command = new PendingCommand();
             command.command = PENDING_COMMAND_MOVE_OR_COPY_BULK_NEW;
 
@@ -2994,6 +3014,8 @@ public class MessagingController implements Runnable {
                 Log.w(K9.LOG_TAG, "Message has local UID so cannot download fully.");
                 Toast.makeText(mApplication, "Message has local UID so cannot download fully",
                         Toast.LENGTH_LONG).show();
+                // TODO: Using X_DOWNLOADED_FULL is wrong because it's only a partial message. But
+                // one we can't download completely. Maybe add a new flag; X_PARTIAL_MESSAGE ?
                 message.setFlag(Flag.X_DOWNLOADED_FULL, true);
                 message.setFlag(Flag.X_DOWNLOADED_PARTIAL, false);
             } else if (localFolder.isLocalOnly() && !force) {
@@ -3618,8 +3640,12 @@ public class MessagingController implements Runnable {
                     uids.add(uid);
                 } else {
                     localUids.add(uid);
+                    // XXX on move it's okay for the message to be local-only?
                     if (isCopy && !uid.startsWith(K9.LOCAL_UID_PREFIX)) {
                         // somehow a non local-only UID exists in a local-only folder
+
+                        // XXX This should never happen. And if it does, do we really want to deal
+                        // with it when copying/moving messages?
                         needToLocalizeSourceFolder = true;
                     }
                 }
@@ -3660,8 +3686,8 @@ public class MessagingController implements Runnable {
                         if (loadMessageForViewRemoteSynchronous(account, srcFolder,
                                 message.getUid(), listener, false)) {
                             Log.d("ASH", "downloaded message");
-                            message.setFlag(Flag.X_DOWNLOADED_FULL, true);
-                            message.setFlag(Flag.X_DOWNLOADED_PARTIAL, false);
+                            // Load message from local store
+                            message = localSrcFolder.getMessage(message.getUid());
                             origUidMap.put(message.getUid(), message);
                         } else {
                             if (!isCopy) {
@@ -3815,9 +3841,11 @@ public class MessagingController implements Runnable {
             }
 
             processPendingCommands(account);
+            /*
             if (needToLocalizeSourceFolder) {
                 localizeUids(localSrcFolder, false);
             }
+            */
         } catch (UnavailableStorageException e) {
             Log.i(K9.LOG_TAG, "Failed to move/copy message because storage is not available - trying again later.");
             throw new UnavailableAccountException(e);
@@ -3898,6 +3926,8 @@ public class MessagingController implements Runnable {
             if (folder.equals(account.getTrashFolderName()) || K9.FOLDER_NONE.equals(account.getTrashFolderName())) {
                 if (K9.DEBUG)
                     Log.d(K9.LOG_TAG, "Deleting messages in trash folder or trash set to -None-, not copying");
+
+                // TODO: Destroy local-only messages. Don't just mark them as deleted.
 
                 localFolder.setFlags(messages, new Flag[] { Flag.DELETED }, true);
             } else {
