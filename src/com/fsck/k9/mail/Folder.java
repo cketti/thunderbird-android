@@ -109,7 +109,10 @@ public abstract class Folder {
         return null;
     }
 
-    public void delete(Message[] msgs, String trashFolderName) throws MessagingException {}
+    public Map<String, String> delete(Message[] msgs, String trashFolderName)
+            throws MessagingException {
+        return null;
+    }
 
     public abstract void setFlags(Message[] messages, Flag[] flags, boolean value)
     throws MessagingException;

@@ -1351,8 +1351,10 @@ public class WebDavStore extends Store {
         }
 
         @Override
-        public void delete(Message[] msgs, String trashFolderName) throws MessagingException {
+        public Map<String, String> delete(Message[] msgs, String trashFolderName)
+                throws MessagingException {
             moveOrCopyMessages(msgs, trashFolderName, true);
+            return null;
         }
 
         private void moveOrCopyMessages(Message[] messages, String folderName, boolean isMove)

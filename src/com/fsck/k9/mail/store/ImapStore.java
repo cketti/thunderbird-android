@@ -1279,9 +1279,12 @@ public class ImapStore extends Store {
         }
 
         @Override
-        public void delete(Message[] messages, String trashFolderName) throws MessagingException {
+        public Map<String, String> delete(Message[] messages, String trashFolderName)
+                throws MessagingException {
             if (messages.length == 0)
-                return;
+                return null;
+
+            Map<String, String> uidMap = null;
 
             if (trashFolderName == null || getName().equalsIgnoreCase(trashFolderName)) {
                 setFlags(messages, new Flag[] { Flag.DELETED }, true);
@@ -1302,12 +1305,14 @@ public class ImapStore extends Store {
                     if (K9.DEBUG)
                         Log.d(K9.LOG_TAG, "IMAPMessage.delete: copying remote " + messages.length + " messages to '" + trashFolderName + "' for " + getLogId());
 
-                    moveMessages(messages, remoteTrashFolder);
+                    uidMap = moveMessages(messages, remoteTrashFolder);
                 } else {
                     throw new MessagingException("IMAPMessage.delete: remote Trash folder " + trashFolderName + " does not exist and could not be created for " + getLogId()
                                                  , true);
                 }
             }
+
+            return uidMap;
         }
 
 

@@ -2313,10 +2313,7 @@ public class MessagingController implements Runnable {
                 if (K9.FOLDER_NONE.equals(destFolderName)) {
                     destFolderName = null;
                 }
-                remoteSrcFolder.delete(messages.toArray(EMPTY_MESSAGE_ARRAY), destFolderName);
-                if (destFolderName != null) {
-                    updateUids(account, destFolderName);
-                }
+                remoteUidMap = remoteSrcFolder.delete(messages.toArray(EMPTY_MESSAGE_ARRAY), destFolderName);
             } else {
                 remoteDestFolder = remoteStore.getFolder(destFolder);
 
@@ -2325,7 +2322,6 @@ public class MessagingController implements Runnable {
                 } else {
                     remoteUidMap = remoteSrcFolder.moveMessages(messages.toArray(EMPTY_MESSAGE_ARRAY), remoteDestFolder);
                 }
-                updateUids(account, destFolder);
             }
 
             if (!isCopy && Account.EXPUNGE_IMMEDIATELY.equals(account.getExpungePolicy())) {

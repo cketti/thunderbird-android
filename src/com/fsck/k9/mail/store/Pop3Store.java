@@ -900,8 +900,10 @@ public class Pop3Store extends Store {
         }
 
         @Override
-        public void delete(Message[] msgs, String trashFolderName) throws MessagingException {
+        public Map<String, String> delete(Message[] msgs, String trashFolderName)
+                throws MessagingException {
             setFlags(msgs, new Flag[] { Flag.DELETED }, true);
+            return null;
         }
 
         @Override
