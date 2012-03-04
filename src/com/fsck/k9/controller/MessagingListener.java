@@ -122,6 +122,80 @@ public class MessagingListener {
     public void folderStatusChanged(Account account, String folderName, int unreadMessageCount) {}
 
 
+    /**
+     * Called when starting to rename a folder.
+     *
+     * @param account
+     *         The account the folder belongs to.
+     * @param oldFolderName
+     *         The name of the folder that is going to be renamed.
+     * @param newFolderName
+     *         The new folder name.
+     */
+    public void folderRenameStarted(Account account, String oldFolderName, String newFolderName) {
+        /* do nothing */
+    }
+
+    /**
+     * Called when a folder was successfully renamed.
+     *
+     * @param account
+     *         The account the folder belongs to.
+     * @param oldFolderName
+     *         The old folder name.
+     * @param newFolderName
+     *         The new folder name.
+     */
+    public void folderRenameFinished(Account account, String oldFolderName, String newFolderName) {
+        /* do nothing */
+    }
+
+    /**
+     * Called when renaming a folder failed.
+     *
+     * @param account
+     *         The account the folder belongs to.
+     * @param oldFolderName
+     *         The folder name.
+     * @param newFolderName
+     *         The new name for the folder that couldn't be used.
+     */
+    public void folderRenameFailed(Account account, String oldFolderName, String newFolderName) {
+        /* do nothing */
+    }
+
+
+    /**
+     * Called when starting to delete a folder.
+     *
+     * @param account
+     *         The account the folder belongs to.
+     * @param folderName
+     *         The name of the folder that is going to be deleted.
+     */
+    public void folderDeleteStarted(Account account, String folderName) { /* do nothing */ }
+
+    /**
+     * Called when a folder was successfully deleted.
+     *
+     * @param account
+     *         The account the folder belongs to.
+     * @param folderName
+     *         The name of the folder that was deleted.
+     */
+    public void folderDeleteFinished(Account account, String folderName) { /* do nothing */ }
+
+    /**
+     * Called when deleting a folder failed.
+     *
+     * @param account
+     *         The account the folder belongs to.
+     * @param folderName
+     *         The name of the folder that couldn't be deleted.
+     */
+    public void folderDeleteFailed(Account account, String folderName) { /* do nothing */ }
+
+
     public void systemStatusChanged() {}
 
 

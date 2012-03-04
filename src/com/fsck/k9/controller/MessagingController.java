@@ -59,6 +59,8 @@ import com.fsck.k9.mail.Transport;
 import com.fsck.k9.mail.internet.MimeMessage;
 import com.fsck.k9.mail.internet.MimeUtility;
 import com.fsck.k9.mail.internet.TextBody;
+import com.fsck.k9.mail.store.ImapStore;
+import com.fsck.k9.mail.store.Pop3Store;
 import com.fsck.k9.mail.store.UnavailableAccountException;
 import com.fsck.k9.mail.store.LocalStore;
 import com.fsck.k9.mail.store.UnavailableStorageException;
@@ -511,7 +513,8 @@ public class MessagingController implements Runnable {
                         // ... so we delete all folders in LocalStore that can't be found on the
                         // server (except special folders because that's how it used to be).
                         if (!account.isSpecialFolder(localFolderName) &&
-                                !remoteFolderNames.contains(localFolderName)) {
+                                !remoteFolderNames.contains(localFolderName) &&
+                                !localFolder.isLocalOnly()) {
                             localFolder.delete(false);
                         }
                     }
@@ -5315,5 +5318,205 @@ public class MessagingController implements Runnable {
 
     interface MessageActor {
         public void act(final Account account, final Folder folder, final List<Message> messages);
+    }
+
+    /**
+     * Rename a folder.
+     *
+     * @param account
+     *         The account the folder belongs to.
+     * @param folder
+     *         The folder to be renamed.
+     * @param newFolderName
+     *         The new name for the folder.
+     */
+    public void renameFolder(final Account account, final LocalFolder folder,
+            final String newFolderName) {
+        putBackground("renameFolder", null, new Runnable() {
+            @Override
+            public void run() {
+                renameFolderSynchronous(account, folder, newFolderName);
+            }
+        });
+    }
+
+    private void renameFolderSynchronous(Account account, LocalFolder folder,
+            String newFolderName) {
+        try {
+            Store store = account.getRemoteStore();
+            LocalStore localStore = account.getLocalStore();
+            String folderName = folder.getName();
+
+            // Notify listeners
+            for (MessagingListener l : getListeners()) {
+                l.folderRenameStarted(account, folderName, newFolderName);
+            }
+
+            boolean isLocalOnly = folder.isLocalOnly();
+            // TODO: add Store.isFolderRenameCapable()
+            if (store instanceof Pop3Store || isLocalOnly) {
+                boolean success = localStore.renameFolder(folderName, newFolderName);
+                if (success && account.isSpecialFolder(folderName)) {
+                    resetSpecialFolders(account, folderName, newFolderName);
+                }
+
+                // Notify listeners
+                for (MessagingListener l : getListeners()) {
+                    if (success) {
+                        l.folderRenameFinished(account, folderName, newFolderName);
+                    } else {
+                        l.folderRenameFailed(account, folderName, newFolderName);
+                    }
+                }
+            } else if (store instanceof ImapStore) {
+                boolean success = false;
+                ImapStore imapStore = (ImapStore) store;
+                if (imapStore.renameFolder(folderName, newFolderName)) {
+                    success = localStore.renameFolder(folderName, newFolderName);
+                    if (!success) {
+                        Log.e(K9.LOG_TAG, "Remote folder successfully renamed but failed renaming the local folder -- undoing.");
+                        if(!imapStore.renameFolder(newFolderName, folderName)) {
+                            Log.e(K9.LOG_TAG, "Failed to undo folder rename.");
+                        }
+                    } else if (account.isSpecialFolder(folderName)) {
+                        resetSpecialFolders(account, folderName, newFolderName);
+                    }
+                }
+
+                // Notify listeners
+                for (MessagingListener l : getListeners()) {
+                    if (success) {
+                        l.folderRenameFinished(account, folderName, newFolderName);
+                    } else {
+                        l.folderRenameFailed(account, folderName, newFolderName);
+                    }
+                }
+            } else {
+                Log.d(K9.LOG_TAG, "Unhandled store type " + store.getClass());
+
+                for (MessagingListener l : getListeners()) {
+                    l.folderRenameFailed(account, folderName, newFolderName);
+                }
+            }
+        } catch (MessagingException me) {
+            Log.e(K9.LOG_TAG, "Error while renaming folder", me);
+
+            // Notify listeners
+            String folderName = (folder != null) ? folder.getName() : null;
+            for (MessagingListener l : getListeners()) {
+                l.folderRenameFailed(account, folderName, newFolderName);
+            }
+        }
+    }
+
+    /**
+     * Delete a folder.
+     *
+     * @param account
+     *         The account the folder belongs to.
+     * @param folder
+     *         The folder to be deleted.
+     */
+    public void deleteFolder(final Account account, final LocalFolder folder) {
+        putBackground("deleteFolder", null, new Runnable() {
+            @Override
+            public void run() {
+                deleteFolderSynchronous(account, folder);
+            }
+        });
+    }
+
+    private void deleteFolderSynchronous(Account account, LocalFolder folder) {
+        try {
+            Store store = account.getRemoteStore();
+            LocalStore localStore = account.getLocalStore();
+            String folderName = folder.getName();
+
+            // Notify listeners
+            for (MessagingListener l : getListeners()) {
+                l.folderDeleteStarted(account, folderName);
+            }
+
+            boolean isLocalOnly = folder.isLocalOnly();
+            // TODO: add Store.isFolderDeleteCapable()
+            if (store instanceof Pop3Store || isLocalOnly) {
+                boolean success = localStore.delete(folderName);
+                if (success && account.isSpecialFolder(folderName)) {
+                    resetSpecialFolders(account, folderName, K9.FOLDER_NONE);
+                }
+
+                // Notify listeners
+                for (MessagingListener l : getListeners()) {
+                    if (success) {
+                        l.folderDeleteFinished(account, folderName);
+                    } else {
+                        l.folderDeleteFailed(account, folderName);
+                    }
+                }
+            } else if (store instanceof ImapStore) {
+                boolean success = false;
+                ImapStore imapStore = (ImapStore) store;
+                if (imapStore.delete(folderName)) {
+                    localStore.delete(folderName);
+                    if (account.isSpecialFolder(folderName)) {
+                        resetSpecialFolders(account, folderName, K9.FOLDER_NONE);
+                    }
+                }
+
+                // Notify listeners
+                for (MessagingListener l : getListeners()) {
+                    if (success) {
+                        l.folderDeleteFinished(account, folderName);
+                    } else {
+                        l.folderDeleteFailed(account, folderName);
+                    }
+                }
+            } else {
+                Log.d(K9.LOG_TAG, "Unhandled store type " + store.getClass());
+
+                for (MessagingListener l : getListeners()) {
+                    l.folderDeleteFailed(account, folderName);
+                }
+            }
+        } catch (MessagingException me) {
+            Log.e(K9.LOG_TAG, "Error while deleting folder", me);
+
+            // Notify listeners
+            String folderName = (folder != null) ? folder.getName() : null;
+            for (MessagingListener l : getListeners()) {
+                l.folderDeleteFailed(account, folderName);
+            }
+        }
+    }
+
+    /**
+     * Change special folder settings (when a folder is renamed or deleted)
+     *
+     * @param account
+     *         The account the folder belongs to.
+     * @param oldFolderName
+     *         The old folder name.
+     * @param newFolderName
+     *         The new folder name.
+     */
+    private void resetSpecialFolders(Account account, String oldFolderName, String newFolderName) {
+        if (oldFolderName.equals(account.getTrashFolderName())) {
+            account.setTrashFolderName(newFolderName);
+        }
+        if (oldFolderName.equals(account.getDraftsFolderName())) {
+            account.setDraftsFolderName(newFolderName);
+        }
+        if (oldFolderName.equals(account.getArchiveFolderName())) {
+            account.setArchiveFolderName(newFolderName);
+        }
+        if (oldFolderName.equals(account.getSpamFolderName())) {
+            account.setSpamFolderName(newFolderName);
+        }
+        if (oldFolderName.equals(account.getSentFolderName())) {
+            account.setSentFolderName(newFolderName);
+        }
+        if (oldFolderName.equals(account.getAutoExpandFolderName())) {
+            account.setAutoExpandFolderName(newFolderName);
+        }
     }
 }

@@ -768,30 +768,6 @@ public class FolderList extends K9ListActivity {
     private FolderInfoHolder mSelectedContextFolder = null;
 
     /*
-     Change special folder settings (when a folder is renamed or deleted).
-     */
-    private void resetSpecialFolders(final String oldFolderName, final String newFolderName) {
-        if (oldFolderName.equals(mAccount.getTrashFolderName())) {
-            mAccount.setTrashFolderName(newFolderName);
-        }
-        if (oldFolderName.equals(mAccount.getDraftsFolderName())) {
-            mAccount.setDraftsFolderName(newFolderName);
-        }
-        if (oldFolderName.equals(mAccount.getArchiveFolderName())) {
-            mAccount.setArchiveFolderName(newFolderName);
-        }
-        if (oldFolderName.equals(mAccount.getSpamFolderName())) {
-            mAccount.setSpamFolderName(newFolderName);
-        }
-        if (oldFolderName.equals(mAccount.getSentFolderName())) {
-            mAccount.setSentFolderName(newFolderName);
-        }
-        if (oldFolderName.equals(mAccount.getAutoExpandFolderName())) {
-            mAccount.setAutoExpandFolderName(newFolderName);
-        }
-    }
-
-    /*
      Show a dialog to rename the selected folder.
      Currently only IMAP and Pop3 are supported.
      */
@@ -803,46 +779,9 @@ public class FolderList extends K9ListActivity {
         dialog.setMessage("Enter the new name you want for folder \"" + folder.name + "\":");
         dialog.setPositiveButton(R.string.okay_action, new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
-                String folderName = input.getText().toString().trim();
-                try {
-                    Store store = mAccount.getRemoteStore();
-                    boolean isLocalOnly = ((LocalFolder)folder.folder).isLocalOnly();
-                    if (store instanceof Pop3Store || isLocalOnly) {
-                        boolean result = mAccount.getLocalStore().renameFolder(folder.name, folderName);
-                        if (result && mAccount.isSpecialFolder(folder.name)) {
-                            resetSpecialFolders(folder.name, folderName);
-                        }
-                        String toastText = "Renaming folder \"" + folder.name + "\" to \"" + folderName +
-                                ((result) ? "\" succeeded." : "\" failed.");
-                        Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
-                        onRefresh(false);
-                    } else if (store instanceof ImapStore) {
-                        boolean result = false;
-                        if (((ImapStore)store).renameFolder(folder.name, folderName)) {
-                            result = mAccount.getLocalStore().renameFolder(folder.name, folderName);
-                            if (!result) {
-                                Log.e(K9.LOG_TAG, "Remote folder successfully renamed but failed renaming the local folder -- undoing.");
-                                if(!((ImapStore)store).renameFolder(folderName, folder.name)) {
-                                    Log.e(K9.LOG_TAG, "Failed to undo folder rename.");
-                                }
-                            } else if (mAccount.isSpecialFolder(folder.name)) {
-                                resetSpecialFolders(folder.name, folderName);
-                            }
-                        }
-                        String toastText = "Renaming folder \"" + folder.name + "\" to \"" + folderName +
-                                ((result) ? "\" succeeded." : "\" failed.");
-                        Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
-                        onRefresh(result);
-                    } else if (store instanceof WebDavStore) {
-                        String toastText = "Deleting WebDav Folders not currently implemented.";
-                        Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
-                    } else {
-                        Log.d(K9.LOG_TAG, "Unhandled store type " + store.getClass());
-                    }
-                } catch (com.fsck.k9.mail.MessagingException me) {
-                    Log.e(K9.LOG_TAG, "MessagingException trying to rename folder \"" +
-                            folder.name + "\": " + me);
-                }
+                String newFolderName = input.getText().toString().trim();
+                MessagingController controller = MessagingController.getInstance(getApplication());
+                controller.renameFolder(mAccount, (LocalFolder) folder.folder, newFolderName);
             }
         });
         dialog.setNegativeButton(R.string.cancel_action, new DialogInterface.OnClickListener() {
@@ -863,40 +802,8 @@ public class FolderList extends K9ListActivity {
                 ") will delete all messages inside it, including on the server (if applicable)!");
         dialog.setPositiveButton(R.string.delete_action, new DialogInterface.OnClickListener() {
             public void onClick(DialogInterface dialog, int whichButton) {
-                try {
-                    Store store = mAccount.getRemoteStore();
-                    boolean isLocalOnly = ((LocalFolder)folder.folder).isLocalOnly();
-                    if (store instanceof Pop3Store || isLocalOnly) {
-                        boolean result = mAccount.getLocalStore().delete(folder.name);
-                        if (result && mAccount.isSpecialFolder(folder.name)) {
-                            resetSpecialFolders(folder.name, K9.FOLDER_NONE);
-                        }
-                        String toastText = "Deletion of folder \"" + folder.name +
-                                ((result) ? "\" succeeded." : "\" failed.");
-                        Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
-                        onRefresh(false);
-                    } else if (store instanceof ImapStore) {
-                        boolean result = ((ImapStore)store).delete(folder.name);
-                        if (result) {
-                            mAccount.getLocalStore().delete(folder.name);
-                            if (mAccount.isSpecialFolder(folder.name)) {
-                                resetSpecialFolders(folder.name, K9.FOLDER_NONE);
-                            }
-                        }
-                        String toastText = "Deletion of folder \"" + folder.name +
-                                ((result) ? "\" succeeded." : "\" failed.");
-                        Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
-                        onRefresh(result);
-                    } else if (store instanceof WebDavStore) {
-                        String toastText = "Deleting WebDav Folders not currently implemented.";
-                        Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
-                    } else {
-                        Log.d(K9.LOG_TAG, "Unhandled store type " + store.getClass());
-                    }
-                } catch (com.fsck.k9.mail.MessagingException me) {
-                    Log.e(K9.LOG_TAG, "MessagingException trying to delete folder \"" +
-                            folder.name + "\": " + me);
-                }
+                MessagingController controller = MessagingController.getInstance(getApplication());
+                controller.deleteFolder(mAccount, (LocalFolder) folder.folder);
             }
         });
         dialog.setNegativeButton(R.string.cancel_action, new DialogInterface.OnClickListener() {
@@ -1297,6 +1204,77 @@ public class FolderList extends K9ListActivity {
                 if (account.equals(mAccount)) {
                     mHandler.accountSizeChanged(oldSize, newSize);
                 }
+            }
+
+            @Override
+            public void folderRenameStarted(Account account, String oldFolderName,
+                    String newFolderName) {
+                mHandler.progress(true);
+            }
+
+            @Override
+            public void folderRenameFinished(Account account, final String oldFolderName,
+                    final String newFolderName) {
+                mHandler.progress(false);
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        String toastText = "Renaming folder \"" + oldFolderName + "\" to \"" +
+                                newFolderName + "\" succeeded.";
+                        Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
+                    }
+                });
+
+                onRefresh(false);
+            }
+
+            @Override
+            public void folderRenameFailed(Account account, final String oldFolderName,
+                    final String newFolderName) {
+                mHandler.progress(false);
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        String toastText = "Renaming folder \"" + oldFolderName + "\" to \"" +
+                                newFolderName + "\" failed.";
+                        Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
+                    }
+                });
+            }
+
+            @Override
+            public void folderDeleteStarted(Account account, String folderName) {
+                mHandler.progress(true);
+            }
+
+            @Override
+            public void folderDeleteFinished(Account account, final String folderName) {
+                mHandler.progress(false);
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        String toastText = "Deletion of folder \"" + folderName + "\" succeeded.";
+                        Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
+                    }
+                });
+
+                onRefresh(false);
+            }
+
+            @Override
+            public void folderDeleteFailed(Account account, final String folderName) {
+                mHandler.progress(false);
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        String toastText = "Deletion of folder \"" + folderName + "\" failed.";
+                        Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
+                    }
+                });
             }
         };
 
