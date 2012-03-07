@@ -4,6 +4,7 @@ import android.app.AlertDialog;
 import android.app.Dialog;
 import android.content.Context;
 import android.content.DialogInterface;
+import android.content.DialogInterface.OnCancelListener;
 import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
@@ -59,6 +60,16 @@ public class FolderList extends K9ListActivity {
      */
     private static final int DIALOG_MARK_ALL_AS_READ = 1;
     private static final int DIALOG_FIND_FOLDER = 2;
+    private static final int DIALOG_CREATE_FOLDER = 3;
+    private static final int DIALOG_RENAME_FOLDER = 4;
+    private static final int DIALOG_DELETE_FOLDER = 5;
+    private static final int DIALOG_CLEAR_FOLDER = 6;
+
+    /*
+     * Constants for onSaveInstanceState() / onRestoreInstanceState()
+     */
+    private static final String SAVE_DIALOG_FOLDER = "dialogFolder";
+    private static final String SAVE_DIALOG_FOLDER_LOCAL_ONLY = "dialogFolderLocalOnly";
 
     private static final String EXTRA_ACCOUNT = "account";
 
@@ -82,6 +93,16 @@ public class FolderList extends K9ListActivity {
 
     private FontSizes mFontSizes = K9.getFontSizes();
     private Context context;
+
+    /**
+     * Used to store the name of the folder the user wants to rename/delete/clear.
+     */
+    private String mDialogFolder;
+
+    /**
+     * Used to store whether the folder the current dialog is shown for is local-only or not.
+     */
+    private boolean mDialogFolderLocalOnly;
 
     class FolderListHandler extends Handler {
 
@@ -331,6 +352,20 @@ public class FolderList extends K9ListActivity {
         return (mAdapter == null) ? null : mAdapter.mFolders;
     }
 
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString(SAVE_DIALOG_FOLDER, mDialogFolder);
+        outState.putBoolean(SAVE_DIALOG_FOLDER_LOCAL_ONLY, mDialogFolderLocalOnly);
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle state) {
+        super.onRestoreInstanceState(state);
+        mDialogFolder = state.getString(SAVE_DIALOG_FOLDER);
+        mDialogFolderLocalOnly = state.getBoolean(SAVE_DIALOG_FOLDER_LOCAL_ONLY);
+    }
+
     @Override public void onPause() {
         super.onPause();
         MessagingController.getInstance(getApplication()).removeListener(mAdapter.mListener);
@@ -437,62 +472,8 @@ public class FolderList extends K9ListActivity {
         showDialog(DIALOG_FIND_FOLDER);
     }
 
-    /*
-     Show a dialog to create a new folder.
-     Currently only IMAP and Pop3 supported.
-     IMAP folders are both remote and local. Pop3 folders are only local.
-     Exactly the same as activity.ChooseFolder.onCreateFolder().
-     */
     private void onCreateFolder() {
-        AlertDialog.Builder dialog = new AlertDialog.Builder(this);
-        dialog.setTitle(R.string.create_folder_action);
-        View view = mInflater.inflate(R.layout.create_folder, null);
-        final EditText input = (EditText) view.findViewById(R.id.create_folder_text);
-        final CheckBox checkBox = (CheckBox) view.findViewById(R.id.create_folder_local);
-        if (mAccount.getStoreUri().startsWith("pop3") || !K9.isShowAdvancedOptions()) {
-            checkBox.setVisibility(View.GONE);
-        }
-        dialog.setView(view);
-        dialog.setPositiveButton(R.string.okay_action, new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int whichButton) {
-                String folderName = input.getText().toString().trim();
-                if (folderName.matches("")) {
-                    Toast.makeText(getApplication(), "Folder name not given!", Toast.LENGTH_LONG).show();
-                    return;
-                } else if (folderName.toUpperCase().matches(Account.INBOX)) {
-                    Toast.makeText(getApplication(), "Refuse to create a folder named INBOX!", Toast.LENGTH_LONG).show();
-                    return;
-                }
-                try {
-                    Store store = mAccount.getRemoteStore();
-                    if (store instanceof Pop3Store || checkBox.isChecked()) {
-                        boolean result = mAccount.getLocalStore().createFolder(folderName, true);
-                        String toastText = "Creation of folder \"" + folderName +
-                                ((result) ? "\" succeeded." : "\" failed.");
-                        Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
-                        onRefresh(false);
-                    } else if (store instanceof ImapStore) {
-                        boolean result = ((ImapStore)store).createFolder(folderName);
-                        String toastText = "Creation of folder \"" + folderName +
-                                ((result) ? "\" succeeded." : "\" failed.");
-                        Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
-                        onRefresh(result);
-                    } else if (store instanceof WebDavStore) {
-                        String toastText = "Creating WebDav Folders not currently implemented.";
-                        Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
-                    } else {
-                        Log.d(K9.LOG_TAG, "Unhandled store type " + store.getClass());
-                    }
-                } catch (com.fsck.k9.mail.MessagingException me) {
-                    Log.e(K9.LOG_TAG, "MessagingException trying to create new folder \"" +
-                            folderName + "\": " + me);
-                }
-            }
-        });
-        dialog.setNegativeButton(R.string.cancel_action, new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int whichButton) {}
-        });
-        dialog.show();
+        showDialog(DIALOG_CREATE_FOLDER);
     }
 
     private void onEditPrefs() {
@@ -521,63 +502,13 @@ public class FolderList extends K9ListActivity {
         MessagingController.getInstance(getApplication()).expunge(account, folderName, null);
     }
 
-    private void onClearFolder(Account account, String folderName) {
-        AlertDialog.Builder dialog = new AlertDialog.Builder(this);
-        dialog.setCancelable(false);
-        dialog.setTitle(R.string.clear_local_folder_action);
-        View view = mInflater.inflate(R.layout.clear_local_folder, null);
-        final TextView text = (TextView) view.findViewById(R.id.clear_local_folder_text);
-        final TextView textLocal = (TextView) view.findViewById(R.id.clear_local_only_folder_text);
-        final CheckBox checkBox = (CheckBox) view.findViewById(R.id.clear_local_folder_all);
-
-        // There has to be a cheaper way to get at the localFolder object than this
-        LocalFolder localFolder = null;
-        try {
-            if (account == null || folderName == null || !account.isAvailable(FolderList.this)) {
-                Log.i(K9.LOG_TAG, "Not clearing folder of unavailable account");
-                return;
-            }
-            localFolder = account.getLocalStore().getFolder(folderName);
-            localFolder.open(Folder.OpenMode.READ_WRITE);
-            if (localFolder.isLocalOnly()) {
-                checkBox.setChecked(true);
-                checkBox.setVisibility(View.GONE);
-                text.setVisibility(View.GONE);
-            } else {
-                textLocal.setVisibility(View.GONE);
-            }
-        } catch (Exception e) {
-            Log.e(K9.LOG_TAG, "Exception while clearing folder", e);
-            if (localFolder != null) {
-                localFolder.close();
-            }
-            return;
-        }
-        final LocalFolder localFolderFinal = localFolder;
-
-        dialog.setView(view);
-        dialog.setPositiveButton(R.string.okay_action, new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int whichButton) {
-                try {
-                    localFolderFinal.clearAllMessages(checkBox.isChecked());
-                } catch (MessagingException e) {
-                    Log.e(K9.LOG_TAG, "Exception while clearing folder", e);
-                } finally {
-                    if (localFolderFinal != null) {
-                        localFolderFinal.close();
-                    }
-                    onRefresh(!REFRESH_REMOTE);
-                }
-            }
-        });
-        dialog.setNegativeButton(R.string.cancel_action, new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int whichButton) {
-                if (localFolderFinal != null) {
-                    localFolderFinal.close();
-                }
-            }
-        });
-        dialog.show();
+    private void onClearFolder(FolderInfoHolder folder) {
+        // TODO: Use showDialog(int, Bundle) once we dropped support for API 7
+        mDialogFolder = folder.name;
+        LocalFolder localFolder = (LocalFolder) folder.folder;
+        // FIXME: We need to move this to a background thread
+        mDialogFolderLocalOnly = localFolder.isLocalOnly();
+        showDialog(DIALOG_CLEAR_FOLDER);
     }
 
     private void sendMail(Account account) {
@@ -694,7 +625,7 @@ public class FolderList extends K9ListActivity {
             break;
 
         case R.id.mark_all_as_read:
-            onMarkAllAsRead(mAccount, folder.name);
+            onMarkAllAsRead(folder);
             break;
 
         case R.id.send_messages:
@@ -718,7 +649,7 @@ public class FolderList extends K9ListActivity {
             break;
 
         case R.id.clear_local_folder:
-            onClearFolder(mAccount, folder.name);
+            onClearFolder(folder);
             break;
 
         case R.id.rename_folder:
@@ -733,87 +664,55 @@ public class FolderList extends K9ListActivity {
         return super.onContextItemSelected(item);
     }
 
-    private FolderInfoHolder mSelectedContextFolder = null;
-
-    /*
-     Show a dialog to rename the selected folder.
-     Currently only IMAP and Pop3 are supported.
-     */
     private void onRenameFolder(final FolderInfoHolder folder) {
-        final EditText input = new EditText(this);
-        AlertDialog.Builder dialog = new AlertDialog.Builder(this);
-        dialog.setTitle(R.string.rename_folder_action);
-        dialog.setView(input);
-        dialog.setMessage("Enter the new name you want for folder \"" + folder.name + "\":");
-        dialog.setPositiveButton(R.string.okay_action, new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int whichButton) {
-                String newFolderName = input.getText().toString().trim();
-                MessagingController controller = MessagingController.getInstance(getApplication());
-                controller.renameFolder(mAccount, (LocalFolder) folder.folder, newFolderName);
-            }
-        });
-        dialog.setNegativeButton(R.string.cancel_action, new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int whichButton) {}
-        });
-        dialog.show();
-
+        // TODO: Use showDialog(int, Bundle) once we dropped support for API 7
+        mDialogFolder = folder.name;
+        showDialog(DIALOG_RENAME_FOLDER);
     }
 
-    /*
-     Show a dialog to delete the selected folder and all its messages (both local and remote if applicable).
-     Currently only IMAP and Pop3 are supported.
-     */
     private void onDeleteFolder(final FolderInfoHolder folder) {
-        AlertDialog.Builder dialog = new AlertDialog.Builder(this);
-        dialog.setTitle(R.string.delete_folder_action);
-        dialog.setMessage("Warning: Deleting this folder (" + folder.name +
-                ") will delete all messages inside it, including on the server (if applicable)!");
-        dialog.setPositiveButton(R.string.delete_action, new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int whichButton) {
-                MessagingController controller = MessagingController.getInstance(getApplication());
-                controller.deleteFolder(mAccount, (LocalFolder) folder.folder);
-            }
-        });
-        dialog.setNegativeButton(R.string.cancel_action, new DialogInterface.OnClickListener() {
-            public void onClick(DialogInterface dialog, int whichButton) {}
-        });
-        dialog.show();
+        // TODO: Use showDialog(int, Bundle) once we dropped support for API 7
+        mDialogFolder = folder.name;
+        showDialog(DIALOG_DELETE_FOLDER);
     }
 
-    private void onMarkAllAsRead(final Account account, final String folder) {
-        mSelectedContextFolder = mAdapter.getFolder(folder);
+    private void onMarkAllAsRead(FolderInfoHolder folder) {
+     // TODO: Use showDialog(int, Bundle) once we dropped support for API 7
+        mDialogFolder = folder.name;
         if (K9.confirmMarkAllAsRead()) {
             showDialog(DIALOG_MARK_ALL_AS_READ);
         } else {
-            markAllAsRead();
+            markAllAsRead(folder);
         }
     }
 
-    private void markAllAsRead() {
-        try {
-            MessagingController.getInstance(getApplication())
-            .markAllMessagesRead(mAccount, mSelectedContextFolder.name);
-            mSelectedContextFolder.unreadMessageCount = 0;
+    private void markAllAsRead(FolderInfoHolder providedFolder) {
+        FolderInfoHolder folder = (providedFolder != null) ?
+                providedFolder : mAdapter.getFolder(mDialogFolder);
+
+        if (folder != null) {
+            MessagingController controller = MessagingController.getInstance(getApplication());
+            controller.markAllMessagesRead(mAccount, folder.name);
+
+            folder.unreadMessageCount = 0;
             mHandler.dataChanged();
-        } catch (Exception e) {
-            /* Ignore */
         }
     }
 
     @Override
     public Dialog onCreateDialog(int id) {
         switch (id) {
-            case DIALOG_MARK_ALL_AS_READ:
+            case DIALOG_MARK_ALL_AS_READ: {
                 return ConfirmationDialog.create(this, id, R.string.mark_all_as_read_dlg_title,
-                        getString(R.string.mark_all_as_read_dlg_instructions_fmt,
-                            mSelectedContextFolder.displayName),
+                        "",
                         R.string.okay_action, R.string.cancel_action,
                         new Runnable() {
                             @Override
                             public void run() {
-                                markAllAsRead();
+                                markAllAsRead(null);
                             }
                         });
+            }
             case DIALOG_FIND_FOLDER: {
                 AlertDialog.Builder builder = new AlertDialog.Builder(this);
                 builder.setTitle(R.string.filter_folders_action);
@@ -856,18 +755,190 @@ public class FolderList extends K9ListActivity {
 
                 return builder.create();
             }
-        }
+            case DIALOG_CREATE_FOLDER: {
+                /*
+                Show a dialog to create a new folder.
+                Currently only IMAP and Pop3 supported.
+                IMAP folders are both remote and local. Pop3 folders are only local.
+                Exactly the same as activity.ChooseFolder.onCreateFolder().
+                */
+                AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                builder.setTitle(R.string.create_folder_action);
 
-        return super.onCreateDialog(id);
+                View view = mInflater.inflate(R.layout.create_folder, null);
+                final CheckBox checkBox = (CheckBox) view.findViewById(R.id.create_folder_local);
+                final EditText input = (EditText) view.findViewById(R.id.create_folder_text);
+                input.setFreezesText(true);
+                builder.setView(view);
+
+                builder.setPositiveButton(R.string.okay_action, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                        String folderName = input.getText().toString().trim();
+                        input.setText(null);
+                        if (folderName.matches("")) {
+                            Toast.makeText(getApplication(), "Folder name not given!", Toast.LENGTH_LONG).show();
+                            return;
+                        } else if (folderName.toUpperCase().matches(Account.INBOX)) {
+                            Toast.makeText(getApplication(), "Refuse to create a folder named INBOX!", Toast.LENGTH_LONG).show();
+                            return;
+                        }
+                        try {
+                            Store store = mAccount.getRemoteStore();
+                            if (store instanceof Pop3Store || checkBox.isChecked()) {
+                                boolean result = mAccount.getLocalStore().createFolder(folderName, true);
+                                String toastText = "Creation of folder \"" + folderName +
+                                        ((result) ? "\" succeeded." : "\" failed.");
+                                Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
+                                onRefresh(false);
+                            } else if (store instanceof ImapStore) {
+                                boolean result = ((ImapStore)store).createFolder(folderName);
+                                String toastText = "Creation of folder \"" + folderName +
+                                        ((result) ? "\" succeeded." : "\" failed.");
+                                Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
+                                onRefresh(result);
+                            } else if (store instanceof WebDavStore) {
+                                String toastText = "Creating WebDav Folders not currently implemented.";
+                                Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
+                            } else {
+                                Log.d(K9.LOG_TAG, "Unhandled store type " + store.getClass());
+                            }
+                        } catch (com.fsck.k9.mail.MessagingException me) {
+                            Log.e(K9.LOG_TAG, "MessagingException trying to create new folder \"" +
+                                    folderName + "\": " + me);
+                        }
+                    }
+                });
+
+                builder.setNegativeButton(R.string.cancel_action, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        input.setText(null);
+                    }
+                });
+
+                builder.setOnCancelListener(new OnCancelListener() {
+                    @Override
+                    public void onCancel(DialogInterface dialog) {
+                        input.setText(null);
+                    }
+                });
+
+                return builder.create();
+            }
+            case DIALOG_RENAME_FOLDER: {
+                /*
+                Show a dialog to rename the selected folder.
+                Currently only IMAP and Pop3 are supported.
+                */
+                AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                builder.setTitle(R.string.rename_folder_action);
+                builder.setMessage("");
+
+                final EditText input = new EditText(this);
+                input.setId(R.id.rename_folder);
+                input.setFreezesText(true);
+                builder.setView(input);
+
+                builder.setPositiveButton(R.string.okay_action, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                        FolderInfoHolder folder = mAdapter.getFolder(mDialogFolder);
+                        if (folder != null) {
+                            LocalFolder localFolder = (LocalFolder) folder.folder;
+                            String newFolderName = input.getText().toString().trim();
+                            MessagingController controller = MessagingController.getInstance(getApplication());
+                            controller.renameFolder(mAccount, localFolder, newFolderName);
+                        }
+
+                        input.setText(null);
+                    }
+                });
+
+                builder.setNegativeButton(R.string.cancel_action, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                        input.setText(null);
+                    }
+                });
+
+                builder.setOnCancelListener(new OnCancelListener() {
+                    @Override
+                    public void onCancel(DialogInterface dialog) {
+                        input.setText(null);
+                    }
+                });
+
+                return builder.create();
+            }
+            case DIALOG_DELETE_FOLDER: {
+                /*
+                Show a dialog to delete the selected folder and all its messages (both local and remote if applicable).
+                Currently only IMAP and Pop3 are supported.
+                */
+                return ConfirmationDialog.create(this, id, R.string.delete_folder_action,
+                        "",
+                        R.string.delete_action, R.string.cancel_action,
+                        new Runnable() {
+                            @Override
+                            public void run() {
+                                FolderInfoHolder folder = mAdapter.getFolder(mDialogFolder);
+                                if (folder != null) {
+                                    LocalFolder localFolder = (LocalFolder) folder.folder;
+                                    MessagingController controller = MessagingController.getInstance(getApplication());
+                                    controller.deleteFolder(mAccount, localFolder);
+                                }
+                            }
+                        });
+            }
+            case DIALOG_CLEAR_FOLDER: {
+                AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                builder.setCancelable(false);
+                builder.setTitle(R.string.clear_local_folder_action);
+
+                View view = mInflater.inflate(R.layout.clear_local_folder, null);
+                final CheckBox checkBox = (CheckBox) view.findViewById(R.id.clear_local_folder_all);
+                builder.setView(view);
+
+                builder.setPositiveButton(R.string.okay_action, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int whichButton) {
+                        FolderInfoHolder folder = mAdapter.getFolder(mDialogFolder);
+                        if (folder != null) {
+                            LocalFolder localFolder = (LocalFolder) folder.folder;
+                            try {
+                                // FIXME: do this in a background thread
+                                localFolder.clearAllMessages(checkBox.isChecked());
+                            } catch (MessagingException e) {
+                                Log.e(K9.LOG_TAG, "Exception while clearing folder", e);
+                            } finally {
+                                localFolder.close();
+                                onRefresh(!REFRESH_REMOTE);
+                            }
+                        }
+                    }
+                });
+
+                builder.setNegativeButton(R.string.cancel_action, null);
+
+                return builder.create();
+            }
+            default: {
+                return super.onCreateDialog(id);
+            }
+        }
     }
 
     @Override
     public void onPrepareDialog(int id, Dialog dialog) {
         switch (id) {
             case DIALOG_MARK_ALL_AS_READ: {
+                FolderInfoHolder folder = mAdapter.getFolder(mDialogFolder);
+                String displayName = (folder != null) ? folder.displayName : mDialogFolder;
+
                 AlertDialog alertDialog = (AlertDialog) dialog;
                 alertDialog.setMessage(getString(R.string.mark_all_as_read_dlg_instructions_fmt,
-                        mSelectedContextFolder.displayName));
+                        displayName));
                 break;
             }
             case DIALOG_FIND_FOLDER: {
@@ -880,6 +951,50 @@ public class FolderList extends K9ListActivity {
 
                 // Place the cursor at the end of the text
                 input.setSelection(input.getText().length());
+                break;
+            }
+            case DIALOG_CREATE_FOLDER: {
+                CheckBox checkBox = (CheckBox) dialog.findViewById(R.id.create_folder_local);
+                if (mAccount.getStoreUri().startsWith("pop3") || !K9.isShowAdvancedOptions()) {
+                    checkBox.setVisibility(View.GONE);
+                } else {
+                    checkBox.setVisibility(View.VISIBLE);
+                }
+                break;
+            }
+            case DIALOG_RENAME_FOLDER: {
+                FolderInfoHolder folder = mAdapter.getFolder(mDialogFolder);
+                String displayName = (folder != null) ? folder.displayName : mDialogFolder;
+
+                AlertDialog alertDialog = (AlertDialog) dialog;
+                alertDialog.setMessage("Enter the new name you want for folder \"" + displayName + "\":");
+                break;
+            }
+            case DIALOG_DELETE_FOLDER: {
+                FolderInfoHolder folder = mAdapter.getFolder(mDialogFolder);
+                String displayName = (folder != null) ? folder.displayName : mDialogFolder;
+
+                AlertDialog alertDialog = (AlertDialog) dialog;
+                alertDialog.setMessage("Warning: Deleting this folder (" + displayName +
+                        ") will delete all messages inside it, including on the server (if applicable)!");
+                break;
+            }
+            case DIALOG_CLEAR_FOLDER: {
+                final TextView text = (TextView) dialog.findViewById(R.id.clear_local_folder_text);
+                final TextView textLocal = (TextView) dialog.findViewById(R.id.clear_local_only_folder_text);
+                final CheckBox checkBox = (CheckBox) dialog.findViewById(R.id.clear_local_folder_all);
+
+                if (mDialogFolderLocalOnly) {
+                    checkBox.setChecked(true);
+                    checkBox.setVisibility(View.GONE);
+                    text.setVisibility(View.GONE);
+                    textLocal.setVisibility(View.VISIBLE);
+                } else {
+                    checkBox.setChecked(false);
+                    checkBox.setVisibility(View.VISIBLE);
+                    text.setVisibility(View.VISIBLE);
+                    textLocal.setVisibility(View.GONE);
+                }
                 break;
             }
             default: {
