@@ -456,7 +456,7 @@ public class FolderList extends K9ListActivity {
         if (mAccount.getFolderPushMode() != FolderMode.NONE) {
             MailService.actionRestartPushers(this, null);
         }
-        mAdapter.getFilter().filter(null);
+        mAdapter.getFilter().doFilter(null);
         onRefresh(false);
     }
 
@@ -723,7 +723,7 @@ public class FolderList extends K9ListActivity {
                 input.addTextChangedListener(new TextWatcher() {
                     @Override
                     public void onTextChanged(CharSequence s, int start, int before, int count) {
-                        mAdapter.getFilter().filter(input.getText());
+                        mAdapter.getFilter().doFilter(input.getText());
                     }
 
                     @Override
@@ -741,7 +741,7 @@ public class FolderList extends K9ListActivity {
                             @Override
                             public void onClick(DialogInterface dialog, int whichButton) {
                                 String value = input.getText().toString();
-                                mAdapter.getFilter().filter(value);
+                                mAdapter.getFilter().doFilter(value);
                             }
                         });
 
@@ -749,7 +749,7 @@ public class FolderList extends K9ListActivity {
                         new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int whichButton) {
-                                mAdapter.getFilter().filter(null);
+                                mAdapter.getFilter().doFilter(null);
                             }
                         });
 
@@ -1057,7 +1057,7 @@ public class FolderList extends K9ListActivity {
     class FolderListAdapter extends BaseAdapter implements Filterable {
         private ArrayList<FolderInfoHolder> mFolders = new ArrayList<FolderInfoHolder>();
         private List<FolderInfoHolder> mFilteredFolders = Collections.unmodifiableList(mFolders);
-        private Filter mFilter = new FolderListFilter();
+        private FolderListFilter mFilter = new FolderListFilter();
 
         public Object getItem(long position) {
             return getItem((int)position);
@@ -1546,25 +1546,61 @@ public class FolderList extends K9ListActivity {
             return true;
         }
 
-        public void setFilter(final Filter filter) {
-            this.mFilter = filter;
-        }
-
-        public Filter getFilter() {
+        @Override
+        public FolderListFilter getFilter() {
             return mFilter;
         }
 
         /**
-         * Filter to search for occurences of the search-expression in any place of the
-         * folder-name instead of doing jsut a prefix-search.
-         *
-         * @author Marcus@Wolschon.biz
+         * Filter to search for occurrences of the search expression in any place of the folder
+         * name instead of doing just a prefix search.
          */
         public class FolderListFilter extends Filter {
             private CharSequence mSearchTerm;
 
+            /**
+             * Copy of {@link FolderListAdapter#mFolders} to avoid
+             * {@link java.util.ConcurrentModificationException} in
+             * {@link #performFiltering(CharSequence)}.
+             */
+            private volatile List<FolderInfoHolder> mFoldersCopy;
+
             public CharSequence getSearchTerm() {
                 return mSearchTerm;
+            }
+
+            /**
+             * Starts a filtering operation.
+             *
+             * <p>
+             * <strong>Important:</strong> Must be called from the UI thread!
+             * </p><p>
+             * This method is used to copy {@link FolderListAdapter#mFolders} in the UI thread so
+             * {@link #performFiltering(CharSequence)} won't have to access the list from a
+             * background thread.
+             * </p>
+             *
+             * @param constraint
+             *         The constraint used to filter the data.
+             *
+             * @see Filter#filter(CharSequence)
+             * @see #mFoldersCopy
+             */
+            public void doFilter(CharSequence constraint) {
+                mSearchTerm = constraint;
+                if (constraint == null) {
+                    // Don't bother calling performFiltering() from a worker thread
+                    FilterResults results = new FilterResults();
+                    results.values = mFolders;
+                    results.count = mFolders.size();
+
+                    publishResults(null, results);
+                } else {
+                    mFoldersCopy = new ArrayList<FolderInfoHolder>(mFolders.size());
+                    mFoldersCopy.addAll(mFolders);
+
+                    filter(constraint);
+                }
             }
 
             /**
@@ -1575,13 +1611,12 @@ public class FolderList extends K9ListActivity {
              */
             @Override
             protected FilterResults performFiltering(CharSequence searchTerm) {
-                mSearchTerm = searchTerm;
                 FilterResults results = new FilterResults();
+                List<FolderInfoHolder> folders = mFoldersCopy;
 
                 if ((searchTerm == null) || (searchTerm.length() == 0)) {
-                    ArrayList<FolderInfoHolder> list = new ArrayList<FolderInfoHolder>(mFolders);
-                    results.values = list;
-                    results.count = list.size();
+                    results.values = folders;
+                    results.count = folders.size();
                 } else {
                     final String searchTermString = searchTerm.toString().toLowerCase();
                     final String[] words = searchTermString.split(" ");
@@ -1589,7 +1624,7 @@ public class FolderList extends K9ListActivity {
 
                     final ArrayList<FolderInfoHolder> newValues = new ArrayList<FolderInfoHolder>();
 
-                    for (final FolderInfoHolder value : mFolders) {
+                    for (final FolderInfoHolder value : folders) {
                         if (value.displayName == null) {
                             continue;
                         }
@@ -1617,8 +1652,11 @@ public class FolderList extends K9ListActivity {
             @SuppressWarnings("unchecked")
             @Override
             protected void publishResults(CharSequence constraint, FilterResults results) {
-                //noinspection unchecked
+                // We don't need the copy of the folder list anymore
+                mFoldersCopy = null;
+
                 mFilteredFolders = Collections.unmodifiableList((ArrayList<FolderInfoHolder>) results.values);
+
                 // Send notification that the data set changed now
                 notifyDataSetChanged();
             }
