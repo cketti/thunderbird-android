@@ -5490,6 +5490,67 @@ public class MessagingController implements Runnable {
     }
 
     /**
+     * Create a folder.
+     *
+     * @param account
+     *         The account the folder should be created for.
+     * @param folderName
+     *         The name of the folder to be created.
+     * @param localOnly
+     *         {@code true}, if the folder should only be created in the local store.
+     *         {@code false}, otherwise.
+     */
+    public void createFolder(final Account account, final String folderName,
+            final boolean localOnly) {
+        putBackground("createFolder", null, new Runnable() {
+            @Override
+            public void run() {
+                createFolderSynchronous(account, folderName, localOnly);
+            }
+        });
+    }
+
+    private void createFolderSynchronous(Account account, String folderName, boolean localOnly) {
+        try {
+            LocalStore localStore = account.getLocalStore();
+
+            // Notify listeners
+            for (MessagingListener l : getListeners()) {
+                l.folderCreateStarted(account, folderName);
+            }
+
+            if (folderName.length() == 0 || Account.INBOX.equals(folderName.toUpperCase())) {
+                // Notify listeners
+                for (MessagingListener l : getListeners()) {
+                    l.folderCreateFailed(account, folderName);
+                }
+                return;
+            }
+
+            boolean success = localStore.createFolder(folderName, localOnly);
+            // Notify listeners
+            for (MessagingListener l : getListeners()) {
+                if (success) {
+                    l.folderCreateFinished(account, folderName);
+                } else {
+                    l.folderCreateFailed(account, folderName);
+                }
+            }
+
+            if (!localOnly) {
+                throw new RuntimeException("Not implemented yet");
+            }
+        } catch (MessagingException me) {
+            Log.e(K9.LOG_TAG, "Error while creating folder", me);
+
+            // Notify listeners
+            for (MessagingListener l : getListeners()) {
+                l.folderCreateFailed(account, folderName);
+            }
+        }
+    }
+
+    /**
      * Change special folder settings (when a folder is renamed or deleted)
      *
      * @param account

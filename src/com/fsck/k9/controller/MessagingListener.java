@@ -151,7 +151,7 @@ public class MessagingListener {
     }
 
     /**
-     * Called when renaming a folder failed.
+     * Called when renaming a folder has failed.
      *
      * @param account
      *         The account the folder belongs to.
@@ -186,7 +186,7 @@ public class MessagingListener {
     public void folderDeleteFinished(Account account, String folderName) { /* do nothing */ }
 
     /**
-     * Called when deleting a folder failed.
+     * Called when deleting a folder has failed.
      *
      * @param account
      *         The account the folder belongs to.
@@ -194,6 +194,37 @@ public class MessagingListener {
      *         The name of the folder that couldn't be deleted.
      */
     public void folderDeleteFailed(Account account, String folderName) { /* do nothing */ }
+
+
+    /**
+     * Called when starting to create a folder.
+     *
+     * @param account
+     *         The account the folder should be created for.
+     * @param folderName
+     *         The name of the folder that is going to be created.
+     */
+    public void folderCreateStarted(Account account, String folderName) { /* do nothing */ }
+
+    /**
+     * Called when a folder was successfully created.
+     *
+     * @param account
+     *         The account the folder was created for.
+     * @param folderName
+     *         The name of the folder that was created.
+     */
+    public void folderCreateFinished(Account account, String folderName) { /* do nothing */ }
+
+    /**
+     * Called when creating a folder has failed.
+     *
+     * @param account
+     *         The account the folder should have been created for.
+     * @param folderName
+     *         The name of the folder that couldn't be created.
+     */
+    public void folderCreateFailed(Account account, String folderName) { /* do nothing */ }
 
 
     public void systemStatusChanged() {}

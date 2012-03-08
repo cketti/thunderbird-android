@@ -36,11 +36,7 @@ import com.fsck.k9.helper.power.TracingPowerManager.TracingWakeLock;
 import com.fsck.k9.mail.Flag;
 import com.fsck.k9.mail.Folder;
 import com.fsck.k9.mail.Message;
-import com.fsck.k9.mail.Store;
-import com.fsck.k9.mail.store.ImapStore;
 import com.fsck.k9.mail.store.LocalStore.LocalFolder;
-import com.fsck.k9.mail.store.Pop3Store;
-import com.fsck.k9.mail.store.WebDavStore;
 import com.fsck.k9.mail.MessagingException;
 import com.fsck.k9.service.MailService;
 import java.util.ArrayList;
@@ -756,12 +752,6 @@ public class FolderList extends K9ListActivity {
                 return builder.create();
             }
             case DIALOG_CREATE_FOLDER: {
-                /*
-                Show a dialog to create a new folder.
-                Currently only IMAP and Pop3 supported.
-                IMAP folders are both remote and local. Pop3 folders are only local.
-                Exactly the same as activity.ChooseFolder.onCreateFolder().
-                */
                 AlertDialog.Builder builder = new AlertDialog.Builder(this);
                 builder.setTitle(R.string.create_folder_action);
 
@@ -776,37 +766,20 @@ public class FolderList extends K9ListActivity {
                     public void onClick(DialogInterface dialog, int whichButton) {
                         String folderName = input.getText().toString().trim();
                         input.setText(null);
-                        if (folderName.matches("")) {
+
+                        if (folderName.length() == 0) {
                             Toast.makeText(getApplication(), "Folder name not given!", Toast.LENGTH_LONG).show();
                             return;
-                        } else if (folderName.toUpperCase().matches(Account.INBOX)) {
+                        } else if (Account.INBOX.equals(folderName.toUpperCase())) {
                             Toast.makeText(getApplication(), "Refuse to create a folder named INBOX!", Toast.LENGTH_LONG).show();
                             return;
                         }
-                        try {
-                            Store store = mAccount.getRemoteStore();
-                            if (store instanceof Pop3Store || checkBox.isChecked()) {
-                                boolean result = mAccount.getLocalStore().createFolder(folderName, true);
-                                String toastText = "Creation of folder \"" + folderName +
-                                        ((result) ? "\" succeeded." : "\" failed.");
-                                Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
-                                onRefresh(false);
-                            } else if (store instanceof ImapStore) {
-                                boolean result = ((ImapStore)store).createFolder(folderName);
-                                String toastText = "Creation of folder \"" + folderName +
-                                        ((result) ? "\" succeeded." : "\" failed.");
-                                Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
-                                onRefresh(result);
-                            } else if (store instanceof WebDavStore) {
-                                String toastText = "Creating WebDav Folders not currently implemented.";
-                                Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
-                            } else {
-                                Log.d(K9.LOG_TAG, "Unhandled store type " + store.getClass());
-                            }
-                        } catch (com.fsck.k9.mail.MessagingException me) {
-                            Log.e(K9.LOG_TAG, "MessagingException trying to create new folder \"" +
-                                    folderName + "\": " + me);
-                        }
+
+                        boolean localOnly = checkBox.isChecked();
+
+                        MessagingController controller =
+                                MessagingController.getInstance(getApplication());
+                        controller.createFolder(mAccount, folderName, localOnly);
                     }
                 });
 
@@ -955,9 +928,12 @@ public class FolderList extends K9ListActivity {
             }
             case DIALOG_CREATE_FOLDER: {
                 CheckBox checkBox = (CheckBox) dialog.findViewById(R.id.create_folder_local);
-                if (mAccount.getStoreUri().startsWith("pop3") || !K9.isShowAdvancedOptions()) {
+                boolean isPop3 = mAccount.getStoreUri().startsWith("pop3");
+                if (isPop3 || !K9.isShowAdvancedOptions()) {
+                    checkBox.setChecked(isPop3);
                     checkBox.setVisibility(View.GONE);
                 } else {
+                    checkBox.setChecked(false);
                     checkBox.setVisibility(View.VISIBLE);
                 }
                 break;
@@ -1408,6 +1384,39 @@ public class FolderList extends K9ListActivity {
                     @Override
                     public void run() {
                         String toastText = "Deletion of folder \"" + folderName + "\" failed.";
+                        Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
+                    }
+                });
+            }
+
+            @Override
+            public void folderCreateStarted(Account account, String folderName) {
+                mHandler.progress(true);
+            }
+
+            @Override
+            public void folderCreateFinished(Account account, final String folderName) {
+                mHandler.progress(false);
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        String toastText = "Creation of folder \"" + folderName + "\" succeeded.";
+                        Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
+                    }
+                });
+
+                onRefresh(false);
+            }
+
+            @Override
+            public void folderCreateFailed(Account account, final String folderName) {
+                mHandler.progress(false);
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        String toastText = "Creation of folder \"" + folderName + "\" failed.";
                         Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
                     }
                 });
