@@ -70,6 +70,8 @@ import com.fsck.k9.helper.Utility;
 import com.fsck.k9.mail.Flag;
 import com.fsck.k9.mail.Folder;
 import com.fsck.k9.mail.Message;
+import com.fsck.k9.mail.MessagingException;
+import com.fsck.k9.mail.Store;
 import com.fsck.k9.mail.store.LocalStore;
 import com.fsck.k9.mail.store.LocalStore.LocalFolder;
 import com.fsck.k9.mail.store.LocalStore.LocalMessage;
@@ -1610,9 +1612,13 @@ public class MessageList
             menu.findItem(R.id.account_settings).setVisible(false);
         } else {
             boolean isExpungeCapable = false;
+            boolean isAppendCapable = false;
+            boolean isMoveCapable = false;
             try {
                 isExpungeCapable = mAccount.getRemoteStore().isExpungeCapable();
-            } catch (com.fsck.k9.mail.MessagingException e) {
+                isAppendCapable = mAccount.getRemoteStore().isAppendCapable();
+                isMoveCapable = mAccount.getRemoteStore().isMoveCapable();
+            } catch (MessagingException e) {
                 Log.e(K9.LOG_TAG, "MessagingException trying to get remote store " + e);
             }
             if (mCurrentFolder != null && mCurrentFolder.name.equals(mAccount.getOutboxFolderName())) {
@@ -1630,7 +1636,8 @@ public class MessageList
             if (K9.FOLDER_NONE.equalsIgnoreCase(mAccount.getArchiveFolderName())) {
                 menu.findItem(R.id.batch_archive_op).setVisible(false);
             }
-            if (K9.FOLDER_NONE.equalsIgnoreCase(mAccount.getSpamFolderName())) {
+            if (K9.FOLDER_NONE.equalsIgnoreCase(mAccount.getSpamFolderName()) ||
+                    (!isMoveCapable && !isAppendCapable)) {
                 menu.findItem(R.id.batch_spam_op).setVisible(false);
             }
             try {
@@ -1829,10 +1836,21 @@ public class MessageList
 
         Account account = message.message.getFolder().getAccount();
 
+        boolean isMoveCapable = false;
+        boolean isAppendCapable = false;
+        try {
+            Store remoteStore = account.getRemoteStore();
+            isMoveCapable = remoteStore.isMoveCapable();
+            isAppendCapable = remoteStore.isAppendCapable();
+        } catch (MessagingException e) {
+            Log.w(K9.LOG_TAG, "Couldn't get remote store capabilities", e);
+        }
+
         if (K9.FOLDER_NONE.equalsIgnoreCase(account.getArchiveFolderName())) {
             menu.findItem(R.id.archive).setVisible(false);
         }
-        if (K9.FOLDER_NONE.equalsIgnoreCase(account.getSpamFolderName())) {
+        if (K9.FOLDER_NONE.equalsIgnoreCase(account.getSpamFolderName()) ||
+                (!isMoveCapable && !isAppendCapable)) {
             menu.findItem(R.id.spam).setVisible(false);
         }
 

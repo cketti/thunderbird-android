@@ -111,6 +111,7 @@ public class AccountSettings extends K9PreferenceActivity {
     private boolean mIsPushCapable = false;
     private boolean mIsExpungeCapable = false;
     private boolean mIsAppendCapable = false;
+    private boolean mIsMoveCapable = false;
 
     private PreferenceScreen mComposingScreen;
 
@@ -188,6 +189,7 @@ public class AccountSettings extends K9PreferenceActivity {
             mIsPushCapable = store.isPushCapable();
             mIsExpungeCapable = store.isExpungeCapable();
             mIsAppendCapable = store.isAppendCapable();
+            mIsMoveCapable = store.isMoveCapable();
         } catch (Exception e) {
             Log.e(K9.LOG_TAG, "Could not get remote store", e);
         }
@@ -739,13 +741,15 @@ Log.d("ASH", "Have set delete policy to " + mAccount.getDeletePolicy());
         if (newSentFolder != null) {
             mAccount.setSentFolderName(newSentFolder);
         }
-        String newSpamFolder = mSpamFolder.getValue();
-        if (newSpamFolder != null) {
-            mAccount.setSpamFolderName(newSpamFolder);
-        }
         String newTrashFolder = mTrashFolder.getValue();
         if (newTrashFolder != null) {
             mAccount.setTrashFolderName(newTrashFolder);
+        }
+        if (mSpamFolder != null) {
+            String newSpamFolder = mSpamFolder.getValue();
+            if (newSpamFolder != null) {
+                mAccount.setSpamFolderName(newSpamFolder);
+            }
         }
 
 
@@ -935,6 +939,14 @@ Log.d("ASH", "Have set delete policy to " + mAccount.getDeletePolicy());
             mSpamFolder.setEnabled(false);
             mTrashFolder = (ListPreference)findPreference(PREFERENCE_TRASH_FOLDER);
             mTrashFolder.setEnabled(false);
+
+            // There's no point in having a local-only spam folder
+            if (!mIsMoveCapable && !mIsAppendCapable) {
+                PreferenceScreen foldersCategory = (PreferenceScreen) findPreference(
+                        PREFERENCE_CATEGORY_FOLDERS);
+                foldersCategory.removePreference(mSpamFolder);
+                mSpamFolder = null;
+            }
         }
 
         @Override
@@ -944,13 +956,16 @@ Log.d("ASH", "Have set delete policy to " + mAccount.getDeletePolicy());
             initListPreference(mArchiveFolder, mAccount.getArchiveFolderName(), allFolderLabels, allFolderValues);
             initListPreference(mDraftsFolder, mAccount.getDraftsFolderName(), allFolderLabels, allFolderValues);
             initListPreference(mSentFolder, mAccount.getSentFolderName(), allFolderLabels, allFolderValues);
-            initListPreference(mSpamFolder, mAccount.getSpamFolderName(), allFolderLabels, allFolderValues);
             initListPreference(mTrashFolder, mAccount.getTrashFolderName(), allFolderLabels, allFolderValues);
             mArchiveFolder.setEnabled(true);
-            mSpamFolder.setEnabled(true);
             mDraftsFolder.setEnabled(true);
             mSentFolder.setEnabled(true);
             mTrashFolder.setEnabled(true);
+
+            if (mSpamFolder != null) {
+                initListPreference(mSpamFolder, mAccount.getSpamFolderName(), allFolderLabels, allFolderValues);
+                mSpamFolder.setEnabled(true);
+            }
         }
     }
 }
