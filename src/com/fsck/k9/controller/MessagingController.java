@@ -5329,6 +5329,19 @@ public class MessagingController implements Runnable {
                 l.folderRenameStarted(account, folderName, newFolderName);
             }
 
+            // Make sure the new folder name is sane
+            if (folderName == null || newFolderName == null || newFolderName.length() == 0 ||
+                    newFolderName.equalsIgnoreCase(Account.INBOX) ||
+                    newFolderName.equals(Account.OUTBOX) ||
+                    newFolderName.equals(K9.ERROR_FOLDER_NAME)) {
+                // Notify listeners
+                for (MessagingListener l : getListeners()) {
+                    l.folderRenameFailed(account, folderName, newFolderName);
+                }
+
+                return;
+            }
+
             boolean isLocalOnly = folder.isLocalOnly();
             // TODO: add Store.isFolderRenameCapable()
             if (store instanceof Pop3Store || isLocalOnly) {
@@ -5412,6 +5425,18 @@ public class MessagingController implements Runnable {
             // Notify listeners
             for (MessagingListener l : getListeners()) {
                 l.folderDeleteStarted(account, folderName);
+            }
+
+            // We're picky on which folders we allow to be deleted
+            if (folderName == null || folderName.length() == 0 ||
+                    folderName.equals(Account.INBOX) || folderName.equals(Account.OUTBOX) ||
+                    folderName.equals(K9.ERROR_FOLDER_NAME)) {
+                // Notify listeners
+                for (MessagingListener l : getListeners()) {
+                    l.folderDeleteFailed(account, folderName);
+                }
+
+                return;
             }
 
             boolean isLocalOnly = folder.isLocalOnly();

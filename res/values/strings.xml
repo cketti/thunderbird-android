@@ -853,13 +853,15 @@ Welcome to K-9 Mail setup.  K-9 is an open source mail client for Android origin
 
     <string name="folder_create_hint">New folder name</string>
     <string name="folder_create_local_only">Local-only</string>
-    <string name="folder_create_empty_name">Please specify a folder name!</string>
     <string name="folder_create_name_not_allowed">Creating a folder named \"<xliff:g id="folder_name">%s</xliff:g>\" is not allowed!</string>
     <string name="folder_create_success">Creation of folder \"<xliff:g id="folder_name">%s</xliff:g>\" has succeeded.</string>
     <string name="folder_create_failure">Creation of folder \"<xliff:g id="folder_name">%s</xliff:g>\" has failed.</string>
 
+    <string name="folder_create_rename_empty_name">Please specify a folder name!</string>
+
     <string name="folder_rename_new_name">Rename folder \"<xliff:g id="folder_name">%s</xliff:g>\" to…</string>
     <string name="folder_rename_hint">New folder name</string>
+    <string name="folder_rename_name_not_allowed">Renaming a folder to \"<xliff:g id="folder_name">%s</xliff:g>\" is not allowed!</string>
     <string name="folder_rename_success">Renaming folder \"<xliff:g id="old_folder_name">%s</xliff:g>\" to \"<xliff:g id="new_folder_name">%s</xliff:g>\" has succeeded.</string>
     <string name="folder_rename_failure">Renaming folder \"<xliff:g id="old_folder_name">%s</xliff:g>\" to \"<xliff:g id="new_folder_name">%s</xliff:g>\" has failed.</string>
 

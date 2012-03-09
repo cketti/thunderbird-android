@@ -774,11 +774,13 @@ public class FolderList extends K9ListActivity {
                         if (folderName.length() == 0) {
                             Toast.makeText(
                                     FolderList.this,
-                                    getString(R.string.folder_create_empty_name),
+                                    getString(R.string.folder_create_rename_empty_name),
                                     Toast.LENGTH_LONG
                                 ).show();
                             return;
-                        } else if (Account.INBOX.equals(folderName.toUpperCase())) {
+                        } else if (Account.INBOX.equalsIgnoreCase(folderName) ||
+                                Account.OUTBOX.equals(folderName) ||
+                                getString(R.string.special_mailbox_name_outbox).equals(folderName)) {
                             Toast.makeText(
                                     FolderList.this,
                                     getString(R.string.folder_create_name_not_allowed, folderName),
@@ -829,6 +831,27 @@ public class FolderList extends K9ListActivity {
                         if (folder != null) {
                             LocalFolder localFolder = (LocalFolder) folder.folder;
                             String newFolderName = input.getText().toString().trim();
+
+                            if (newFolderName.length() == 0) {
+                                Toast.makeText(
+                                        FolderList.this,
+                                        getString(R.string.folder_create_rename_empty_name),
+                                        Toast.LENGTH_LONG
+                                    ).show();
+                                return;
+                            } else if (Account.INBOX.equalsIgnoreCase(newFolderName) ||
+                                    Account.OUTBOX.equals(newFolderName) ||
+                                    getString(R.string.special_mailbox_name_outbox)
+                                            .equals(newFolderName)) {
+                                Toast.makeText(
+                                        FolderList.this,
+                                        getString(R.string.folder_rename_name_not_allowed,
+                                                newFolderName),
+                                        Toast.LENGTH_LONG
+                                    ).show();
+                                return;
+                            }
+
                             MessagingController controller = MessagingController.getInstance(getApplication());
                             controller.renameFolder(mAccount, localFolder, newFolderName);
                         }
