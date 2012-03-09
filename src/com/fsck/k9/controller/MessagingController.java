@@ -27,7 +27,6 @@ import android.os.PowerManager;
 import android.os.Process;
 import android.text.TextUtils;
 import android.util.Log;
-import android.widget.Toast;
 
 import com.fsck.k9.Account;
 import com.fsck.k9.AccountStats;
@@ -2471,9 +2470,6 @@ public class MessagingController implements Runnable {
                         completed = false;
                         Log.e(K9.LOG_TAG, "Cannot download message " + message.getUid() +
                                 " in folder " + folderName);
-                        Toast.makeText(mApplication, "Cannot download message " +
-                                message.getSubject() + " in folder " + folderName,
-                                Toast.LENGTH_LONG).show();
                         continue;
                     }
                 }
@@ -3011,16 +3007,12 @@ public class MessagingController implements Runnable {
 
             if (uid.startsWith(K9.LOCAL_UID_PREFIX)) {
                 Log.w(K9.LOG_TAG, "Message has local UID so cannot download fully.");
-                Toast.makeText(mApplication, "Message has local UID so cannot download fully",
-                        Toast.LENGTH_LONG).show();
                 // TODO: Using X_DOWNLOADED_FULL is wrong because it's only a partial message. But
                 // one we can't download completely. Maybe add a new flag; X_PARTIAL_MESSAGE ?
                 message.setFlag(Flag.X_DOWNLOADED_FULL, true);
                 message.setFlag(Flag.X_DOWNLOADED_PARTIAL, false);
             } else if (localFolder.isLocalOnly() && !force) {
                 Log.w(K9.LOG_TAG, "Message in local-only folder so cannot download fully.");
-                Toast.makeText(mApplication, "Message in local-only folder so cannot download fully",
-                        Toast.LENGTH_LONG).show();
                 message.setFlag(Flag.X_DOWNLOADED_FULL, true);
                 message.setFlag(Flag.X_DOWNLOADED_PARTIAL, false);
             }
@@ -3694,9 +3686,6 @@ public class MessagingController implements Runnable {
                             }
                             Log.e(K9.LOG_TAG, "Cannot download message " + message.getUid() +
                                     " in folder " + srcFolder + " -- skipping it for move/copy.");
-                            Toast.makeText(mApplication, "Cannot download message " +
-                                    message.getSubject() + " in folder " + srcFolder +
-                                    " -- skipping it for move/copy.", Toast.LENGTH_LONG).show();
                         }
                     } else {
                         origUidMap.put(message.getUid(), message);
@@ -3980,10 +3969,6 @@ public class MessagingController implements Runnable {
                                 } else {
                                     unsuppressMessage(account, folder, message.getUid());
                                     Log.e(K9.LOG_TAG, "Cannot download message -- skipping it for move to trash.");
-                                    Toast.makeText(mApplication, "Cannot download message " +
-                                            message.getSubject() + " in folder " + folder +
-                                            " -- skipping it for move to trash.",
-                                            Toast.LENGTH_LONG).show();
                                 }
                             } else {
                                 origUidMap.put(message.getUid(), message);
