@@ -859,6 +859,7 @@ Welcome to K-9 Mail setup.  K-9 is an open source mail client for Android origin
     <string name="folder_create_failure">Creation of folder \"<xliff:g id="folder_name">%s</xliff:g>\" has failed.</string>
 
     <string name="folder_rename_new_name">Rename folder \"<xliff:g id="folder_name">%s</xliff:g>\" to…</string>
+    <string name="folder_rename_hint">New folder name</string>
     <string name="folder_rename_success">Renaming folder \"<xliff:g id="old_folder_name">%s</xliff:g>\" to \"<xliff:g id="new_folder_name">%s</xliff:g>\" has succeeded.</string>
     <string name="folder_rename_failure">Renaming folder \"<xliff:g id="old_folder_name">%s</xliff:g>\" to \"<xliff:g id="new_folder_name">%s</xliff:g>\" has failed.</string>
 

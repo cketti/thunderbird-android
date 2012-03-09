@@ -822,6 +822,7 @@ public class FolderList extends K9ListActivity {
 
                 final EditText input = new EditText(this);
                 input.setId(R.id.rename_folder);
+                input.setHint(R.string.folder_rename_hint);
                 input.setFreezesText(true);
                 builder.setView(input);
 
