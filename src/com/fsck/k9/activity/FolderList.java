@@ -812,10 +812,6 @@ public class FolderList extends K9ListActivity {
                 return builder.create();
             }
             case DIALOG_RENAME_FOLDER: {
-                /*
-                Show a dialog to rename the selected folder.
-                Currently only IMAP and Pop3 are supported.
-                */
                 AlertDialog.Builder builder = new AlertDialog.Builder(this);
                 builder.setTitle(R.string.rename_folder_action);
                 builder.setMessage("");
@@ -858,10 +854,6 @@ public class FolderList extends K9ListActivity {
                 return builder.create();
             }
             case DIALOG_DELETE_FOLDER: {
-                /*
-                Show a dialog to delete the selected folder and all its messages (both local and remote if applicable).
-                Currently only IMAP and Pop3 are supported.
-                */
                 return ConfirmationDialog.create(this, id, R.string.delete_folder_action,
                         "",
                         R.string.delete_action, R.string.cancel_action,
