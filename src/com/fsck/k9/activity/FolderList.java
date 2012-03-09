@@ -914,7 +914,7 @@ public class FolderList extends K9ListActivity {
                 EditText input = (EditText) alertDialog.findViewById(R.id.filter_folders);
 
                 // Populate the EditText with the current search term
-                FolderListFilter filter = (FolderListFilter) mAdapter.getFilter();
+                FolderListFilter filter = mAdapter.getFilter();
                 input.setText(filter.getSearchTerm());
 
                 // Place the cursor at the end of the text
