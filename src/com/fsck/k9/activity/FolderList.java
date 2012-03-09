@@ -879,15 +879,10 @@ public class FolderList extends K9ListActivity {
                         FolderInfoHolder folder = mAdapter.getFolder(mDialogFolder);
                         if (folder != null) {
                             LocalFolder localFolder = (LocalFolder) folder.folder;
-                            try {
-                                // FIXME: do this in a background thread
-                                localFolder.clearAllMessages(checkBox.isChecked());
-                            } catch (MessagingException e) {
-                                Log.e(K9.LOG_TAG, "Exception while clearing folder", e);
-                            } finally {
-                                localFolder.close();
-                                onRefresh(!REFRESH_REMOTE);
-                            }
+                            boolean includeLocalOnly = checkBox.isChecked();
+
+                            MessagingController controller = MessagingController.getInstance(getApplication());
+                            controller.clearFolder(mAccount, localFolder, includeLocalOnly);
                         }
                     }
                 });
@@ -1420,6 +1415,26 @@ public class FolderList extends K9ListActivity {
                         Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
                     }
                 });
+            }
+
+            @Override
+            public void folderClearStarted(Account account, String folderName,
+                    boolean includeLocalOnly) {
+                mHandler.progress(true);
+            }
+
+            @Override
+            public void folderClearFinished(Account account, String folderName,
+                    boolean includeLocalOnly) {
+                mHandler.progress(false);
+                onRefresh(!REFRESH_REMOTE);
+            }
+
+            @Override
+            public void folderClearFailed(Account account, String folderName,
+                    boolean includeLocalOnly) {
+                mHandler.progress(false);
+                onRefresh(!REFRESH_REMOTE);
             }
         };
 

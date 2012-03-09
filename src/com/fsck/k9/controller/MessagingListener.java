@@ -227,6 +227,52 @@ public class MessagingListener {
     public void folderCreateFailed(Account account, String folderName) { /* do nothing */ }
 
 
+    /**
+     * Called when starting to delete messages from a local folder.
+     *
+     * @param account
+     *         The account the folder belongs to.
+     * @param folderName
+     *         The name of the folder that should be cleared.
+     * @param includeLocalOnly
+     *         {@code true}, if messages that are only available locally should be deleted, too.
+     *         {@code false}, otherwise.
+     */
+    public void folderClearStarted(Account account, String folderName, boolean includeLocalOnly) {
+        /* do nothing */
+    }
+
+    /**
+     * Called when clearing a folder was successfully completed.
+     *
+     * @param account
+     *         The account the folder belongs to.
+     * @param folderName
+     *         The name of the folder that has been cleared.
+     * @param includeLocalOnly
+     *         {@code true}, if messages that were only available locally have been deleted, too.
+     *         {@code false}, otherwise.
+     */
+    public void folderClearFinished(Account account, String folderName, boolean includeLocalOnly) {
+        /* do nothing */
+    }
+
+    /**
+     * Called when clearing a folder has failed.
+     *
+     * @param account
+     *         The account the folder belongs to.
+     * @param folderName
+     *         The name of the folder that should have been cleared.
+     * @param includeLocalOnly
+     *         {@code true}, if messages that are only available locally should have been deleted,
+     *         too. {@code false}, otherwise.
+     */
+    public void folderClearFailed(Account account, String folderName, boolean includeLocalOnly) {
+        /* do nothing */
+    }
+
+
     public void systemStatusChanged() {}
 
 

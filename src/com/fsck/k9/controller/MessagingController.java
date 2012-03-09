@@ -5551,6 +5551,58 @@ public class MessagingController implements Runnable {
     }
 
     /**
+     * Clear a folder.
+     *
+     * @param account
+     *         The account the folder belongs to.
+     * @param folder
+     *         The folder to be cleared.
+     * @param includeLocalOnly
+     *         {@code true}, if messages that are only available locally should be deleted, too.
+     *         {@code false}, otherwise.
+     */
+    public void clearFolder(final Account account, final LocalFolder folder,
+            final boolean includeLocalOnly) {
+        putBackground("clearFolder", null, new Runnable() {
+            @Override
+            public void run() {
+                clearFolderSynchronous(account, folder, includeLocalOnly);
+            }
+        });
+    }
+
+    private void clearFolderSynchronous(Account account, LocalFolder folder,
+            boolean includeLocalOnly) {
+        try {
+            folder.open(OpenMode.READ_WRITE);
+            String folderName = folder.getName();
+
+            // Notify listeners
+            for (MessagingListener l : getListeners()) {
+                l.folderClearStarted(account, folderName, includeLocalOnly);
+            }
+
+            // Clear messages
+            folder.clearAllMessages(includeLocalOnly);
+
+            // Notify listeners
+            for (MessagingListener l : getListeners()) {
+                l.folderClearFinished(account, folderName, includeLocalOnly);
+            }
+        } catch (MessagingException me) {
+            Log.e(K9.LOG_TAG, "Error while clearing folder", me);
+
+            // Notify listeners
+            String folderName = folder.getName();
+            for (MessagingListener l : getListeners()) {
+                l.folderClearFailed(account, folderName, includeLocalOnly);
+            }
+        } finally {
+            folder.close();
+        }
+    }
+
+    /**
      * Change special folder settings (when a folder is renamed or deleted)
      *
      * @param account
