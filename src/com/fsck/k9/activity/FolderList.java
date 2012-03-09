@@ -768,10 +768,18 @@ public class FolderList extends K9ListActivity {
                         input.setText(null);
 
                         if (folderName.length() == 0) {
-                            Toast.makeText(getApplication(), "Folder name not given!", Toast.LENGTH_LONG).show();
+                            Toast.makeText(
+                                    FolderList.this,
+                                    getString(R.string.folder_create_empty_name),
+                                    Toast.LENGTH_LONG
+                                ).show();
                             return;
                         } else if (Account.INBOX.equals(folderName.toUpperCase())) {
-                            Toast.makeText(getApplication(), "Refuse to create a folder named INBOX!", Toast.LENGTH_LONG).show();
+                            Toast.makeText(
+                                    FolderList.this,
+                                    getString(R.string.folder_create_name_not_allowed, folderName),
+                                    Toast.LENGTH_LONG
+                                ).show();
                             return;
                         }
 
@@ -938,7 +946,7 @@ public class FolderList extends K9ListActivity {
                 String displayName = (folder != null) ? folder.displayName : mDialogFolder;
 
                 AlertDialog alertDialog = (AlertDialog) dialog;
-                alertDialog.setMessage("Enter the new name you want for folder \"" + displayName + "\":");
+                alertDialog.setMessage(getString(R.string.folder_rename_new_name, displayName));
                 break;
             }
             case DIALOG_DELETE_FOLDER: {
@@ -946,8 +954,8 @@ public class FolderList extends K9ListActivity {
                 String displayName = (folder != null) ? folder.displayName : mDialogFolder;
 
                 AlertDialog alertDialog = (AlertDialog) dialog;
-                alertDialog.setMessage("Warning: Deleting this folder (" + displayName +
-                        ") will delete all messages inside it, including on the server (if applicable)!");
+                alertDialog.setMessage(
+                        getString(R.string.folder_delete_confirmation, displayName));
                 break;
             }
             case DIALOG_CLEAR_FOLDER: {
@@ -1327,8 +1335,8 @@ public class FolderList extends K9ListActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        String toastText = "Renaming folder \"" + oldFolderName + "\" to \"" +
-                                newFolderName + "\" succeeded.";
+                        String toastText = getString(R.string.folder_rename_success, oldFolderName,
+                                newFolderName);
                         Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
                     }
                 });
@@ -1344,8 +1352,8 @@ public class FolderList extends K9ListActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        String toastText = "Renaming folder \"" + oldFolderName + "\" to \"" +
-                                newFolderName + "\" failed.";
+                        String toastText = getString(R.string.folder_rename_failure, oldFolderName,
+                                newFolderName);
                         Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
                     }
                 });
@@ -1363,7 +1371,7 @@ public class FolderList extends K9ListActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        String toastText = "Deletion of folder \"" + folderName + "\" succeeded.";
+                        String toastText = getString(R.string.folder_delete_success, folderName);
                         Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
                     }
                 });
@@ -1378,7 +1386,7 @@ public class FolderList extends K9ListActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        String toastText = "Deletion of folder \"" + folderName + "\" failed.";
+                        String toastText = getString(R.string.folder_delete_failure, folderName);
                         Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
                     }
                 });
@@ -1396,7 +1404,7 @@ public class FolderList extends K9ListActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        String toastText = "Creation of folder \"" + folderName + "\" succeeded.";
+                        String toastText = getString(R.string.folder_create_success, folderName);
                         Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
                     }
                 });
@@ -1411,7 +1419,7 @@ public class FolderList extends K9ListActivity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        String toastText = "Creation of folder \"" + folderName + "\" failed.";
+                        String toastText = getString(R.string.folder_create_failure, folderName);
                         Toast.makeText(getApplication(), toastText, Toast.LENGTH_LONG).show();
                     }
                 });
