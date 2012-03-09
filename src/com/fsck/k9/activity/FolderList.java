@@ -755,7 +755,11 @@ public class FolderList extends K9ListActivity {
                 AlertDialog.Builder builder = new AlertDialog.Builder(this);
                 builder.setTitle(R.string.create_folder_action);
 
-                View view = mInflater.inflate(R.layout.create_folder, null);
+                LayoutInflater inflater = (LayoutInflater) getApplicationContext()
+                        .getSystemService(LAYOUT_INFLATER_SERVICE);
+                View view = inflater.inflate(R.layout.create_folder,
+                        (ViewGroup) findViewById(R.id.layout_root));
+
                 final CheckBox checkBox = (CheckBox) view.findViewById(R.id.create_folder_local);
                 final EditText input = (EditText) view.findViewById(R.id.create_folder_text);
                 input.setFreezesText(true);
