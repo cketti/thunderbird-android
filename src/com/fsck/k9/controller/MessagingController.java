@@ -2455,15 +2455,12 @@ public class MessagingController implements Runnable {
         boolean completed = true;
         for (Message message : messages) {
             String oldUid = message.getUid();
-            Log.d("ASH", "old UID = " + oldUid);
             if (!oldUid.startsWith(K9.LOCAL_UID_PREFIX)) {
 
                 if (download && message.isSet(Flag.X_DOWNLOADED_PARTIAL)) {
                     // fully download message first
-                    Log.d("ASH", "downloading message...");
                     if (loadMessageForViewRemoteSynchronous(folder.getAccount(), folderName,
                             message.getUid(), null, true)) {
-                        Log.d("ASH", "downloaded message");
                         message.setFlag(Flag.X_DOWNLOADED_FULL, true);
                         message.setFlag(Flag.X_DOWNLOADED_PARTIAL, false);
                     } else {
@@ -2476,7 +2473,6 @@ public class MessagingController implements Runnable {
 
 
                 String newUid = K9.LOCAL_UID_PREFIX + java.util.UUID.randomUUID().toString();
-                Log.d("ASH", "new UID = " + newUid);
                 message.setUid(newUid);
                 folder.changeUid((LocalMessage)message);
 
@@ -3673,10 +3669,8 @@ public class MessagingController implements Runnable {
                 for (Message message : messages) {
                     if (checkForPartialDownload && message.isSet(Flag.X_DOWNLOADED_PARTIAL)) {
                         // fully download message if it's moved/copied to a local-only folder
-                        Log.d("ASH", "downloading message...");
                         if (loadMessageForViewRemoteSynchronous(account, srcFolder,
                                 message.getUid(), listener, false)) {
-                            Log.d("ASH", "downloaded message");
                             // Load message from local store
                             message = localSrcFolder.getMessage(message.getUid());
                             origUidMap.put(message.getUid(), message);
@@ -3959,10 +3953,8 @@ public class MessagingController implements Runnable {
                         Map<String, Message> origUidMap = new HashMap<String, Message>();
                         for (Message message : messages) {
                             if (message.isSet(Flag.X_DOWNLOADED_PARTIAL)) {
-                                Log.d("ASH", "downloading message...");
                                 if (loadMessageForViewRemoteSynchronous(account, folder,
                                         message.getUid(), listener, false)) {
-                                    Log.d("ASH", "downloaded message");
                                     message.setFlag(Flag.X_DOWNLOADED_FULL, true);
                                     message.setFlag(Flag.X_DOWNLOADED_PARTIAL, false);
                                     origUidMap.put(message.getUid(), message);

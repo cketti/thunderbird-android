@@ -1287,7 +1287,6 @@ public class LocalStore extends Store implements Serializable {
             mPushClass = Folder.FolderClass.valueOf((pushClass == null) ? noClass : pushClass);
             mSyncClass = Folder.FolderClass.valueOf((syncClass == null) ? noClass : syncClass);
             mLocalOnly = localOnly == 1 ? true : false;
-Log.v("ASH", mAccount.getDescription() + ":" + name + " is " + (localOnly == 1 ? "local-only." : "remote."));
         }
 
         @Override
@@ -2177,7 +2176,6 @@ Log.v("ASH", mAccount.getDescription() + ":" + name + " is " + (localOnly == 1 ?
             for (Message message : getMessages(null)) {
                 if (message.isSet(Flag.DELETED)) {
                     deletedMessages.add(message);
-                    Log.d("ASH", "about to destroy " + message.getUid());
                 }
             }
             destroyMessages(deletedMessages.toArray(EMPTY_MESSAGE_ARRAY));

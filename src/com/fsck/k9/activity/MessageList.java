@@ -750,7 +750,6 @@ public class MessageList
             if (folder != null) {
                 mLocalOnly = folder.isLocalOnly();
             }
-            Log.d("ASH", "mLocalOnly = " + mLocalOnly + " for " + mCurrentFolder.name);
         }
 
         // Hide "Load up to x more" footer for search views and local-only folders

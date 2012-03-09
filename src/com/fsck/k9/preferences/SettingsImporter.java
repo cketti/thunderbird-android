@@ -494,7 +494,6 @@ public class SettingsImporter {
         for (Map.Entry<String, String> setting : writeSettings.entrySet()) {
             String key = prefix + setting.getKey();
             String value = setting.getValue();
-Log.d("ASH", "import: " + key + ":" + value);
             putString(editor, key, value);
         }
     }
