@@ -1178,6 +1178,14 @@ public class LocalStore extends Store implements Serializable {
                 return null;
             }
         });
+
+        for (LocalFolder folder : foldersToCreate) {
+            try {
+                folder.save();
+            } catch (MessagingException e) {
+                Log.e(K9.LOG_TAG, "Error saving folder settings", e);
+            }
+        }
     }
 
     public class LocalFolder extends Folder implements Serializable {
@@ -1359,6 +1367,7 @@ public class LocalStore extends Store implements Serializable {
             FolderClass pushClass = mPushClass;
             boolean inTopGroup = mInTopGroup;
             boolean integrate = mIntegrate;
+            boolean localOnly = false;
         }
 
         @Override
@@ -1669,6 +1678,7 @@ public class LocalStore extends Store implements Serializable {
             }
             prefHolder.inTopGroup = preferences.getBoolean(id + ".inTopGroup", prefHolder.inTopGroup);
             prefHolder.integrate = preferences.getBoolean(id + ".integrate", prefHolder.integrate);
+            prefHolder.localOnly = preferences.getBoolean(id + ".isLocalOnly", prefHolder.localOnly);
 
         }
 
