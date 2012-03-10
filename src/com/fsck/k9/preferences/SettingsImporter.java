@@ -28,6 +28,7 @@ import com.fsck.k9.mail.ConnectionSecurity;
 import com.fsck.k9.mail.ServerSettings;
 import com.fsck.k9.mail.Store;
 import com.fsck.k9.mail.Transport;
+import com.fsck.k9.mail.store.LocalStore;
 import com.fsck.k9.mail.store.WebDavStore;
 import com.fsck.k9.preferences.Settings.InvalidSettingValueException;
 
@@ -81,12 +82,14 @@ public class SettingsImporter {
         public final AccountDescription original;
         public final AccountDescription imported;
         public final boolean overwritten;
+        public final List<String> localOnlyFolders;
 
         private AccountDescriptionPair(AccountDescription original, AccountDescription imported,
-                boolean overwritten) {
+                boolean overwritten, List<String> localOnlyFolders) {
             this.original = original;
             this.imported = imported;
             this.overwritten = overwritten;
+            this.localOnlyFolders = localOnlyFolders;
         }
     }
 
@@ -250,6 +253,13 @@ public class SettingsImporter {
 
                                     // Reload accounts
                                     preferences.loadAccounts();
+
+                                    // Create local-only folders
+                                    Account newAccount = preferences.getAccount(importResult.imported.uuid);
+                                    LocalStore localStore = newAccount.getLocalStore();
+                                    for (String folderName : importResult.localOnlyFolders) {
+                                        localStore.createFolder(folderName, true);
+                                    }
 
                                     importedAccounts.add(importResult);
                                 } else {
@@ -452,19 +462,23 @@ public class SettingsImporter {
         }
 
         // Write folder settings
+        List<String> localOnlyFolders = new ArrayList<String>();
         if (account.folders != null) {
             for (ImportedFolder folder : account.folders) {
-                importFolder(editor, contentVersion, uuid, folder, mergeImportedAccount, prefs);
+                String folderName = importFolder(editor, contentVersion, uuid, folder,
+                        mergeImportedAccount, prefs);
+                if (folderName != null) {
+                    localOnlyFolders.add(folderName);
+                }
             }
         }
 
-        //TODO: sync folder settings with localstore?
-
         AccountDescription imported = new AccountDescription(accountName, uuid);
-        return new AccountDescriptionPair(original, imported, mergeImportedAccount);
+        return new AccountDescriptionPair(original, imported, mergeImportedAccount,
+                localOnlyFolders);
     }
 
-    private static void importFolder(SharedPreferences.Editor editor, int contentVersion,
+    private static String importFolder(SharedPreferences.Editor editor, int contentVersion,
             String uuid, ImportedFolder folder, boolean overwrite, Preferences prefs) {
 
         // Validate folder settings
@@ -489,13 +503,21 @@ public class SettingsImporter {
             writeSettings = stringSettings;
         }
 
+        boolean isLocalOnly = false;
+
         // Write folder settings
         String prefix = uuid + "." + folder.name + ".";
         for (Map.Entry<String, String> setting : writeSettings.entrySet()) {
             String key = prefix + setting.getKey();
             String value = setting.getValue();
             putString(editor, key, value);
+
+            if (FolderSettings.LOCAL_ONLY.equals(key) && Boolean.TRUE.toString().equals(value)) {
+                isLocalOnly = true;
+            }
         }
+
+        return (isLocalOnly) ? folder.name : null;
     }
 
     private static void importIdentities(SharedPreferences.Editor editor, int contentVersion,

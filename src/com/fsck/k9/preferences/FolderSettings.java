@@ -16,6 +16,8 @@ public class FolderSettings {
     public static final Map<String, TreeMap<Integer, SettingsDescription>> SETTINGS;
     public static final Map<Integer, SettingsUpgrader> UPGRADERS;
 
+    public static final String LOCAL_ONLY = "isLocalOnly";
+
     static {
         Map<String, TreeMap<Integer, SettingsDescription>> s =
             new LinkedHashMap<String, TreeMap<Integer, SettingsDescription>>();
@@ -35,8 +37,8 @@ public class FolderSettings {
         s.put("integrate", Settings.versions(
                 new V(1, new BooleanSetting(false))
             ));
-        s.put("isLocalOnly", Settings.versions(
-                new V(1, new BooleanSetting(false))
+        s.put(LOCAL_ONLY, Settings.versions(
+                new V(7, new BooleanSetting(false))
             ));
 
         SETTINGS = Collections.unmodifiableMap(s);

@@ -29,13 +29,13 @@ public class Settings {
      *
      * <p>
      * This value is used as "version" attribute in the export file. It needs to be incremented
-     * when a global or account setting is added or removed, or when the format of a setting
-     * is changed (e.g. add a value to an enum).
+     * when a global, account, or folder setting is added or removed, or when the format of a
+     * setting is changed (e.g. add a value to an enum).
      * </p>
      *
      * @see SettingsExporter
      */
-    public static final int VERSION = 6;
+    public static final int VERSION = 7;
 
     public static Map<String, Object> validate(int version, Map<String,
             TreeMap<Integer, SettingsDescription>> settings,
