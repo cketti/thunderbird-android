@@ -2565,38 +2565,18 @@ public class MessagingController implements Runnable {
     throws MessagingException {
         String folder = command.arguments[0];
         String uid = command.arguments[1];
+        String newState = command.arguments[2];
+        String flag = command.arguments[3];
 
-        if (account.getErrorFolderName().equals(folder)) {
-            return;
-        }
-        if (K9.DEBUG)
-            Log.d(K9.LOG_TAG, "processPendingSetFlagOld: folder = " + folder + ", uid = " + uid);
+        PendingCommand newCommand = new PendingCommand();
+        newCommand.command = PENDING_COMMAND_SET_FLAG_BULK;
+        newCommand.arguments = new String[4];
+        newCommand.arguments[0] = folder;
+        newCommand.arguments[1] = newState;
+        newCommand.arguments[2] = flag;
+        newCommand.arguments[3] = uid;
 
-        boolean newState = Boolean.parseBoolean(command.arguments[2]);
-
-        Flag flag = Flag.valueOf(command.arguments[3]);
-        Folder remoteFolder = null;
-        try {
-            Store remoteStore = account.getRemoteStore();
-            remoteFolder = remoteStore.getFolder(folder);
-            if (!remoteFolder.exists()) {
-                return;
-            }
-            remoteFolder.open(OpenMode.READ_WRITE);
-            if (remoteFolder.getMode() != OpenMode.READ_WRITE) {
-                return;
-            }
-            Message remoteMessage = null;
-            if (!uid.startsWith(K9.LOCAL_UID_PREFIX)) {
-                remoteMessage = remoteFolder.getMessage(uid);
-            }
-            if (remoteMessage == null) {
-                return;
-            }
-            remoteMessage.setFlag(flag, newState);
-        } finally {
-            closeFolder(remoteFolder);
-        }
+        processPendingSetFlag(newCommand, account);
     }
 
     private void queueExpunge(final Account account, final String folderName) {
@@ -2651,62 +2631,18 @@ public class MessagingController implements Runnable {
         String srcFolder = command.arguments[0];
         String uid = command.arguments[1];
         String destFolder = command.arguments[2];
-        String isCopyS = command.arguments[3];
+        String isCopy = command.arguments[3];
 
-        boolean isCopy = false;
-        if (isCopyS != null) {
-            isCopy = Boolean.parseBoolean(isCopyS);
-        }
+        PendingCommand newCommand = new PendingCommand();
+        newCommand.command = PENDING_COMMAND_MOVE_OR_COPY_BULK_NEW;
+        newCommand.arguments = new String[5];
+        newCommand.arguments[0] = srcFolder;
+        newCommand.arguments[1] = destFolder;
+        newCommand.arguments[2] = isCopy;
+        newCommand.arguments[3] = Boolean.toString(false);
+        newCommand.arguments[4] = uid;
 
-        if (account.getErrorFolderName().equals(srcFolder)) {
-            return;
-        }
-
-        Store remoteStore = account.getRemoteStore();
-        Folder remoteSrcFolder = remoteStore.getFolder(srcFolder);
-        Folder remoteDestFolder = remoteStore.getFolder(destFolder);
-
-        if (!remoteSrcFolder.exists()) {
-            throw new MessagingException("processPendingMoveOrCopyOld: remoteFolder " + srcFolder + " does not exist", true);
-        }
-        remoteSrcFolder.open(OpenMode.READ_WRITE);
-        if (remoteSrcFolder.getMode() != OpenMode.READ_WRITE) {
-            throw new MessagingException("processPendingMoveOrCopyOld: could not open remoteSrcFolder " + srcFolder + " read/write", true);
-        }
-
-        Message remoteMessage = null;
-        if (!uid.startsWith(K9.LOCAL_UID_PREFIX)) {
-            remoteMessage = remoteSrcFolder.getMessage(uid);
-        }
-        if (remoteMessage == null) {
-            throw new MessagingException("processPendingMoveOrCopyOld: remoteMessage " + uid + " does not exist", true);
-        }
-
-        if (K9.DEBUG)
-            Log.d(K9.LOG_TAG, "processPendingMoveOrCopyOld: source folder = " + srcFolder
-                  + ", uid = " + uid + ", destination folder = " + destFolder + ", isCopy = " + isCopy);
-
-        if (!isCopy && destFolder.equals(account.getTrashFolderName())) {
-            if (K9.DEBUG)
-                Log.d(K9.LOG_TAG, "processPendingMoveOrCopyOld doing special case for deleting message");
-
-            remoteSrcFolder.delete(new Message[] { remoteMessage }, account.getTrashFolderName());
-            remoteSrcFolder.close();
-            return;
-        }
-
-        remoteDestFolder.open(OpenMode.READ_WRITE);
-        if (remoteDestFolder.getMode() != OpenMode.READ_WRITE) {
-            throw new MessagingException("processPendingMoveOrCopyOld: could not open remoteDestFolder " + srcFolder + " read/write", true);
-        }
-
-        if (isCopy) {
-            remoteSrcFolder.copyMessages(new Message[] { remoteMessage }, remoteDestFolder);
-        } else {
-            remoteSrcFolder.moveMessages(new Message[] { remoteMessage }, remoteDestFolder);
-        }
-        remoteSrcFolder.close();
-        remoteDestFolder.close();
+        processPendingMoveOrCopy(newCommand, account);
     }
 
     private void processPendingMarkAllAsRead(PendingCommand command, Account account) throws MessagingException {
