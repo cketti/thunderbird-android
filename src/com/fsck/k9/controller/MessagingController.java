@@ -148,6 +148,7 @@ public class MessagingController implements Runnable {
 
     public enum SORT_TYPE {
         SORT_DATE(R.string.sort_earliest_first, R.string.sort_latest_first, false),
+        SORT_ARRIVAL(R.string.sort_earliest_first, R.string.sort_latest_first, false),
         SORT_SUBJECT(R.string.sort_subject_alpha, R.string.sort_subject_re_alpha, true),
         SORT_SENDER(R.string.sort_sender_alpha, R.string.sort_sender_re_alpha, true),
         SORT_UNREAD(R.string.sort_unread_first, R.string.sort_unread_last, true),
@@ -450,7 +451,7 @@ public class MessagingController implements Runnable {
         }
     }
 
-    private void doRefreshRemote(final Account account, MessagingListener listener) {
+    private void doRefreshRemote(final Account account, final MessagingListener listener) {
         put("doRefreshRemote", listener, new Runnable() {
             @Override
             public void run() {
@@ -521,14 +522,14 @@ public class MessagingController implements Runnable {
                     localFolders = localStore.getPersonalNamespaces(false);
                     Folder[] folderArray = localFolders.toArray(EMPTY_FOLDER_ARRAY);
 
-                    for (MessagingListener l : getListeners()) {
+                    for (MessagingListener l : getListeners(listener)) {
                         l.listFolders(account, folderArray);
                     }
-                    for (MessagingListener l : getListeners()) {
+                    for (MessagingListener l : getListeners(listener)) {
                         l.listFoldersFinished(account);
                     }
                 } catch (Exception e) {
-                    for (MessagingListener l : getListeners()) {
+                    for (MessagingListener l : getListeners(listener)) {
                         l.listFoldersFailed(account, "");
                     }
                     addErrorMessage(account, null, e);
@@ -660,7 +661,7 @@ public class MessagingController implements Runnable {
             Log.i(K9.LOG_TAG, "searchLocalMessages ("
                   + "accountUuids=" + Utility.combine(accountUuids, ',')
                   + ", folderNames = " + Utility.combine(folderNames, ',')
-                  + ", messages.size() = " + (messages != null ? messages.length : null)
+                  + ", messages.size() = " + (messages != null ? messages.length : -1)
                   + ", query = " + query
                   + ", integrate = " + integrate
                   + ", requiredFlags = " + Utility.combine(requiredFlags, ',')
@@ -3091,7 +3092,7 @@ public class MessagingController implements Runnable {
                     || message.getId() == 0) {
                         throw new IllegalArgumentException("Message not found: folder=" + folder + ", uid=" + uid);
                     }
-                    if (!message.isSet(Flag.SEEN)) {
+                    if (account.isMarkMessageAsReadOnView() && !message.isSet(Flag.SEEN)) {
                         message.setFlag(Flag.SEEN, true);
                         setFlag(new Message[] { message }, Flag.SEEN, true);
                     }
@@ -4603,7 +4604,13 @@ public class MessagingController implements Runnable {
 
         NotificationSetting n = account.getNotificationSetting();
 
-        configureNotification(notif, (n.shouldRing() ?  n.getRingtone() : null), (n.shouldVibrate() ? n.getVibration() : null), (n.isLed() ?  n.getLedColor()  : null), K9.NOTIFICATION_LED_BLINK_SLOW, ringAndVibrate);
+        configureNotification(
+                notif,
+                (n.shouldRing()) ?  n.getRingtone() : null,
+                (n.shouldVibrate()) ? n.getVibration() : null,
+                (n.isLed()) ? Integer.valueOf(n.getLedColor()) : null,
+                K9.NOTIFICATION_LED_BLINK_SLOW,
+                ringAndVibrate);
 
         notifMgr.notify(account.getAccountNumber(), notif);
     }

@@ -559,6 +559,8 @@ Welcome to K-9 Mail setup.  K-9 is an open source mail client for Android origin
     <string name="account_settings_notification_opens_unread_summary">Searches for unread messages when Notification is opened</string>
     <string name="account_settings_notification_unread_count_label">Show unread count</string>
     <string name="account_settings_notification_unread_count_summary">Show the number of unread messages in the notification bar.</string>
+    <string name="account_settings_mark_message_as_read_on_view_label">Mark message as read when opening</string>
+    <string name="account_settings_mark_message_as_read_on_view_summary">Mark a message as read when it is opened for viewing</string>
 
     <string name="account_settings_enable_move_buttons_label">Enable refile buttons</string>
     <string name="account_settings_enable_move_buttons_summary">Show the Archive, Move, and Spam buttons.</string>
@@ -795,6 +797,7 @@ Welcome to K-9 Mail setup.  K-9 is an open source mail client for Android origin
 
     <string name="sort_by">Sort by...</string>
     <string name="sort_by_date">Date</string>
+    <string name="sort_by_arrival">Arrival</string>
     <string name="sort_by_sender">Sender</string>
     <string name="sort_by_subject">Subject</string>
     <string name="sort_by_flag">Star</string>
@@ -817,6 +820,7 @@ Welcome to K-9 Mail setup.  K-9 is an open source mail client for Android origin
         \"Plus\" account. Please launch the Web browser to gain access to
         these mail accounts.</string>
     <string name="provider_note_yahoojp">If you would like to use POP3 for this provider, You should permit to use POP3 on Yahoo mail settings page.</string>
+    <string name="provider_note_auonejp">If you would like to use IMAP or POP3 for this provider, You should permit to use IMAP or POP3 on au one mail settings page.</string>
     <string name="provider_note_naver">If you would like to use IMAP or POP3 for this provider, You should permit to use IMAP or POP3 on Naver mail settings page.</string>
     <string name="provider_note_hanmail">If you would like to use IMAP or POP3 for this provider, You should permit to use IMAP or POP3 on Hanmail(Daum) mail settings page.</string>
     <string name="provider_note_paran">If you would like to use IMAP or POP3 for this provider, You should permit to use IMAP or POP3 on Paran mail settings page.</string>
