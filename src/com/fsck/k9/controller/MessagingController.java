@@ -2263,29 +2263,33 @@ public class MessagingController implements Runnable {
             Store localStore = account.getLocalStore();
             localDestFolder = (LocalFolder) localStore.getFolder(destFolder);
             List<Message> messages = new ArrayList<Message>();
+            Set<String> sourceUids = new HashSet<String>();
 
             /*
              * We split up the localUidMap into two parts while sending the command, here we assemble it back.
              */
             Map<String, String> localUidMap = new HashMap<String, String>();
+
+            int end;
+            int offset;
             if (hasNewUids) {
-                int offset = (command.arguments.length - 4) / 2;
-
-                for (int i = 4; i < 4 + offset; i++) {
-                    localUidMap.put(command.arguments[i], command.arguments[i + offset]);
-
-                    String uid = command.arguments[i];
-                    if (!uid.startsWith(K9.LOCAL_UID_PREFIX)) {
-                        messages.add(remoteSrcFolder.getMessage(uid));
-                    }
-                }
-
+                offset = (command.arguments.length - 4) / 2;
+                end = offset + 4;
             } else {
-                for (int i = 4; i < command.arguments.length; i++) {
-                    String uid = command.arguments[i];
-                    if (!uid.startsWith(K9.LOCAL_UID_PREFIX)) {
-                        messages.add(remoteSrcFolder.getMessage(uid));
+                offset = 0;
+                end = command.arguments.length;
+            }
+
+            for (int i = 4; i < end; i++) {
+                String srcUid = command.arguments[i];
+                if (!srcUid.startsWith(K9.LOCAL_UID_PREFIX)) {
+                    if (hasNewUids) {
+                        String localDestUid = command.arguments[i + offset];
+                        localUidMap.put(srcUid, localDestUid);
                     }
+
+                    messages.add(remoteSrcFolder.getMessage(srcUid));
+                    sourceUids.add(srcUid);
                 }
             }
 
@@ -2308,6 +2312,7 @@ public class MessagingController implements Runnable {
 
             Map <String, String> remoteUidMap = null;
 
+            remoteDestFolder = remoteStore.getFolder(destFolder);
             if (!isCopy && destFolder.equals(account.getTrashFolderName())) {
                 if (K9.DEBUG)
                     Log.d(K9.LOG_TAG, "processingPendingMoveOrCopy doing special case for deleting message");
@@ -2318,8 +2323,6 @@ public class MessagingController implements Runnable {
                 }
                 remoteUidMap = remoteSrcFolder.delete(messages.toArray(EMPTY_MESSAGE_ARRAY), destFolderName);
             } else {
-                remoteDestFolder = remoteStore.getFolder(destFolder);
-
                 if (isCopy) {
                     remoteUidMap = remoteSrcFolder.copyMessages(messages.toArray(EMPTY_MESSAGE_ARRAY), remoteDestFolder);
                 } else {
@@ -2338,7 +2341,7 @@ public class MessagingController implements Runnable {
              * This next part is used to bring the local UIDs of the local destination folder
              * upto speed with the remote UIDs of remote destionation folder.
              */
-            if (!localUidMap.isEmpty() && remoteUidMap != null && !remoteUidMap.isEmpty()) {
+            if (hasNewUids && remoteUidMap != null && !remoteUidMap.isEmpty()) {
                 Set<String> remoteSrcUids = remoteUidMap.keySet();
                 Iterator<String> remoteSrcUidsIterator = remoteSrcUids.iterator();
 
@@ -2347,6 +2350,9 @@ public class MessagingController implements Runnable {
                     String localDestUid = localUidMap.get(remoteSrcUid);
                     String newUid = remoteUidMap.get(remoteSrcUid);
 
+                    // Remove from the sourceUids set to mark this message as properly processed
+                    sourceUids.remove(remoteSrcUid);
+
                     Message localDestMessage = localDestFolder.getMessage(localDestUid);
                     localDestMessage.setUid(newUid);
                     localDestFolder.changeUid((LocalMessage)localDestMessage);
@@ -2354,6 +2360,57 @@ public class MessagingController implements Runnable {
                         l.messageUidChanged(account, destFolder, localDestUid, newUid);
                     }
                 }
+            }
+
+            /*
+             * If there are messages left for which we didn't get a new UID (i.e. the server
+             * doesn't support UIDPLUS), we try to match local messages to remote messages via
+             * the Message-ID header.
+             *
+             * TODO: We can skip this step for stores that don't support Folder.getUidFromMessageId
+             */
+            if (hasNewUids && sourceUids.size() > 0) {
+                remoteDestFolder.open(OpenMode.READ_ONLY);
+
+                Iterator<String> it = sourceUids.iterator();
+                while (it.hasNext()) {
+                    String remoteSrcUid = it.next();
+                    String localDestUid = localUidMap.get(remoteSrcUid);
+                    Message localDestMessage = localDestFolder.getMessage(localDestUid);
+                    if (localDestMessage == null) {
+                        continue;
+                    }
+                    String newUid = remoteDestFolder.getUidFromMessageId(localDestMessage);
+
+                    if (newUid != null) {
+                        // Remove from the sourceUids set to mark this message as properly processed
+                        it.remove();
+
+                        localDestMessage.setUid(newUid);
+                        localDestFolder.changeUid((LocalMessage)localDestMessage);
+                        for (MessagingListener l : getListeners()) {
+                            l.messageUidChanged(account, destFolder, localDestUid, newUid);
+                        }
+                    }
+                }
+            }
+
+            /*
+             * Remove all messages for which we don't have a new remote UID. Those messages will be
+             * downloaded the next time the folder is synchronized. If we don't delete them, the
+             * local store will contain them twice, once with a local UID and once with the remote
+             * UID.
+             */
+            if (hasNewUids && sourceUids.size() > 0) {
+                List<Message> deleteMessages = new ArrayList<Message>(sourceUids.size());
+                for (String remoteSrcUid : sourceUids) {
+                    String localDestUid = localUidMap.get(remoteSrcUid);
+                    Message localDestMessage = localDestFolder.getMessage(localDestUid);
+                    if (localDestMessage != null) {
+                        deleteMessages.add(localDestMessage);
+                    }
+                }
+                localDestFolder.destroyMessages(deleteMessages.toArray(EMPTY_MESSAGE_ARRAY));
             }
         } finally {
             closeFolder(remoteSrcFolder);
