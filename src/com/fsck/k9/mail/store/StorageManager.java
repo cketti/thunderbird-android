@@ -14,6 +14,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import android.app.Application;
 import android.content.Context;
+import android.database.sqlite.SQLiteDatabase;
+import android.database.sqlite.SQLiteException;
 import android.os.Build;
 import android.os.Environment;
 import android.util.Log;
@@ -97,6 +99,9 @@ public class StorageManager {
          * @return Never <code>null</code>.
          */
         File getDatabase(Context context, String id);
+
+        //FIXME: documentation
+        SQLiteDatabase openOrCreateDatabase(Context context, File filename);
 
         /**
          * Return the {@link File} to the choosen attachment directory. The
@@ -239,6 +244,32 @@ public class StorageManager {
          * @return Never <code>null</code>.
          */
         protected abstract File computeRoot(Context context);
+
+        @Override
+        public SQLiteDatabase openOrCreateDatabase(Context context, File databaseFile) {
+            SQLiteDatabase db;
+            try {
+                // We can't use Context.openOrCreateDatabase() because using a path as first
+                // argument is not supported (Android versions >= 2.2 seem to have undocumented
+                // support for using a path, but we don't want to rely on that).
+                db = SQLiteDatabase.openOrCreateDatabase(databaseFile, null);
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.GINGERBREAD) {
+                    //TODO: make sure this actually works
+                    databaseFile.setWritable(true, true);
+                    databaseFile.setReadable(true, true);
+                } else {
+                    //TODO: maybe add the Runtime.getRuntime().exec("chmod ...") hack here
+                }
+            } catch (SQLiteException e) {
+                // try to gracefully handle DB corruption - see issue 2537
+                Log.w(K9.LOG_TAG, "Unable to open DB " + databaseFile + " - removing file and retrying", e);
+                databaseFile.delete();
+                db = SQLiteDatabase.openOrCreateDatabase(databaseFile, null);
+            }
+
+            return db;
+        }
     }
 
     /**
@@ -301,6 +332,21 @@ public class StorageManager {
         public File getRoot(Context context) {
             return mRoot;
         }
+
+        @Override
+        public SQLiteDatabase openOrCreateDatabase(Context context, File databaseFile) {
+            SQLiteDatabase db;
+            try {
+                db = context.openOrCreateDatabase(databaseFile.getName(), Context.MODE_PRIVATE, null);
+            } catch (SQLiteException e) {
+                // try to gracefully handle DB corruption - see issue 2537
+                Log.w(K9.LOG_TAG, "Unable to open DB " + databaseFile + " - removing file and retrying", e);
+                databaseFile.delete();
+                db = context.openOrCreateDatabase(databaseFile.getName(), Context.MODE_PRIVATE, null);
+            }
+
+            return db;
+        }
     }
 
     /**
@@ -321,14 +367,9 @@ public class StorageManager {
      * mount/unmount/USB share events.
      * </p>
      */
-    public static class ExternalStorageProvider implements StorageProvider {
+    public static class ExternalStorageProvider extends FixedStorageProviderBase {
 
         public static final String ID = "ExternalStorage";
-
-        /**
-         * Root of the denoted storage.
-         */
-        protected File mRoot;
 
         /**
          * Choosen base directory.
@@ -341,7 +382,7 @@ public class StorageManager {
 
         @Override
         public void init(Context context) {
-            mRoot = Environment.getExternalStorageDirectory();
+            super.init(context);
             mApplicationDirectory = new File(new File(new File(new File(mRoot, "Android"), "data"),
                                              context.getPackageName()), "files");
         }
@@ -349,11 +390,6 @@ public class StorageManager {
         @Override
         public String getName(Context context) {
             return context.getString(R.string.local_storage_provider_external_label);
-        }
-
-        @Override
-        public boolean isSupported(Context context) {
-            return true;
         }
 
         @Override
@@ -372,8 +408,13 @@ public class StorageManager {
         }
 
         @Override
-        public File getRoot(Context context) {
-            return mRoot;
+        protected boolean supportsVendor() {
+            return true;
+        }
+
+        @Override
+        protected File computeRoot(Context context) {
+            return Environment.getExternalStorageDirectory();
         }
     }
 
@@ -544,10 +585,10 @@ public class StorageManager {
                 new ExternalStorageProvider());
         for (final StorageProvider provider : allProviders) {
             // check for provider compatibility
+            provider.init(application);
             if (provider.isSupported(mApplication)) {
                 // provider is compatible! proceeding
 
-                provider.init(application);
                 mProviders.put(provider.getId(), provider);
                 mProviderLocks.put(provider, new SynchronizationAid());
             }
@@ -583,6 +624,11 @@ public class StorageManager {
         StorageProvider provider = getProvider(providerId);
         // TODO fallback to internal storage if no provider
         return provider.getDatabase(mApplication, dbName);
+    }
+
+    public SQLiteDatabase openOrCreateDatabase(File databaseFile, String providerId) {
+        StorageProvider provider = getProvider(providerId);
+        return provider.openOrCreateDatabase(mApplication, databaseFile);
     }
 
     /**

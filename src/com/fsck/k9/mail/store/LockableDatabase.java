@@ -6,9 +6,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import android.app.Application;
-import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteException;
 import android.util.Log;
 
 import com.fsck.k9.K9;
@@ -369,15 +367,10 @@ public class LockableDatabase {
 
         lockWrite();
         try {
-            final File databaseFile = prepareStorage(mStorageProviderId);
-            try {
-                mDb = application.openOrCreateDatabase(databaseFile.getName(), Context.MODE_PRIVATE, null);
-            } catch (SQLiteException e) {
-                // try to gracefully handle DB corruption - see issue 2537
-                Log.w(K9.LOG_TAG, "Unable to open DB " + databaseFile + " - removing file and retrying", e);
-                databaseFile.delete();
-                mDb = application.openOrCreateDatabase(databaseFile.getName(), Context.MODE_PRIVATE, null);
-            }
+            File dbFile = prepareStorage(mStorageProviderId);
+            final StorageManager storageManager = getStorageManager();
+            mDb = storageManager.openOrCreateDatabase(dbFile, mStorageProviderId);
+
             if (mDb.getVersion() != mSchemaDefinition.getVersion()) {
                 mSchemaDefinition.doDbUpgrade(mDb);
             }
