@@ -488,13 +488,15 @@ public class MessagingController implements Runnable {
      * @param account
      * @param folder
      * @param listener
+     * @param threaded
      * @throws MessagingException
      */
-    public void listLocalMessages(final Account account, final String folder, final MessagingListener listener) {
+    public void listLocalMessages(final Account account, final String folder,
+            final MessagingListener listener, final boolean threaded) {
         threadPool.execute(new Runnable() {
             @Override
             public void run() {
-                listLocalMessagesSynchronous(account, folder, listener);
+                listLocalMessagesSynchronous(account, folder, listener, threaded);
             }
         });
     }
@@ -506,15 +508,17 @@ public class MessagingController implements Runnable {
      * @param account
      * @param folder
      * @param listener
+     * @param threaded
      * @throws MessagingException
      */
-    public void listLocalMessagesSynchronous(final Account account, final String folder, final MessagingListener listener) {
+    public void listLocalMessagesSynchronous(final Account account, final String folder,
+            final MessagingListener listener, boolean threaded) {
 
         for (MessagingListener l : getListeners(listener)) {
             l.listLocalMessagesStarted(account, folder);
         }
 
-        Folder localFolder = null;
+        LocalFolder localFolder = null;
         MessageRetrievalListener retrievalListener =
         new MessageRetrievalListener() {
             List<Message> pendingMessages = new ArrayList<Message>();
@@ -552,14 +556,16 @@ public class MessagingController implements Runnable {
 
 
         try {
-            Store localStore = account.getLocalStore();
-            localFolder = localStore.getFolder(folder);
+            LocalStore localStore = account.getLocalStore();
+            localFolder = (LocalFolder) localStore.getFolder(folder);
             localFolder.open(OpenMode.READ_WRITE);
 
-            localFolder.getMessages(
-                retrievalListener,
-                false // Skip deleted messages
-            );
+            if (threaded) {
+                localFolder.getThreadedMessages(retrievalListener);
+            } else {
+                localFolder.getMessages(retrievalListener, false);
+            }
+
             if (K9.DEBUG)
                 Log.v(K9.LOG_TAG, "Got ack that callbackRunner finished");
 

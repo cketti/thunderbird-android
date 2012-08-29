@@ -35,7 +35,7 @@
             android:visibility="gone" />
 
     </RelativeLayout>
-    
+
     <LinearLayout
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
@@ -85,7 +85,21 @@
         </LinearLayout>
 
     </LinearLayout>
-    
+
+    <TextView
+        android:id="@+id/thread_count"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="6dip"
+        android:layout_marginRight="6dip"
+        android:gravity="center_vertical|center_horizontal"
+        android:paddingLeft="4dip"
+        android:paddingRight="4dip"
+        android:paddingTop="2dip"
+        android:paddingBottom="2dip"
+        android:background="#50000000"
+        android:focusable="false" />
+
     <CheckBox
         android:id="@+id/flagged"
         android:layout_height="20dip"

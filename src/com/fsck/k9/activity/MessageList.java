@@ -84,6 +84,8 @@ public class MessageList
     extends K9Activity
     implements OnClickListener, AdapterView.OnItemClickListener, AnimationListener {
 
+    private static final boolean THREADED = true;
+
     /**
      * Reverses the result of a {@link Comparator}.
      *
@@ -845,7 +847,7 @@ public class MessageList
 
         if (mAdapter.messages.isEmpty()) {
             if (mFolderName != null) {
-                mController.listLocalMessages(mAccount, mFolderName,  mAdapter.mListener);
+                mController.listLocalMessages(mAccount, mFolderName,  mAdapter.mListener, THREADED);
                 // Hide the archive button if we don't have an archive folder.
                 if (!mAccount.hasArchiveFolder()) {
                     mBatchArchiveButton.setVisibility(View.GONE);
@@ -866,7 +868,7 @@ public class MessageList
                     mAdapter.markAllMessagesAsDirty();
 
                     if (mFolderName != null) {
-                        mController.listLocalMessagesSynchronous(mAccount, mFolderName,  mAdapter.mListener);
+                        mController.listLocalMessagesSynchronous(mAccount, mFolderName,  mAdapter.mListener, THREADED);
                     } else if (mQueryString != null) {
                         mController.searchLocalMessagesSynchronous(mAccountUuids, mFolderNames, null, mQueryString, mIntegrate, mQueryFlags, mForbiddenFlags, mAdapter.mListener);
                     }
@@ -2254,6 +2256,7 @@ public class MessageList
                 holder.preview = (TextView) view.findViewById(R.id.preview);
                 holder.selected = (CheckBox) view.findViewById(R.id.selected_checkbox);
                 holder.flagged = (CheckBox) view.findViewById(R.id.flagged);
+                holder.threadCount = (TextView) view.findViewById(R.id.thread_count);
 
                 holder.flagged.setOnClickListener(flagClickListener);
 
@@ -2369,6 +2372,14 @@ public class MessageList
                 holder.subject.setText(message.message.getSubject());
             }
 
+            int threadCount = message.message.getThreadCount();
+            if (threadCount > 1) {
+                holder.threadCount.setText(Integer.toString(threadCount));
+                holder.threadCount.setVisibility(View.VISIBLE);
+            } else {
+                holder.threadCount.setVisibility(View.GONE);
+            }
+
             int senderTypeface = message.read ? Typeface.NORMAL : Typeface.BOLD;
             if (holder.preview != null) {
                 /*
@@ -2451,6 +2462,7 @@ public class MessageList
         public CheckBox flagged;
         public View chip;
         public CheckBox selected;
+        public TextView threadCount;
         public int position = -1;
 
         @Override

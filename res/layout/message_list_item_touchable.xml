@@ -57,6 +57,23 @@
         style="?android:attr/starStyle"
         android:focusable="false" />
 
+    <TextView
+        android:id="@+id/thread_count"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="3dip"
+        android:layout_marginLeft="6dip"
+        android:layout_marginRight="6dip"
+        android:gravity="center_vertical|center_horizontal"
+        android:paddingLeft="4dip"
+        android:paddingRight="4dip"
+        android:paddingTop="2dip"
+        android:paddingBottom="2dip"
+        android:background="#50000000"
+        android:layout_toLeftOf="@+id/flagged"
+        android:layout_below="@+id/date"
+        android:layout_alignParentBottom="true"
+        android:focusable="false" />
 
     <TextView
         android:id="@+id/subject"
@@ -77,7 +94,7 @@
         android:layout_width="fill_parent"
         android:layout_height="wrap_content"
         android:layout_below="@+id/subject"
-        android:layout_toLeftOf="@+id/flagged"
+        android:layout_toLeftOf="@+id/thread_count"
         android:layout_toRightOf="@+id/chip"
         android:layout_marginLeft="1dip"
         android:layout_marginRight="0dip"

@@ -14,7 +14,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -639,5 +641,45 @@ public class Utility {
      */
     public static String sanitizeFilename(String filename) {
         return filename.replaceAll(INVALID_CHARACTERS, REPLACEMENT_CHARACTER);
+    }
+
+    private static final Pattern MESSAGE_ID = Pattern.compile("<" +
+            "(?:" +
+                "[a-zA-Z0-9!#$%&'*+\\-/=?^_`{|}~]+" +
+                "(?:\\.[a-zA-Z0-9!#$%&'*+\\-/=?^_`{|}~]+)*" +
+                "|" +
+                "\"(?:[^\\\\\"]|\\\\.)*\"" +
+            ")" +
+            "@" +
+            "(?:" +
+                "[a-zA-Z0-9!#$%&'*+\\-/=?^_`{|}~]+" +
+                "(?:\\.[a-zA-Z0-9!#$%&'*+\\-/=?^_`{|}~]+)*" +
+                "|" +
+                "\\[(?:[^\\\\\\]]|\\\\.)*\\]" +
+            ")" +
+            ">");
+
+    public static List<String> extractMessageIds(final String text) {
+        List<String> messageIds = new ArrayList<String>();
+        Matcher matcher = MESSAGE_ID.matcher(text);
+
+        int start = 0;
+        while (matcher.find(start)) {
+            String messageId = text.substring(matcher.start(), matcher.end());
+            messageIds.add(messageId);
+            start = matcher.end();
+        }
+
+        return messageIds;
+    }
+
+    public static String extractMessageId(final String text) {
+        Matcher matcher = MESSAGE_ID.matcher(text);
+
+        if (matcher.find()) {
+            return text.substring(matcher.start(), matcher.end());
+        }
+
+        return null;
     }
 }
