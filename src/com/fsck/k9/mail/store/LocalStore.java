@@ -89,6 +89,8 @@ public class LocalStore extends Store implements Serializable {
         "subject, sender_list, date, uid, flags, id, to_list, cc_list, "
         + "bcc_list, reply_to_list, attachment_count, internal_date, message_id, folder_id, preview ";
 
+    private static final String NOTIFICATION_HOLDER_COLUMNS = "sender_list, subject, to_list ";
+
 
     static private String GET_FOLDER_COLS = "id, name, unread_count, visible_limit, last_updated, status, push_state, last_pushed, flagged_count, integrate, top_group, poll_class, push_class, display_class";
 
@@ -2866,6 +2868,83 @@ public class LocalStore extends Store implements Serializable {
             });
         }
 
+        /**
+         * Get information about the latest 5 unread messages in this folder.
+         *
+         * @return A list of {@link NotificationInfoHolder} instances containing information about
+         *         the latest unread messages. The list will contain at most 5 entries but can also
+         *         be empty.<br/>
+         *         {@code null}, in case of an error (other than the underlying storage not being
+         *         available).
+         *
+         * @throws UnavailableStorageException
+         *          If the underlying storage is unavailable.
+         */
+        public List<NotificationInfoHolder> getLatestUnreadMessages()
+                throws UnavailableStorageException {
+            return database.execute(false, new DbCallback<List<NotificationInfoHolder>>() {
+                @Override
+                public List<NotificationInfoHolder> doDbWork(final SQLiteDatabase db) {
+                    Cursor cursor = null;
+                    try {
+                        List<NotificationInfoHolder> holders =
+                                new ArrayList<NotificationInfoHolder>(5);
+
+                        open(OpenMode.READ_ONLY);
+                        cursor = db.rawQuery(
+                                "SELECT " + NOTIFICATION_HOLDER_COLUMNS +
+                                "FROM messages " +
+                                "WHERE folder_id=? AND flags NOT LIKE ? AND " +
+                                // Only return at least partially downloaded messages
+                                "(flags LIKE ? OR flags LIKE ?)" +
+                                "ORDER BY date DESC " +
+                                "LIMIT 5",
+                                new String[] {
+                                        Long.toString(mFolderId),
+                                        "%" + Flag.SEEN.toString() + "%",
+                                        "%" + Flag.X_DOWNLOADED_PARTIAL.toString() + "%",
+                                        "%" + Flag.X_DOWNLOADED_FULL.toString() + "%"
+                                });
+
+                        while (cursor.moveToNext()) {
+                            Address[] senderList = Address.unpack(cursor.getString(0));
+                            String sender = (senderList.length > 0) ?
+                                    senderList[0].toFriendly().toString() : null;
+                            String subject = cursor.getString(1);
+                            Address[] recipients = Address.unpack(cursor.getString(2));
+
+                            NotificationInfoHolder holder =
+                                    new NotificationInfoHolder(sender, subject, recipients);
+                            holders.add(holder);
+                        }
+
+                        return holders;
+                    } catch (Exception e) {
+                        Log.e(K9.LOG_TAG, "Unable to fetch latest unread messages", e);
+                    } finally {
+                        Utility.closeQuietly(cursor);
+                    }
+                    return null;
+                }
+            });
+        }
+    }
+
+    /**
+     * Container to hold information necessary to display new mail notifications.
+     *
+     * @see LocalFolder#getLatestUnreadMessages()
+     */
+    public static class NotificationInfoHolder {
+        public final String sender;
+        public final String subject;
+        public final Address[] recipients;
+
+        protected NotificationInfoHolder(String sender, String subject, Address[] recipients) {
+            this.sender = sender;
+            this.subject = subject;
+            this.recipients = recipients;
+        }
     }
 
     public static class LocalTextBody extends TextBody {

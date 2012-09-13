@@ -59,6 +59,7 @@ import com.fsck.k9.mail.Transport;
 import com.fsck.k9.mail.internet.MimeMessage;
 import com.fsck.k9.mail.internet.MimeUtility;
 import com.fsck.k9.mail.internet.TextBody;
+import com.fsck.k9.mail.store.LocalStore.NotificationInfoHolder;
 import com.fsck.k9.mail.store.UnavailableAccountException;
 import com.fsck.k9.mail.store.LocalStore;
 import com.fsck.k9.mail.store.UnavailableStorageException;
@@ -4145,6 +4146,18 @@ public class MessagingController implements Runnable {
      */
     private void notifyAccount(Context context, Account account, Message message,
                                int previousUnreadMessageCount, AtomicInteger newMessageCount) {
+
+        // Get latest 5 unread messages to display in the extended notification
+        List<NotificationInfoHolder> unreadMessages = null;
+        try {
+            String folderName = message.getFolder().getName();
+            LocalFolder folder = account.getLocalStore().getFolder(folderName);
+            unreadMessages = folder.getLatestUnreadMessages();
+        } catch (MessagingException e) {
+            Log.e(K9.LOG_TAG, "Couldn't get latest unread messages", e);
+        }
+
+        // TODO: Change the code below to use 'unreadMessages'
 
         // If we have a message, set the notification to "<From>: <Subject>"
         StringBuilder messageNotice = new StringBuilder();
