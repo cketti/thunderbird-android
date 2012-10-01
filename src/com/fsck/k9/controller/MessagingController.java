@@ -588,7 +588,7 @@ public class MessagingController implements Runnable {
             closeFolder(localFolder);
         }
     }
-    
+
     /**
      * Find all messages in any local account which match the query 'query'
      * @throws MessagingException
@@ -601,20 +601,20 @@ public class MessagingController implements Runnable {
             }
         });
     }
-    
+
     public void searchLocalMessagesSynchronous(final LocalSearch search, final MessagingListener listener) {
         final AccountStats stats = new AccountStats();
         final HashSet<String> uuidSet = new HashSet<String>(Arrays.asList(search.getAccountUuids()));
         Account[] accounts = Preferences.getPreferences(mApplication.getApplicationContext()).getAccounts();
         boolean allAccounts = uuidSet.contains(SearchSpecification.ALL_ACCOUNTS);
-        
-    	// for every account we want to search do the query in the localstore
-    	for (final Account account : accounts) {
-            
-    		if (!allAccounts && !uuidSet.contains(account.getUuid())) {
-    			continue;
-    		}
-    		
+
+        // for every account we want to search do the query in the localstore
+        for (final Account account : accounts) {
+
+            if (!allAccounts && !uuidSet.contains(account.getUuid())) {
+                continue;
+            }
+
             // Collecting statistics of the search result
             MessageRetrievalListener retrievalListener = new MessageRetrievalListener() {
                 @Override
@@ -635,15 +635,15 @@ public class MessagingController implements Runnable {
                     }
                 }
             };
-    		
-        	// alert everyone the search has started
+
+            // alert everyone the search has started
             if (listener != null) {
                 listener.listLocalMessagesStarted(account, null);
             }
-            
+
             // build and do the query in the localstore
             try {
-                LocalStore localStore = account.getLocalStore();                  
+                LocalStore localStore = account.getLocalStore();
                 localStore.searchForMessages(retrievalListener, search);
             } catch (Exception e) {
                 if (listener != null) {
@@ -655,14 +655,14 @@ public class MessagingController implements Runnable {
                     listener.listLocalMessagesFinished(account, null);
                 }
             }
-    	}
-    	
-    	// publish the total search statistics
+        }
+
+        // publish the total search statistics
         if (listener != null) {
             listener.searchStats(stats);
         }
     }
-    
+
     public void loadMoreMessages(Account account, String folder, MessagingListener listener) {
         try {
             LocalStore localStore = account.getLocalStore();

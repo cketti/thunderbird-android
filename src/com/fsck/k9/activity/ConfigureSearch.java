@@ -13,34 +13,35 @@ import com.fsck.k9.R;
 import com.fsck.k9.search.IllegalConditionException;
 import com.fsck.k9.search.LocalSearch;
 import com.fsck.k9.search.SavedSearchesManager;
-import com.fsck.k9.search.SearchSpecification.ATTRIBUTE;
-import com.fsck.k9.search.SearchSpecification.SEARCHFIELD;
+import com.fsck.k9.search.SearchSpecification.Attribute;
+import com.fsck.k9.search.SearchSpecification.Searchfield;
 
-public class ConfigureSearch extends K9Activity implements OnClickListener{
 
-/****************************************************************** 
-*		STATIC INTENT METHOD AND FIELDS
-*******************************************************************/
-    
+public class ConfigureSearch extends K9Activity implements OnClickListener {
+
+/* *****************************************************************
+ *		STATIC INTENT METHOD AND FIELDS
+ * *****************************************************************/
+
     public static void actionCreateSavedSearch(Context context) {
-            Intent intent = new Intent(context, ConfigureSearch.class);
-            context.startActivity(intent);
+        Intent intent = new Intent(context, ConfigureSearch.class);
+        context.startActivity(intent);
     }
-	
-	// state
+
+    // state
     private LocalSearch mSearch;
-    
+
     // gui fields
     private EditText mNameField;
     private EditText mQueryField;
-    
-/******************************************************************
-*		REAL CLASS CODE
-*******************************************************************/
-	@Override
-	public void onCreate(Bundle savedInstanceState) {
+
+/* *****************************************************************
+ *		REAL CLASS CODE
+ * *****************************************************************/
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        
+
         // set looks
         requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
         setContentView(R.layout.configure_search);
@@ -48,42 +49,37 @@ public class ConfigureSearch extends K9Activity implements OnClickListener{
         // get ui fields
         mNameField = (EditText) findViewById(R.id.configure_search_name);
         mQueryField = (EditText) findViewById(R.id.configure_search_query);
-        
+
         // configure "add new" button
-        ((Button)findViewById(R.id.configure_search_done_action)).setOnClickListener(this);
-        
+        ((Button) findViewById(R.id.configure_search_done_action)).setOnClickListener(this);
+
         mSearch = new LocalSearch("");
-	}
-	
-	@Override
-	public void onResume() {
-        super.onResume();
-	}
-    
-	// TODO should save when focus of field is moved not all at once
-	private void saveToSearch() {
-		// get name
-		mSearch.setName(mNameField.getText().toString());
-		
-		// get query
-		try {
-			mSearch.addCondition(SEARCHFIELD.SUBJECT,
-					mQueryField.getText().toString(), 
-					ATTRIBUTE.CONTAINS);
-		} catch (IllegalConditionException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-		
-		// save search
-		SavedSearchesManager.getInstance(this).save(mSearch);
-	}
-    
+    }
+
+    // TODO should save when focus of field is moved not all at once
+    private void saveToSearch() {
+        // get name
+        mSearch.setName(mNameField.getText().toString());
+
+        // get query
+        try {
+            mSearch.addCondition(Searchfield.SUBJECT,
+                    mQueryField.getText().toString(),
+                    Attribute.CONTAINS);
+        } catch (IllegalConditionException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+        // save search
+        SavedSearchesManager.getInstance(this).save(mSearch);
+    }
+
     @Override
     public void onClick(View v) {
-    	if( v.getId() == R.id.configure_search_done_action ){  	
-    		saveToSearch();
-    		finish();
-    	}
+        if (v.getId() == R.id.configure_search_done_action) {
+            saveToSearch();
+            finish();
+        }
     }
 }

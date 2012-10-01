@@ -51,9 +51,9 @@ public class Storage implements SharedPreferences {
             Log.i(K9.LOG_TAG, "Creating Storage database");
             mDb.execSQL("DROP TABLE IF EXISTS preferences_storage");
             mDb.execSQL("CREATE TABLE preferences_storage " +
-                        "(primkey TEXT PRIMARY KEY ON CONFLICT REPLACE, value TEXT)");                       
+                        "(primkey TEXT PRIMARY KEY ON CONFLICT REPLACE, value TEXT)");
         }
-        
+
         if (mDb.getVersion() < 2) {
             Log.i(K9.LOG_TAG, "Updating preferences to urlencoded username/password");
 
@@ -138,18 +138,18 @@ public class Storage implements SharedPreferences {
                 }
             }
         }
-        
+
         if (mDb.getVersion() < 3) {
             mDb.execSQL("DROP TABLE IF EXISTS searches");
             mDb.execSQL("CREATE TABLE searches (" +
-            			"id INTEGER PRIMARY KEY, name TEXT UNIQUE, accounts TEXT, predefined TEXT)");
-            
+                        "id INTEGER PRIMARY KEY, name TEXT UNIQUE, accounts TEXT, predefined TEXT)");
+
             mDb.execSQL("DROP TABLE IF EXISTS search_conditions");
             mDb.execSQL("CREATE TABLE search_conditions (" +
-            			"id INTEGER PRIMARY KEY, search_id INTEGER REFERENCES searches, tree_id INTEGER, " +
-            			"key TEXT, value TEXT, attribute TEXT, lft INTEGER, rgt INTEGER, op TEXT)");
+                        "id INTEGER PRIMARY KEY, search_id INTEGER REFERENCES searches, tree_id INTEGER, " +
+                        "key TEXT, value TEXT, attribute TEXT, lft INTEGER, rgt INTEGER, op TEXT)");
         }
-        
+
         mDb.setVersion(DB_VERSION);
         return mDb;
     }
@@ -182,7 +182,7 @@ public class Storage implements SharedPreferences {
         }
     }
 
-    
+
     private void loadPreferenceValues() {
         long startTime = System.currentTimeMillis();
         Log.i(K9.LOG_TAG, "Loading preferences from DB into Storage");
@@ -342,7 +342,7 @@ public class Storage implements SharedPreferences {
             Log.e(K9.LOG_TAG, "Error writing key '" + key + "', value = '" + value + "'");
         }
     }
-    
+
     public long preferencesSize() {
         return preferenceStorage.size();
     }
@@ -365,7 +365,7 @@ public class Storage implements SharedPreferences {
             mDb.close();
         }
     }
-    
+
     /* ********************************************************************
      *  SharedPreferences Interface Implementation
      * ********************************************************************/
@@ -452,174 +452,174 @@ public class Storage implements SharedPreferences {
     public void removeSearchConditions(long searchId){
         workingDB.get().delete("search_conditions", "search_id = ?", new String[] { Long.toString(searchId) });
     }
-    
+
     public void removeSearch(String searchName){
-    	workingDB.get().delete("searches", "name = ?", new String[] { searchName });
+        workingDB.get().delete("searches", "name = ?", new String[] { searchName });
     }
-    
-    public long addSearch(String name, String accounts, boolean predefined){ 	
-    	
-    	boolean inTransaction = true;
+
+    public long addSearch(String name, String accounts, boolean predefined){
+
+        boolean inTransaction = true;
         SQLiteDatabase mDb = workingDB.get();
-    	if (mDb == null) {
+        if (mDb == null) {
             mDb = openDB();
-    		inTransaction = false;
-    	}
-    	
-    	// API 7 doesn't have insertWithOnConflict yet so manually
-    	String query = "INSERT OR IGNORE INTO searches (name, accounts, predefined) VALUES ('" +
-    	name + "', '" + accounts + "', '" + String.valueOf(predefined) + "');";
+            inTransaction = false;
+        }
+
+        // API 7 doesn't have insertWithOnConflict yet so manually
+        String query = "INSERT OR IGNORE INTO searches (name, accounts, predefined) VALUES ('" +
+        name + "', '" + accounts + "', '" + String.valueOf(predefined) + "');";
         SQLiteStatement stmt = mDb.compileStatement(query);
-    	
+
         try {
             return stmt.executeInsert();
         } finally {
             stmt.close();
-        	if (!inTransaction) {
-        		mDb.close();
-        	}
+            if (!inTransaction) {
+                mDb.close();
+            }
         }
     }
-    
+
     /*
-     * We store the conditions tree in the database. See the following link for 
+     * We store the conditions tree in the database. See the following link for
      * the approach ( nested sets ):
-     * 
+     *
      * http://www.sitepoint.com/hierarchical-data-database-2/
      */
     public void addSearchConditions(long searchId, ConditionsTreeNode conditions){
-    	
+
         String sql = "INSERT INTO search_conditions " +
-        		"(search_id, tree_id, key, value, attribute, lft, rgt, op) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        
-    	boolean inTransaction = true;
+                "(search_id, tree_id, key, value, attribute, lft, rgt, op) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
+
+        boolean inTransaction = true;
         SQLiteDatabase mDb = workingDB.get();
-    	if (mDb == null) {
+        if (mDb == null) {
             mDb = openDB();
-    		inTransaction = false;
-    	}
-    	
+            inTransaction = false;
+        }
+
         SQLiteStatement stmt = mDb.compileStatement(sql);
         conditions.applyMPTTLabel();
-        
+
         for (ConditionsTreeNode node : conditions.preorder()) {
-        	stmt.clearBindings();
-        	stmt.bindLong(5, node.mLeftMPTTMarker);
-        	stmt.bindLong(6, node.mRightMPTTMarker);
+            stmt.clearBindings();
+            stmt.bindLong(5, node.mLeftMPTTMarker);
+            stmt.bindLong(6, node.mRightMPTTMarker);
             stmt.bindLong(1, searchId);
-    		stmt.bindString(7, node.mValue.toString());
-    		
-        	SearchCondition tmpCondition = node.getCondition();
-        	
-        	if (tmpCondition != null) {
-        		stmt.bindString(2, tmpCondition.field.toString());
-        		stmt.bindString(3, tmpCondition.value);
-        		stmt.bindString(4, tmpCondition.attribute.toString());
-        	}
+            stmt.bindString(7, node.mValue.toString());
+
+            SearchCondition tmpCondition = node.getCondition();
+
+            if (tmpCondition != null) {
+                stmt.bindString(2, tmpCondition.field.toString());
+                stmt.bindString(3, tmpCondition.value);
+                stmt.bindString(4, tmpCondition.attribute.toString());
+            }
 
             stmt.executeInsert();
         }
-        
+
         stmt.close();
-    	if (!inTransaction) {
-    		mDb.close();
-    	}
+        if (!inTransaction) {
+            mDb.close();
+        }
     }
-    
+
     public ConditionsTreeNode getSearchConditions(long searchId) {
-    	Cursor cursor = null;
-    	
-    	boolean inTransaction = true;
+        Cursor cursor = null;
+
+        boolean inTransaction = true;
         SQLiteDatabase mDb = workingDB.get();
-    	if (mDb == null) {
+        if (mDb == null) {
             mDb = openDB();
-    		inTransaction = false;
-    	}
-    	
-    	try {
-	    	cursor = mDb.rawQuery("SELECT tree_id, key, value, attribute, lft, rgt, op " +
-	    			"FROM search_conditions WHERE search_id = " + String.valueOf(searchId) + " ORDER BY tree_id ASC, lft ASC", null);
-	    	
-	    	return ConditionsTreeNode.buildTreeFromDB(cursor);
-    	} finally {
-        	Utility.closeQuietly(cursor);
-        	if (!inTransaction) {
-        		mDb.close();
-        	}
-    	}
+            inTransaction = false;
+        }
+
+        try {
+            cursor = mDb.rawQuery("SELECT tree_id, key, value, attribute, lft, rgt, op " +
+                    "FROM search_conditions WHERE search_id = " + String.valueOf(searchId) + " ORDER BY tree_id ASC, lft ASC", null);
+
+            return ConditionsTreeNode.buildTreeFromDB(cursor);
+        } finally {
+            Utility.closeQuietly(cursor);
+            if (!inTransaction) {
+                mDb.close();
+            }
+        }
     }
-    
+
     /**
      * Returns the metadata belonging to the provided searchID in a
      * list. The order of the data will be the same as the order in the
-     * table of the database. 
-     * 
+     * table of the database.
+     *
      * @param searchId Id of the saved search.
      * @return List of the metadata
-     * 
-     * TODO this is not a very clean solution for when we return other 
+     *
+     * TODO this is not a very clean solution for when we return other
      * data then strings..
      */
-	public List<String> getMetaForSearch(Long searchId) {   	
-    	List<String> tmp = new ArrayList<String>();
-    	
-    	boolean inTransaction = true;
+    public List<String> getMetaForSearch(Long searchId) {
+        List<String> tmp = new ArrayList<String>();
+
+        boolean inTransaction = true;
         SQLiteDatabase mDb = workingDB.get();
-    	if (mDb == null) {
+        if (mDb == null) {
             mDb = openDB();
-    		inTransaction = false;
-    	}
-    	
-        Cursor cursor = null;
-        
-        try {
-	        cursor = mDb.rawQuery("SELECT accounts, predefined FROM searches " +
-	        		"WHERE id = '" + String.valueOf(searchId) + "'", null);
-	        
-	        // should be only 1 hit
-	        if (cursor.moveToNext()) {
-		        tmp.add(cursor.getString(0));
-		        tmp.add(cursor.getString(1));
-	        }
-        } finally {
-        	Utility.closeQuietly(cursor);
-        	if (!inTransaction) {
-        		mDb.close();
-        	}
+            inTransaction = false;
         }
-        
-    	return tmp;
-	}
-	
-    public Map<String, Long> getSavedSearchesIndex(boolean predefined){
-    	Map<String, Long> tmp = new HashMap<String, Long>();
-    	
-    	boolean inTransaction = true;
-        SQLiteDatabase mDb = workingDB.get();
-    	if (mDb == null) {
-            mDb = openDB();
-    		inTransaction = false;
-    	}
-    	
+
         Cursor cursor = null;
-        
+
         try {
-	        cursor = mDb.rawQuery("SELECT id, name, predefined FROM searches", new String[] {});
-	        while (cursor.moveToNext()) {
-		        boolean isPredefined = Boolean.parseBoolean(cursor.getString(2));
-	        	if (predefined == isPredefined)
-	            	tmp.put(cursor.getString(1), cursor.getLong(0));
-	        }
+            cursor = mDb.rawQuery("SELECT accounts, predefined FROM searches " +
+                    "WHERE id = '" + String.valueOf(searchId) + "'", null);
+
+            // should be only 1 hit
+            if (cursor.moveToNext()) {
+                tmp.add(cursor.getString(0));
+                tmp.add(cursor.getString(1));
+            }
         } finally {
-        	Utility.closeQuietly(cursor);
-        	if (!inTransaction) {
-        		mDb.close();
-        	}
+            Utility.closeQuietly(cursor);
+            if (!inTransaction) {
+                mDb.close();
+            }
         }
-        
-    	return tmp;
+
+        return tmp;
     }
-    
+
+    public Map<String, Long> getSavedSearchesIndex(boolean predefined){
+        Map<String, Long> tmp = new HashMap<String, Long>();
+
+        boolean inTransaction = true;
+        SQLiteDatabase mDb = workingDB.get();
+        if (mDb == null) {
+            mDb = openDB();
+            inTransaction = false;
+        }
+
+        Cursor cursor = null;
+
+        try {
+            cursor = mDb.rawQuery("SELECT id, name, predefined FROM searches", new String[] {});
+            while (cursor.moveToNext()) {
+                boolean isPredefined = Boolean.parseBoolean(cursor.getString(2));
+                if (predefined == isPredefined)
+                    tmp.put(cursor.getString(1), cursor.getLong(0));
+            }
+        } finally {
+            Utility.closeQuietly(cursor);
+            if (!inTransaction) {
+                mDb.close();
+            }
+        }
+
+        return tmp;
+    }
+
     public SQLiteDatabase openDatabase() { return null; }
     public void closeDatabase() {}
 }

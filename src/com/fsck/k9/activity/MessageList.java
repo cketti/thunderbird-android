@@ -76,8 +76,8 @@ import com.fsck.k9.mail.store.StorageManager;
 import com.fsck.k9.search.LocalSearch;
 import com.fsck.k9.search.SavedSearchesManager;
 import com.fsck.k9.search.SearchSpecification;
-import com.fsck.k9.search.SearchSpecification.ATTRIBUTE;
-import com.fsck.k9.search.SearchSpecification.SEARCHFIELD;
+import com.fsck.k9.search.SearchSpecification.Attribute;
+import com.fsck.k9.search.SearchSpecification.Searchfield;
 import com.fsck.k9.search.SearchSpecification.SearchCondition;
 import com.handmark.pulltorefresh.library.PullToRefreshBase;
 import com.handmark.pulltorefresh.library.PullToRefreshListView;
@@ -310,7 +310,7 @@ public class MessageList extends K9ListActivity implements OnItemClickListener {
 
     private StorageManager.StorageListener mStorageListener = new StorageListenerImplementation();
 
-	private LocalSearch mSearch;
+    private LocalSearch mSearch;
     private TextView mActionBarTitle;
     private TextView mActionBarSubTitle;
     private TextView mActionBarUnread;
@@ -392,7 +392,7 @@ public class MessageList extends K9ListActivity implements OnItemClickListener {
                 }
             });
         }
-        
+
         public void addOrUpdateMessages(final Account account, final String folderName,
                 final List<Message> providedMessages, final boolean verifyAgainstSearch) {
             // We copy the message list because it's later modified by MessagingController
@@ -504,9 +504,9 @@ public class MessageList extends K9ListActivity implements OnItemClickListener {
         setSupportProgress(level);
     }
 
-    private void setWindowTitle() {      
+    private void setWindowTitle() {
         if (mSingleAccountMode) {
-        	// title
+            // title
             if (mFolderName != null) {
                 String displayName = FolderInfoHolder.getDisplayName(MessageList.this, mAccount,
                         mFolderName);
@@ -520,8 +520,8 @@ public class MessageList extends K9ListActivity implements OnItemClickListener {
                     mActionBarTitle.setText(getString(R.string.search_results));
                 }
             }
-            
-        	// subtitle
+
+            // subtitle
             String operation = mAdapter.mListener.getOperation(MessageList.this, getTimeFormat()).trim();
             if (operation.length() < 1) {
                 mActionBarSubTitle.setText(mAccount.getEmail());
@@ -538,7 +538,7 @@ public class MessageList extends K9ListActivity implements OnItemClickListener {
                 mActionBarTitle.setText(getString(R.string.search_results));
             }
         }
-        
+
         // set unread count
         if (mUnreadMessageCount == 0) {
             mActionBarUnread.setVisibility(View.GONE);
@@ -569,7 +569,7 @@ public class MessageList extends K9ListActivity implements OnItemClickListener {
             mPullToRefreshView.onRefreshComplete();
         }
     }
-    
+
     // runtime created search
     public static void actionDisplaySearch(Context context, SearchSpecification search, boolean newTask) {
         context.startActivity(intentDisplaySearch(context, search, newTask));
@@ -577,15 +577,15 @@ public class MessageList extends K9ListActivity implements OnItemClickListener {
     public static Intent intentDisplaySearch(Context context, SearchSpecification search, boolean newTask) {
         Intent intent = new Intent(context, MessageList.class);
         intent.putExtra(EXTRA_SEARCH, search);
-        
+
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         if (newTask) {
-        	intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         }
-        
+
         return intent;
     }
-    
+
     // database backed search
     public static void actionDisplaySavedSearch(Context context, String name, boolean newTask) {
         context.startActivity(intentDisplaySavedSearch(context, name, newTask));
@@ -593,12 +593,12 @@ public class MessageList extends K9ListActivity implements OnItemClickListener {
     public static Intent intentDisplaySavedSearch(Context context, String name, boolean newTask) {
         Intent intent = new Intent(context, MessageList.class);
         intent.putExtra(EXTRA_SAVED_SEARCH_NAME, name);
-        
+
         intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
         if (newTask) {
-        	intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         }
-        
+
         return intent;
     }
 
@@ -663,57 +663,58 @@ public class MessageList extends K9ListActivity implements OnItemClickListener {
         processIntent(intent);
     }
 
-	private void processIntent(Intent intent) {    
-	    // if we were passed a saved search
-	    String localSearchName = intent.getStringExtra(EXTRA_SAVED_SEARCH_NAME);
-	    if (localSearchName != null) {
-	    	if (mSearch != null && localSearchName.equals(mSearch.getName())) {
-	    		return;
-	    	} else {
-	    		mSearch = SavedSearchesManager.getInstance(getApplicationContext()).load(localSearchName);
-	        	mFolderName = null;
-	        	mCurrentFolder = null;
-	    	}
-	    // we were passed a not db-backed search
-	    } else {
-	    	mSearch = intent.getParcelableExtra(EXTRA_SEARCH);
-        	mFolderName = null;
-        	mCurrentFolder = null;
-	    }
-	    
-	    // see if we are in mixed account mode
-	    String[] accounts = mSearch.getAccountUuids();
-	    mSingleAccountMode = ( accounts != null && accounts.length == 1 
-	    		&& !accounts[0].equals(SearchSpecification.ALL_ACCOUNTS));
-	    
-	    if (mSingleAccountMode) {
-		    mAccount = Preferences.getPreferences(this).getAccount(accounts[0]);
-		    
-		    if (mAccount != null && !mAccount.isAvailable(this)) {
-		        Log.i(K9.LOG_TAG, "not opening MessageList of unavailable account");
-		        onAccountUnavailable();
-		        return;
-		    }
-		    
-		    if (mSearch.getFolderNames().size() == 1) {
-		    	mFolderName = mSearch.getFolderNames().get(0);
-		    }
-	    }
-	
-	    mAdapter = new MessageListAdapter();
-	    restorePreviousData();
-	
-	    if (mFolderName != null) {
-	        mCurrentFolder = mAdapter.getFolder(mFolderName, mAccount);
-	    }
-	
-	    // Hide "Load up to x more" footer for search views
-	    mFooterView.setVisibility((!mSingleAccountMode) ? View.GONE : View.VISIBLE);
-	    mActionBarSubTitle.setVisibility((!mSingleAccountMode) ? View.GONE : View.VISIBLE);
+    private void processIntent(Intent intent) {
+        // if we were passed a saved search
+        String localSearchName = intent.getStringExtra(EXTRA_SAVED_SEARCH_NAME);
+        if (localSearchName != null) {
+            if (mSearch != null && localSearchName.equals(mSearch.getName())) {
+                return;
+            }
 
-	    mController = MessagingController.getInstance(getApplication());
-	    mListView.setAdapter(mAdapter);
-	}
+            mSearch = SavedSearchesManager.getInstance(getApplicationContext()).load(localSearchName);
+            mFolderName = null;
+            mCurrentFolder = null;
+
+        // we were passed a not db-backed search
+        } else {
+            mSearch = intent.getParcelableExtra(EXTRA_SEARCH);
+            mFolderName = null;
+            mCurrentFolder = null;
+        }
+
+        // see if we are in mixed account mode
+        String[] accounts = mSearch.getAccountUuids();
+        mSingleAccountMode = (accounts != null && accounts.length == 1 &&
+                !accounts[0].equals(SearchSpecification.ALL_ACCOUNTS));
+
+        if (mSingleAccountMode) {
+            mAccount = Preferences.getPreferences(this).getAccount(accounts[0]);
+
+            if (mAccount != null && !mAccount.isAvailable(this)) {
+                Log.i(K9.LOG_TAG, "not opening MessageList of unavailable account");
+                onAccountUnavailable();
+                return;
+            }
+
+            if (mSearch.getFolderNames().size() == 1) {
+                mFolderName = mSearch.getFolderNames().get(0);
+            }
+        }
+
+        mAdapter = new MessageListAdapter();
+        restorePreviousData();
+
+        if (mFolderName != null) {
+            mCurrentFolder = mAdapter.getFolder(mFolderName, mAccount);
+        }
+
+        // Hide "Load up to x more" footer for search views
+        mFooterView.setVisibility((!mSingleAccountMode) ? View.GONE : View.VISIBLE);
+        mActionBarSubTitle.setVisibility((!mSingleAccountMode) ? View.GONE : View.VISIBLE);
+
+        mController = MessagingController.getInstance(getApplication());
+        mListView.setAdapter(mAdapter);
+    }
 
     private void restorePreviousData() {
         final ActivityState previousData = getLastNonConfigurationInstance();
@@ -810,16 +811,16 @@ public class MessageList extends K9ListActivity implements OnItemClickListener {
         }
 
         if (mAdapter.isEmpty()) {
-        	mController.searchLocalMessages(mSearch, mAdapter.mListener);
+            mController.searchLocalMessages(mSearch, mAdapter.mListener);
         } else {
             // reread the selected date format preference in case it has changed
             mMessageHelper.refresh();
             mAdapter.markAllMessagesAsDirty();
-  
+
             new Thread() {
                 @Override
                 public void run() {
-                	mController.searchLocalMessages(mSearch, mAdapter.mListener);
+                    mController.searchLocalMessages(mSearch, mAdapter.mListener);
 
                     runOnUiThread(new Runnable() {
                         @Override
@@ -1353,11 +1354,11 @@ public class MessageList extends K9ListActivity implements OnItemClickListener {
         int itemId = item.getItemId();
         switch (itemId) {
         case android.R.id.home: {
-        	if (!mSingleAccountMode) {
-        		onBackPressed();
-        	} else {
-        		onShowFolderList();
-        	}
+            if (!mSingleAccountMode) {
+                onBackPressed();
+            } else {
+                onShowFolderList();
+            }
             return true;
         }
         case R.id.compose: {
@@ -1449,7 +1450,7 @@ public class MessageList extends K9ListActivity implements OnItemClickListener {
 
     @Override
     public boolean onPrepareOptionsMenu(Menu menu) {
-    	
+
         if (!mSingleAccountMode) {
             menu.findItem(R.id.expunge).setVisible(false);
             menu.findItem(R.id.check_mail).setVisible(false);
@@ -1611,8 +1612,8 @@ public class MessageList extends K9ListActivity implements OnItemClickListener {
             } else {
                 return false;
             }*/
-        	// TODO temp!!
-        	return true;
+            // TODO temp!!
+            return true;
         }
 
         public List<MessageInfoHolder> getMessages() {
@@ -1944,9 +1945,9 @@ public class MessageList extends K9ListActivity implements OnItemClickListener {
                                 break;
                             }
                             case R.id.same_sender: {
-                            	LocalSearch tmp = new LocalSearch("Messages from: "+message.sender);
-                            	tmp.and(new SearchCondition(SEARCHFIELD.SENDER, ATTRIBUTE.CONTAINS, message.sender.toString()));
-                            	tmp.addAccountUuids(mSearch.getAccountUuids());
+                                LocalSearch tmp = new LocalSearch("Messages from: "+message.sender);
+                                tmp.and(new SearchCondition(Searchfield.SENDER, Attribute.CONTAINS, message.sender.toString()));
+                                tmp.addAccountUuids(mSearch.getAccountUuids());
                                 break;
                             }
                             case R.id.delete: {
@@ -2709,7 +2710,7 @@ public class MessageList extends K9ListActivity implements OnItemClickListener {
         }
 
         return account;*/
-    	return mAccount;
+        return mAccount;
     }
 
 

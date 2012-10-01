@@ -21,7 +21,6 @@ import com.fsck.k9.Account;
 import com.fsck.k9.AccountStats;
 import com.fsck.k9.K9;
 import com.fsck.k9.Preferences;
-import com.fsck.k9.SearchAccount;
 import com.fsck.k9.activity.Accounts;
 import com.fsck.k9.activity.FolderInfoHolder;
 import com.fsck.k9.activity.MessageInfoHolder;
@@ -48,6 +47,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+
 
 public class MessageProvider extends ContentProvider {
 
@@ -223,35 +223,35 @@ public class MessageProvider extends ContentProvider {
             return source.message.getFolder().getAccount().getDescription();
         }
     }
-        
+
     public static class AccountColorExtractor implements FieldExtractor<MessageInfoHolder, Integer> {
         @Override
         public Integer getField(final MessageInfoHolder source) {
             return source.message.getFolder().getAccount().getChipColor();
         }
     }
-    
+
     public static class AccountNumberExtractor implements FieldExtractor<MessageInfoHolder, Integer> {
         @Override
         public Integer getField(final MessageInfoHolder source) {
             return source.message.getFolder().getAccount().getAccountNumber();
         }
     }
-    
+
     public static class HasAttachmentsExtractor implements FieldExtractor<MessageInfoHolder, Boolean> {
         @Override
         public Boolean getField(final MessageInfoHolder source) {
             return source.message.hasAttachments();
         }
     }
-    
+
     public static class HasStarExtractor implements FieldExtractor<MessageInfoHolder, Boolean> {
         @Override
         public Boolean getField(final MessageInfoHolder source) {
             return source.message.isSet(Flag.FLAGGED);
         }
     }
-    
+
     public static class UnreadExtractor implements FieldExtractor<MessageInfoHolder, Boolean> {
         @Override
         public Boolean getField(final MessageInfoHolder source) {
@@ -300,8 +300,8 @@ public class MessageProvider extends ContentProvider {
             final BlockingQueue<List<MessageInfoHolder>> queue = new SynchronousQueue<List<MessageInfoHolder>>();
 
             final MessagingController msgController = MessagingController.getInstance(K9.app);
-        	SavedSearchesManager ssm = SavedSearchesManager.getInstance(getContext());
-        	
+            SavedSearchesManager ssm = SavedSearchesManager.getInstance(getContext());
+
             msgController.searchLocalMessages(ssm.load(Accounts.PREDEFINED_UNIFIED_INBOX),
                                               new MesssageInfoHolderRetrieverListener(queue));
 
@@ -394,7 +394,7 @@ public class MessageProvider extends ContentProvider {
         private static final String FIELD_ACCOUNT_NAME = "accountName";
         private static final String FIELD_ACCOUNT_UUID = "accountUuid";
         private static final String FIELD_ACCOUNT_COLOR = "accountColor";
-    	
+
         @Override
         public String getPath() {
             return "accounts";
@@ -409,33 +409,32 @@ public class MessageProvider extends ContentProvider {
         public Cursor getAllAccounts(String[] projection) {
             // Default projection
             if(projection == null) {
-                projection = new String[] { FIELD_ACCOUNT_NUMBER, FIELD_ACCOUNT_NAME };        		
+                projection = new String[] { FIELD_ACCOUNT_NUMBER, FIELD_ACCOUNT_NAME };
             }
-            
 
             MatrixCursor ret = new MatrixCursor(projection);
 
             for (Account account : Preferences.getPreferences(getContext()).getAccounts()) {
                 Object[] values = new Object[projection.length];
-                
+
                 // Build account row
                 int fieldIndex = 0;
                 for(String field : projection) {
-                	
-                	if(FIELD_ACCOUNT_NUMBER.equals(field)) {
-                    	values[fieldIndex] = account.getAccountNumber();                		
-                	} else if(FIELD_ACCOUNT_NAME.equals(field)) {
-                    	values[fieldIndex] = account.getDescription();                		
-                	} else if(FIELD_ACCOUNT_UUID.equals(field)) {
-                    	values[fieldIndex] = account.getUuid();                		
-                	} else if(FIELD_ACCOUNT_COLOR.equals(field)) {
-                    	values[fieldIndex] = account.getChipColor();                		
-                	} else {
-                		values[fieldIndex] = null;
-                	}
-                	++fieldIndex;
+
+                    if(FIELD_ACCOUNT_NUMBER.equals(field)) {
+                        values[fieldIndex] = account.getAccountNumber();
+                    } else if(FIELD_ACCOUNT_NAME.equals(field)) {
+                        values[fieldIndex] = account.getDescription();
+                    } else if(FIELD_ACCOUNT_UUID.equals(field)) {
+                        values[fieldIndex] = account.getUuid();
+                    } else if(FIELD_ACCOUNT_COLOR.equals(field)) {
+                        values[fieldIndex] = account.getChipColor();
+                    } else {
+                        values[fieldIndex] = null;
+                    }
+                    ++fieldIndex;
                 }
-                
+
                 ret.addRow(values);
             }
 

@@ -13,10 +13,8 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
@@ -72,7 +70,7 @@ import com.fsck.k9.mail.store.StorageManager.StorageProvider;
 import com.fsck.k9.provider.AttachmentProvider;
 import com.fsck.k9.search.ConditionsTreeNode;
 import com.fsck.k9.search.LocalSearch;
-import com.fsck.k9.search.SearchSpecification.SEARCHFIELD;
+import com.fsck.k9.search.SearchSpecification.Searchfield;
 
 /**
  * <pre>
@@ -663,16 +661,16 @@ public class LocalStore extends Store implements Serializable {
             public Long doDbWork(final SQLiteDatabase db) {
                 Cursor cursor = null;
                 try {
-                	cursor = db.rawQuery("SELECT id FROM folders WHERE name = '" + name + "'", null);
+                    cursor = db.rawQuery("SELECT id FROM folders WHERE name = '" + name + "'", null);
                     cursor.moveToFirst();
-                    return cursor.getLong(0);        
+                    return cursor.getLong(0);
                 } finally {
                     Utility.closeQuietly(cursor);
                 }
             }
         });
     }
-    
+
     @Override
     public void checkSettings() throws MessagingException {
     }
@@ -884,7 +882,7 @@ public class LocalStore extends Store implements Serializable {
         }
         int i = 0;
         if (str.charAt(0) == '-') {
-        	return false;
+            return false;
         }
         for (; i < length; i++) {
                 char c = str.charAt(i);
@@ -894,36 +892,37 @@ public class LocalStore extends Store implements Serializable {
         }
         return true;
     }
-    
-	public Message[] searchForMessages(MessageRetrievalListener retrievalListener,
-										LocalSearch search) throws MessagingException {  
-		
-		// update some references in the search that have to be bound to this one store
-		for (ConditionsTreeNode node : search.getLeafSet()) {
-			if (node.mCondition.field == SEARCHFIELD.FOLDER) {	
-				// TODO find better solution
-				if (isFolderId(node.mCondition.value)) {
-					continue;
-				}
-				
-				if (node.mCondition.value.equals(LocalSearch.GENERIC_INBOX_NAME)) {
-					node.mCondition.value = mAccount.getInboxFolderName();
-				}
-				node.mCondition.value = String.valueOf(getFolderId(node.mCondition.value));
-			}
-		}
 
-    	// build sql query       
-        String sqlQuery = "SELECT " + GET_MESSAGES_COLS + "FROM messages WHERE deleted = 0 " 
-        				+ (search.getConditions() != null ? "AND" + search.getConditions() : "") + " ORDER BY date DESC";
-        
+    public Message[] searchForMessages(MessageRetrievalListener retrievalListener,
+            LocalSearch search) throws MessagingException {
+
+        // update some references in the search that have to be bound to this one store
+        for (ConditionsTreeNode node : search.getLeafSet()) {
+            if (node.mCondition.field == Searchfield.FOLDER) {
+                // TODO find better solution
+                if (isFolderId(node.mCondition.value)) {
+                    continue;
+                }
+
+                if (node.mCondition.value.equals(LocalSearch.GENERIC_INBOX_NAME)) {
+                    node.mCondition.value = mAccount.getInboxFolderName();
+                }
+                node.mCondition.value = String.valueOf(getFolderId(node.mCondition.value));
+            }
+        }
+
+        // build sql query
+        String sqlQuery = "SELECT " + GET_MESSAGES_COLS + "FROM messages WHERE deleted = 0 " +
+                (search.getConditions() != null ? "AND" + search.getConditions() : "") +
+                " ORDER BY date DESC";
+
         if (K9.DEBUG) {
             Log.d(K9.LOG_TAG, "Query = " + sqlQuery);
         }
-        
-		return getMessages(retrievalListener, null, sqlQuery, new String[] {});
-	}
-	
+
+        return getMessages(retrievalListener, null, sqlQuery, new String[] {});
+    }
+
     /*
      * Given a query string, actually do the query for the messages and
      * call the MessageRetrievalListener for each one

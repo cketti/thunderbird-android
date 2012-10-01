@@ -74,13 +74,13 @@ public abstract class AccountList extends K9ListActivity implements OnItemClickL
         List<BaseAccount> accounts = new ArrayList<BaseAccount>();
 
         if (displaySpecialAccounts() && !K9.isHideSpecialAccounts()) {
-        	SavedSearchesManager ssm = SavedSearchesManager.getInstance(getApplicationContext());
-        	
-        	// if this activity opens it's impossible for the predefined accounts not to be there already
+            SavedSearchesManager ssm = SavedSearchesManager.getInstance(getApplicationContext());
+
+            // if this activity opens it's impossible for the predefined accounts not to be there already
             BaseAccount unifiedInboxAccount = new SearchAccount(ssm.load(Accounts.PREDEFINED_UNIFIED_INBOX),
-	        		getString(R.string.integrated_inbox_title),getString(R.string.integrated_inbox_detail));
+                    getString(R.string.integrated_inbox_title),getString(R.string.integrated_inbox_detail));
             BaseAccount allMessagesAccount = new SearchAccount(ssm.load(Accounts.PREDEFINED_ALL_MESSAGES),
-            		getString(R.string.search_all_messages_title), getString(R.string.search_all_messages_detail));
+                    getString(R.string.search_all_messages_title), getString(R.string.search_all_messages_detail));
 
             accounts.add(unifiedInboxAccount);
             accounts.add(allMessagesAccount);
