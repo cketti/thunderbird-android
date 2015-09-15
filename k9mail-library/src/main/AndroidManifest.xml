@@ -1,2 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest package="com.fsck.k9.mail" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.fsck.k9.mail">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+</manifest>
