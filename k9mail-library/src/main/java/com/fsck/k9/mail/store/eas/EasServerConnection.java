@@ -30,6 +30,7 @@ import android.text.TextUtils;
 import android.text.format.DateUtils;
 import android.util.Base64;
 
+import com.fsck.k9.mail.store.eas.util.RedirectFollowInterceptor;
 import com.squareup.okhttp.Call;
 import com.squareup.okhttp.MediaType;
 import com.squareup.okhttp.OkHttpClient;
@@ -47,6 +48,8 @@ import okio.ByteString;
 public class EasServerConnection {
     /** Logging tag. */
     private static final String TAG = Eas.LOG_TAG;
+
+    private static final int MAX_REDIRECTS = 5;
 
     /**
      * Timeout for establishing a connection to the server.
@@ -136,6 +139,8 @@ public class EasServerConnection {
             mClient.setConnectTimeout(CONNECTION_TIMEOUT, TimeUnit.MILLISECONDS);
             mClient.setReadTimeout(timeout, TimeUnit.MILLISECONDS);
             mClient.setWriteTimeout(timeout, TimeUnit.MILLISECONDS);
+            mClient.setFollowRedirects(false);
+            mClient.interceptors().add(new RedirectFollowInterceptor(MAX_REDIRECTS));
             //TODO: add interceptors
 //            processor.addRequestInterceptor(new CurlLogger());
 //            processor.addResponseInterceptor(new WbxmlResponseLogger());
