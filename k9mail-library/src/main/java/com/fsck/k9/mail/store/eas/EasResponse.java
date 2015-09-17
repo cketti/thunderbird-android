@@ -17,18 +17,17 @@
 
 package com.fsck.k9.mail.store.eas;
 
-import android.net.Uri;
-
-import org.apache.http.Header;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpStatus;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpUriRequest;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.zip.GZIPInputStream;
+
+import android.net.Uri;
+
+import com.squareup.okhttp.Call;
+import com.squareup.okhttp.Response;
+import com.squareup.okhttp.ResponseBody;
+import org.apache.http.HttpStatus;
 
 /**
  * Encapsulate a response to an HTTP POST
@@ -41,9 +40,9 @@ public class EasResponse {
     // Why is this a 4xx instead of 3xx? Because EAS considers this a "Device misconfigured" error.
     static private final int HTTP_REDIRECT = 451;
 
-    private final HttpResponse mResponse;
-    private final HttpEntity mEntity;
-    private final int mLength;
+    private final Response mResponse;
+    private final ResponseBody mEntity;
+    private final long mLength;
     private InputStream mInputStream;
     private boolean mClosed;
 
@@ -55,18 +54,16 @@ public class EasResponse {
      */
     private final boolean mClientCertRequested;
 
-    private EasResponse(final HttpResponse response,
-            final EmailClientConnectionManager connManager, final long reqTime) {
+    private EasResponse(final Response response, final long reqTime) throws IOException {
         mResponse = response;
-        mEntity = (response == null) ? null : mResponse.getEntity();
+        mEntity = (response == null) ? null : mResponse.body();
         if (mEntity !=  null) {
-            mLength = (int) mEntity.getContentLength();
+            mLength = mEntity.contentLength();
         } else {
             mLength = 0;
         }
-        int status = response.getStatusLine().getStatusCode();
-        mClientCertRequested =
-                isAuthError(status) && connManager.hasDetectedUnsatisfiedCertReq(reqTime);
+        int status = response.code();
+        mClientCertRequested = isAuthError(status) /*&& connManager.hasDetectedUnsatisfiedCertReq(reqTime)*/;
         if (mClientCertRequested) {
             status = HttpStatus.SC_UNAUTHORIZED;
             mClosed = true;
@@ -74,12 +71,11 @@ public class EasResponse {
         mStatus = status;
     }
 
-    public static EasResponse fromHttpRequest(
-            EmailClientConnectionManager connManager, HttpClient client, HttpUriRequest request)
+    public static EasResponse fromHttpCall(Call call)
             throws IOException {
         final long reqTime = System.currentTimeMillis();
-        final HttpResponse response = client.execute(request);
-        return new EasResponse(response, connManager, reqTime);
+        final Response response = call.execute();
+        return new EasResponse(response, reqTime);
     }
 
     public boolean isSuccess() {
@@ -125,9 +121,9 @@ public class EasResponse {
      * @return The new host address, or null if it's not there.
      */
     public String getRedirectAddress() {
-        final Header locHeader = getHeader("X-MS-Location");
+        final String locHeader = getHeader("X-MS-Location");
         if (locHeader != null) {
-            return Uri.parse(locHeader.getValue()).getHost();
+            return Uri.parse(locHeader).getHost();
         }
         return null;
     }
@@ -146,10 +142,9 @@ public class EasResponse {
         InputStream is = null;
         try {
             // Get the default input stream for the entity
-            is = mEntity.getContent();
-            Header ceHeader = mResponse.getFirstHeader("Content-Encoding");
-            if (ceHeader != null) {
-                String encoding = ceHeader.getValue();
+            is = mEntity.byteStream();
+            String encoding = mResponse.header("Content-Encoding");
+            if (encoding != null) {
                 // If we're gzip encoded, wrap appropriately
                 if (encoding.toLowerCase().equals("gzip")) {
                     is = new GZIPInputStream(is);
@@ -174,11 +169,11 @@ public class EasResponse {
         return mClientCertRequested;
     }
 
-    public Header getHeader(String name) {
-        return (mResponse == null) ? null : mResponse.getFirstHeader(name);
+    public String getHeader(String name) {
+        return (mResponse == null) ? null : mResponse.header(name);
     }
 
-    public int getLength() {
+    public long getLength() {
         return mLength;
     }
 
@@ -186,7 +181,7 @@ public class EasResponse {
         if (!mClosed) {
             if (mEntity != null) {
                 try {
-                    mEntity.consumeContent();
+                    mEntity.close();
                 } catch (IOException e) {
                     // No harm, no foul
                 }

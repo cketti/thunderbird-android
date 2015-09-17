@@ -18,8 +18,8 @@ package com.fsck.k9.mail.store.eas;
 
 
 import java.io.IOException;
-import java.net.URI;
 import java.security.cert.CertificateException;
+import java.util.concurrent.TimeUnit;
 
 import android.content.ContentUris;
 import android.content.ContentValues;
@@ -30,19 +30,13 @@ import android.text.TextUtils;
 import android.text.format.DateUtils;
 import android.util.Base64;
 
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpVersion;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpOptions;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.entity.ByteArrayEntity;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.params.BasicHttpParams;
-import org.apache.http.params.HttpConnectionParams;
-import org.apache.http.params.HttpParams;
-import org.apache.http.protocol.BasicHttpProcessor;
+import com.squareup.okhttp.Call;
+import com.squareup.okhttp.MediaType;
+import com.squareup.okhttp.OkHttpClient;
+import com.squareup.okhttp.Request;
+import com.squareup.okhttp.Request.Builder;
+import com.squareup.okhttp.RequestBody;
+import okio.ByteString;
 
 /**
  * Base class for communicating with an EAS server. Anything that needs to send messages to the
@@ -102,7 +96,7 @@ public class EasServerConnection {
     // Bookkeeping for interrupting a request. This is primarily for use by Ping (there's currently
     // no mechanism for stopping a sync).
     // Access to these variables should be synchronized on this.
-    private HttpUriRequest mPendingRequest = null;
+    private Call mPendingCall = null;
     private boolean mStopped = false;
     private int mStoppedReason = STOPPED_REASON_NONE;
 
@@ -115,12 +109,7 @@ public class EasServerConnection {
      * The client for any requests made by this object. This is created lazily, and cleared
      * whenever our host auth is redirected.
      */
-    private HttpClient mClient;
-
-    /**
-     * This is used only to check when our client needs to be refreshed.
-     */
-    private EmailClientConnectionManager mClientConnectionManager;
+    private OkHttpClient mClient;
 
     public EasServerConnection(final Context context, final Account account,
                                final HostAuth hostAuth) {
@@ -131,43 +120,25 @@ public class EasServerConnection {
         setProtocolVersion(account.mProtocolVersion);
     }
 
-    protected EmailClientConnectionManager getClientConnectionManager()
-        throws CertificateException {
-        final EmailClientConnectionManager connManager =
-                EasConnectionCache.instance().getConnectionManager(mContext, mHostAuth);
-        if (mClientConnectionManager != connManager) {
-            mClientConnectionManager = connManager;
-            mClient = null;
-        }
-        return connManager;
-    }
-
     public void redirectHostAuth(final String newAddress) {
         mClient = null;
         mHostAuth.mAddress = newAddress;
         if (mHostAuth.isSaved()) {
-            EasConnectionCache.instance().uncacheConnectionManager(mHostAuth);
             final ContentValues cv = new ContentValues(1);
             cv.put(EmailContent.HostAuthColumns.ADDRESS, newAddress);
             mHostAuth.update(mContext, cv);
         }
     }
 
-    private HttpClient getHttpClient(final long timeout) throws CertificateException {
+    private OkHttpClient getOkHttpClient(final long timeout) throws CertificateException {
         if (mClient == null) {
-            final HttpParams params = new BasicHttpParams();
-            HttpConnectionParams.setConnectionTimeout(params, (int)(CONNECTION_TIMEOUT));
-            HttpConnectionParams.setSoTimeout(params, (int)(timeout));
-            HttpConnectionParams.setSocketBufferSize(params, 8192);
-            mClient = new DefaultHttpClient(getClientConnectionManager(), params) {
-                @Override
-                protected BasicHttpProcessor createHttpProcessor() {
-                    final BasicHttpProcessor processor = super.createHttpProcessor();
-                    processor.addRequestInterceptor(new CurlLogger());
-                    processor.addResponseInterceptor(new WbxmlResponseLogger());
-                    return processor;
-                }
-            };
+            mClient = new OkHttpClient();
+            mClient.setConnectTimeout(CONNECTION_TIMEOUT, TimeUnit.MILLISECONDS);
+            mClient.setReadTimeout(timeout, TimeUnit.MILLISECONDS);
+            mClient.setWriteTimeout(timeout, TimeUnit.MILLISECONDS);
+            //TODO: add interceptors
+//            processor.addRequestInterceptor(new CurlLogger());
+//            processor.addResponseInterceptor(new WbxmlResponseLogger());
         }
         return mClient;
     }
@@ -190,8 +161,7 @@ public class EasServerConnection {
     }
 
     private String makeBaseUriString() {
-        return EmailClientConnectionManager.makeScheme(mHostAuth.shouldUseSsl(),
-                mHostAuth.shouldTrustAllServerCerts(), mHostAuth.mClientCertAlias) +
+        return (mHostAuth.shouldUseSsl() ? "https" : "http") +
                 "://" + mHostAuth.mAddress + "/Microsoft-Server-ActiveSync";
     }
 
@@ -243,38 +213,51 @@ public class EasServerConnection {
      */
     protected EasResponse sendHttpClientOptions() throws IOException, CertificateException {
         // For OPTIONS, just use the base string and the single header
-        final HttpOptions method = new HttpOptions(URI.create(makeBaseUriString()));
-        method.setHeader("Authorization", makeAuthString());
-        method.setHeader("User-Agent", getUserAgent());
-        return EasResponse.fromHttpRequest(getClientConnectionManager(),
-                getHttpClient(COMMAND_TIMEOUT), method);
+        Request request = new Request.Builder()
+                .header("Authorization", makeAuthString())
+                .header("User-Agent", getUserAgent())
+                .url(makeBaseUriString())
+                .method("OPTIONS", null)
+                .build();
+
+        Call call = getOkHttpClient(COMMAND_TIMEOUT).newCall(request);
+
+        return EasResponse.fromHttpCall(call);
     }
 
-    protected void resetAuthorization(final HttpPost post) {
-        post.removeHeaders("Authorization");
-        post.setHeader("Authorization", makeAuthString());
+    protected void resetAuthorization(Request.Builder requestBuilder) {
+        requestBuilder.removeHeader("Authorization");
+        requestBuilder.header("Authorization", makeAuthString());
     }
 
     /**
-     * Make an {@link HttpPost} for a specific request.
+     * Create a {@link Request.Builder} for a specific POST request.
      * @param uri The uri for this request, as a {@link String}.
-     * @param entity The {@link HttpEntity} for this request.
+     * @param payload The payload for this request.
      * @param contentType The Content-Type for this request.
      * @param usePolicyKey Whether or not a policy key should be sent.
      * @return
      */
-    public HttpPost makePost(final String uri, final HttpEntity entity, final String contentType,
+    public Request.Builder makePost(final String uri, final byte[] payload, final String contentType,
             final boolean usePolicyKey) {
-        final HttpPost post = new HttpPost(uri);
-        post.setHeader("Authorization", makeAuthString());
-        post.setHeader("MS-ASProtocolVersion", String.valueOf(mProtocolVersion));
-        post.setHeader("User-Agent", getUserAgent());
-        post.setHeader("Accept-Encoding", "gzip");
-        // If there is no entity, we should not be setting a content-type since this will
+        Request.Builder requestBuilder = new Builder()
+                .url(uri)
+                .header("Authorization", makeAuthString())
+                .header("MS-ASProtocolVersion", String.valueOf(mProtocolVersion))
+                .header("User-Agent", getUserAgent())
+                .header("Accept-Encoding", "gzip");
+
+        // If there is no payload, we should not be setting a content-type since this will
         // result in a 400 from the server in the case of loading an attachment.
-        if (contentType != null && entity != null) {
-            post.setHeader("Content-Type", contentType);
+        RequestBody body;
+        if (contentType != null && payload != null) {
+            MediaType mediaType = MediaType.parse(contentType);
+            body = RequestBody.create(mediaType, payload);
+        } else {
+            body = RequestBody.create(null, ByteString.EMPTY);
         }
+        requestBuilder.post(body);
+
         if (usePolicyKey) {
             // If there's an account in existence, use its key; otherwise (we're creating the
             // account), send "0".  The server will respond with code 449 if there are policies
@@ -293,38 +276,40 @@ public class EasServerConnection {
             } else {
                 key = "0";
             }
-            post.setHeader("X-MS-PolicyKey", key);
+            requestBuilder.header("X-MS-PolicyKey", key);
         }
-        post.setEntity(entity);
-        return post;
+
+        return requestBuilder;
     }
 
-    public HttpGet makeGet(final String uri) {
-        final HttpGet get = new HttpGet(uri);
-        return get;
+    public Request.Builder makeGet(final String uri) {
+        return new Request.Builder()
+                .url(uri)
+                .get();
     }
 
     /**
-     * Make an {@link HttpOptions} request for this connection.
-     * @return The {@link HttpOptions} object.
+     * Make an OPTIONS {@link Request} for this connection.
+     * @return The {@link Request.Builder} object.
      */
-    public HttpOptions makeOptions() {
-        final HttpOptions method = new HttpOptions(URI.create(makeBaseUriString()));
-        method.setHeader("Authorization", makeAuthString());
-        method.setHeader("User-Agent", getUserAgent());
-        return method;
+    public Request.Builder makeOptions() {
+        return new Request.Builder()
+                .url(makeBaseUriString())
+                .header("Authorization", makeAuthString())
+                .header("User-Agent", getUserAgent())
+                .method("OPTIONS", null);
     }
 
     /**
      * Send a POST request to the server.
      * @param cmd The command we're sending to the server.
-     * @param entity The {@link HttpEntity} containing the payload of the message.
+     * @param payload The byte array containing the payload of the message.
      * @param timeout The timeout for this POST.
      * @return The response from the Exchange server.
      * @throws IOException
      */
-    protected EasResponse sendHttpClientPost(String cmd, final HttpEntity entity,
-            final long timeout) throws IOException, CertificateException {
+    public EasResponse sendHttpClientPost(String cmd, final byte[] payload, final long timeout)
+            throws IOException, CertificateException {
         final boolean isPingCommand = cmd.equals("Ping");
 
         // Split the mail sending commands
@@ -347,7 +332,7 @@ public class EasServerConnection {
         final String contentType;
         if (msg && (getProtocolVersion() < Eas.SUPPORTED_PROTOCOL_EX2010_DOUBLE)) {
             contentType = "message/rfc822";
-        } else if (entity != null) {
+        } else if (payload != null) {
             contentType = EAS_14_MIME_TYPE;
         } else {
             contentType = null;
@@ -358,48 +343,34 @@ public class EasServerConnection {
         } else {
             uriString = makeUriString(cmd, extra);
         }
-        final HttpPost method = makePost(uriString, entity, contentType, !isPingCommand);
+        Request.Builder requestBuilder = makePost(uriString, payload, contentType, !isPingCommand);
         // NOTE
         // The next lines are added at the insistence of $VENDOR, who is seeing inappropriate
         // network activity related to the Ping command on some networks with some servers.
         // This code should be removed when the underlying issue is resolved
         if (isPingCommand) {
-            method.setHeader("Connection", "close");
+            requestBuilder.header("Connection", "close");
         }
-        return executeHttpUriRequest(method, timeout);
-    }
-
-    public EasResponse sendHttpClientPost(final String cmd, final byte[] bytes,
-            final long timeout) throws IOException, CertificateException {
-        final ByteArrayEntity entity;
-        if (bytes == null) {
-            entity = null;
-        } else {
-            entity = new ByteArrayEntity(bytes);
-        }
-        return sendHttpClientPost(cmd, entity, timeout);
-    }
-
-    protected EasResponse sendHttpClientPost(final String cmd, final byte[] bytes)
-            throws IOException, CertificateException {
-        return sendHttpClientPost(cmd, bytes, COMMAND_TIMEOUT);
+        return executeHttpUriRequest(requestBuilder.build(), timeout);
     }
 
     /**
-     * Executes an {@link HttpUriRequest}.
+     * Executes an {@link Request}.
      * Note: this function must not be called by multiple threads concurrently. Only one thread may
      * send server requests from a particular object at a time.
-     * @param method The post to execute.
+     * @param request The request to execute.
      * @param timeout The timeout to use.
      * @return The response from the Exchange server.
      * @throws IOException
      */
-    public EasResponse executeHttpUriRequest(final HttpUriRequest method, final long timeout)
+    public EasResponse executeHttpUriRequest(final Request request, final long timeout)
             throws IOException, CertificateException {
-        LogUtils.d(TAG, "EasServerConnection about to make request %s", method.getRequestLine());
+        LogUtils.d(TAG, "EasServerConnection about to make request %s", request.toString());
         // The synchronized blocks are here to support the stop() function, specifically to handle
         // when stop() is called first. Notably, they are NOT here in order to guard against
         // concurrent access to this function, which is not supported.
+        OkHttpClient client = getOkHttpClient(timeout);
+        Call call;
         synchronized (this) {
             if (mStopped) {
                 mStopped = false;
@@ -408,17 +379,16 @@ public class EasServerConnection {
                 // callers can equate IOException with "this POST got killed for some reason".
                 throw new IOException("Command was stopped before POST");
             }
-           mPendingRequest = method;
+            mPendingCall = call = client.newCall(request);
         }
         boolean postCompleted = false;
         try {
-            final EasResponse response = EasResponse.fromHttpRequest(getClientConnectionManager(),
-                    getHttpClient(timeout), method);
+            final EasResponse response = EasResponse.fromHttpCall(call);
             postCompleted = true;
             return response;
         } finally {
             synchronized (this) {
-                mPendingRequest = null;
+                mPendingCall = null;
                 if (postCompleted) {
                     mStoppedReason = STOPPED_REASON_NONE;
                 }
@@ -426,9 +396,9 @@ public class EasServerConnection {
         }
     }
 
-    protected EasResponse executePost(final HttpPost method)
+    protected EasResponse executePost(final Request request)
             throws IOException, CertificateException {
-        return executeHttpUriRequest(method, COMMAND_TIMEOUT);
+        return executeHttpUriRequest(request, COMMAND_TIMEOUT);
     }
 
     /**
@@ -444,11 +414,11 @@ public class EasServerConnection {
     public synchronized void stop(final int reason) {
         // Only process legitimate reasons.
         if (reason >= STOPPED_REASON_ABORT && reason <= STOPPED_REASON_RESTART) {
-            final boolean isMidPost = (mPendingRequest != null);
+            final boolean isMidPost = (mPendingCall != null);
             LogUtils.i(TAG, "%s with reason %d", (isMidPost ? "Interrupt" : "Stop next"), reason);
             mStoppedReason = reason;
             if (isMidPost) {
-                mPendingRequest.abort();
+                mPendingCall.cancel();
             } else {
                 mStopped = true;
             }
@@ -470,12 +440,7 @@ public class EasServerConnection {
      */
     public boolean registerClientCert() {
         if (mHostAuth.mClientCertAlias != null) {
-            try {
-                getClientConnectionManager().registerClientCert(mContext, mHostAuth);
-            } catch (final CertificateException e) {
-                // The client certificate the user specified is invalid/inaccessible.
-                return false;
-            }
+            throw new RuntimeException("Not implemented yet");
         }
         return true;
     }

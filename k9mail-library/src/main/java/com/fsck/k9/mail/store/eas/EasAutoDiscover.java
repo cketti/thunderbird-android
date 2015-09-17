@@ -1,21 +1,19 @@
 package com.fsck.k9.mail.store.eas;
 
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+
 import android.content.Context;
 import android.net.Uri;
-import android.os.Bundle;
 import android.util.Xml;
 
-import org.apache.http.HttpEntity;
+import com.squareup.okhttp.Request;
 import org.apache.http.HttpStatus;
-import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.entity.StringEntity;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
 import org.xmlpull.v1.XmlSerializer;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 
 public class EasAutoDiscover extends EasOperation {
 
@@ -122,7 +120,7 @@ public class EasAutoDiscover extends EasOperation {
     }
 
     @Override
-    protected HttpEntity getRequestEntity() throws IOException, MessageInvalidException {
+    protected byte[] getRequestEntity() throws IOException, MessageInvalidException {
         try {
             final XmlSerializer s = Xml.newSerializer();
             final ByteArrayOutputStream os = new ByteArrayOutputStream(1024);
@@ -138,7 +136,7 @@ public class EasAutoDiscover extends EasOperation {
             s.endTag(null, "Request");
             s.endTag(null, "Autodiscover");
             s.endDocument();
-            return new StringEntity(os.toString());
+            return os.toByteArray();
         } catch (final IOException e) {
             // For all exception types, we can simply punt on autodiscover.
         } catch (final IllegalArgumentException e) {
@@ -150,19 +148,19 @@ public class EasAutoDiscover extends EasOperation {
     /**
      * Create the request object for this operation.
      * The default is to use a POST, but some use other request types (e.g. Options).
-     * @return An {@link HttpUriRequest}.
+     * @return A {@link Request}.
      * @throws IOException
      */
-    protected HttpUriRequest makeRequest() throws IOException, MessageInvalidException {
+    protected Request makeRequest() throws IOException, MessageInvalidException {
         final String requestUri = getRequestUri();
-        HttpUriRequest req;
+        Request request;
         if (mAttemptNumber == ATTEMPT_UNAUTHENTICATED_GET) {
-            req = mConnection.makeGet(requestUri);
+            request = mConnection.makeGet(requestUri).build();
         } else {
-            req = mConnection.makePost(requestUri, getRequestEntity(),
-                    getRequestContentType(), addPolicyKeyHeaderToRequest());
+            request = mConnection.makePost(requestUri, getRequestEntity(),
+                    getRequestContentType(), addPolicyKeyHeaderToRequest()).build();
         }
-        return req;
+        return request;
     }
 
     //FIXME

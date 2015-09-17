@@ -31,9 +31,7 @@ import android.text.format.DateUtils;
 
 import com.fsck.k9.mail.store.eas.adapter.Serializer;
 import com.fsck.k9.mail.store.eas.adapter.Tags;
-import org.apache.http.HttpEntity;
-import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.entity.ByteArrayEntity;
+import com.squareup.okhttp.Request;
 
 /**
  * Base class for all Exchange operations that use a POST to talk to the server.
@@ -438,14 +436,13 @@ public abstract class EasOperation {
     /**
      * Create the request object for this operation.
      * The default is to use a POST, but some use other request types (e.g. Options).
-     * @return An {@link HttpUriRequest}.
+     * @return A {@link Request}.
      * @throws IOException
      */
-    protected HttpUriRequest makeRequest() throws IOException, MessageInvalidException {
+    protected Request makeRequest() throws IOException, MessageInvalidException {
         final String requestUri = getRequestUri();
-        HttpUriRequest req = mConnection.makePost(requestUri, getRequestEntity(),
-                getRequestContentType(), addPolicyKeyHeaderToRequest());
-        return req;
+        return mConnection.makePost(requestUri, getRequestEntity(),
+                getRequestContentType(), addPolicyKeyHeaderToRequest()).build();
     }
 
     /**
@@ -463,13 +460,13 @@ public abstract class EasOperation {
     protected abstract String getCommand();
 
     /**
-     * Build the {@link HttpEntity} which is used to construct the POST. Typically this function
+     * Build the payload which is used to construct the POST. Typically this function
      * will build the Exchange request using a {@link Serializer} and then call {@link #makeEntity}.
      * If the subclass is not using a POST, then it should override this to return null.
-     * @return The {@link HttpEntity} to pass to {@link com.android.exchange.service.EasServerConnection#makePost}.
+     * @return The byte array to pass to {@link EasServerConnection#makePost}.
      * @throws IOException
      */
-    protected abstract HttpEntity getRequestEntity() throws IOException, MessageInvalidException;
+    protected abstract byte[] getRequestEntity() throws IOException, MessageInvalidException;
 
     /**
      * Parse the response from the Exchange perform whatever actions are dictated by that.
@@ -542,10 +539,10 @@ public abstract class EasOperation {
      */
 
     /**
-     * Convenience method to make an {@link HttpEntity} from {@link Serializer}.
+     * Convenience method to make a byte array from {@link Serializer}.
      */
-    protected final HttpEntity makeEntity(final Serializer s) {
-        return new ByteArrayEntity(s.toByteArray());
+    protected final byte[] makeEntity(final Serializer s) {
+        return s.toByteArray();
     }
 
     /**

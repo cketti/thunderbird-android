@@ -16,6 +16,9 @@
 
 package com.fsck.k9.mail.store.eas;
 
+
+import java.io.IOException;
+
 import android.content.ContentValues;
 import android.content.Context;
 
@@ -23,8 +26,6 @@ import com.fsck.k9.mail.store.eas.adapter.ProvisionParser;
 import com.fsck.k9.mail.store.eas.adapter.Serializer;
 import com.fsck.k9.mail.store.eas.adapter.Tags;
 import org.apache.http.HttpEntity;
-
-import java.io.IOException;
 
 /**
  * Implements the EAS Provision protocol.
@@ -261,7 +262,7 @@ public class EasProvision extends EasOperation {
      * @return The {@link HttpEntity} that was generated for this request.
      */
     @Override
-    protected HttpEntity getRequestEntity() throws IOException {
+    protected byte[] getRequestEntity() throws IOException {
         final String policyType = getPolicyType();
         final String userAgent = getUserAgent();
         final double protocolVersion = getProtocolVersion();

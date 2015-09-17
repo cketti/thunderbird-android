@@ -22,7 +22,6 @@ import java.io.IOException;
 import com.fsck.k9.mail.store.eas.adapter.Serializer;
 import com.fsck.k9.mail.store.eas.adapter.SettingsParser;
 import com.fsck.k9.mail.store.eas.adapter.Tags;
-import org.apache.http.HttpEntity;
 
 /**
  * Performs an Exchange Settings request to the server to communicate our device information.
@@ -56,7 +55,7 @@ public class EasSettings extends EasOperation {
     }
 
     @Override
-    protected HttpEntity getRequestEntity() throws IOException {
+    protected byte[] getRequestEntity() throws IOException {
         final Serializer s = new Serializer();
         s.start(Tags.SETTINGS_SETTINGS);
         addDeviceInformationToSerializer(s);
