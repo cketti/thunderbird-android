@@ -6,10 +6,10 @@ package com.fsck.k9.mail.store.eas;
  */
 public class EasService {
     public static boolean getProtocolLogging() {
-        throw new RuntimeException("Not implemented");
+        return true;
     }
 
     public static boolean getFileLogging() {
-        throw new RuntimeException("Not implemented");
+        return false;
     }
 }

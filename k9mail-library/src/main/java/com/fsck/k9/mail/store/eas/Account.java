@@ -9,7 +9,7 @@ import android.net.Uri;
 /**
  * Stub class to get a minimal version of the imported EAS code running.
  */
-class Account {
+public class Account {
     public static final Uri CONTENT_URI = Uri.parse("FIXME");
     public static final long NO_ACCOUNT = -1;
 
@@ -18,6 +18,7 @@ class Account {
     public HostAuth mHostAuthRecv;
     public long mId = NO_ACCOUNT;
     public String mProtocolVersion = Eas.SUPPORTED_PROTOCOL_EX2003;
+    public String mSyncKey;
 
 
     public HostAuth getOrCreateHostAuthRecv(Context context) {
@@ -29,7 +30,7 @@ class Account {
     }
 
     public long getId() {
-        throw new RuntimeException("Not implemented");
+        return mId;
     }
 
     public static void update(Context context, Uri contentUri, long accountId, ContentValues values) {

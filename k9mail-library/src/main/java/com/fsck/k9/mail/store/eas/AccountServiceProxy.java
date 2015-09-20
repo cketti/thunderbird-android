@@ -9,10 +9,9 @@ import android.content.Context;
  */
 public class AccountServiceProxy {
     public AccountServiceProxy(Context context) {
-        throw new RuntimeException("Not implemented");
     }
 
     public String getDeviceId() {
-        throw new RuntimeException("Not implemented");
+        return null;
     }
 }
