@@ -256,6 +256,13 @@ public abstract class EasOperation {
             // Perform the HTTP request and handle exceptions.
             final EasResponse response;
             try {
+                if (needProtocolVersion() && !mConnection.isProtocolVersionSet()) {
+                    boolean success = setProtocolVersionFromServer();
+                    if (!success) {
+                        return RESULT_OTHER_FAILURE;
+                    }
+                }
+
                 try {
                     response = mConnection.executeHttpUriRequest(makeRequest(), getTimeout());
                 } finally {
@@ -382,6 +389,25 @@ public abstract class EasOperation {
         // looped too many times.
         LogUtils.e(LOG_TAG, "Too many redirects");
         return RESULT_TOO_MANY_REDIRECTS;
+    }
+
+    private boolean setProtocolVersionFromServer() {
+        EasOptions options = new EasOptions(this);
+        if (options.getProtocolVersionFromServer() != EasOptions.RESULT_OK) {
+            LogUtils.i(LOG_TAG, "Couldn't use OPTIONS command to get list of protocol versions supported by the " +
+                    "server.");
+            return false;
+        }
+
+        String protocolVersionString = options.getProtocolVersionString();
+        mAccount.setProtocolVersion(protocolVersionString);
+        mConnection.setProtocolVersion(protocolVersionString);
+
+        return true;
+    }
+
+    protected boolean needProtocolVersion() {
+        return true;
     }
 
     protected void onRequestMade() {

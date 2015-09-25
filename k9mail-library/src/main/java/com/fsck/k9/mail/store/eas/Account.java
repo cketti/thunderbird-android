@@ -17,7 +17,7 @@ public class Account {
     public String mEmailAddress;
     public HostAuth mHostAuthRecv;
     public long mId = NO_ACCOUNT;
-    public String mProtocolVersion = Eas.SUPPORTED_PROTOCOL_EX2003;
+    private String protocolVersion;
     public String mSyncKey;
 
 
@@ -35,5 +35,13 @@ public class Account {
 
     public static void update(Context context, Uri contentUri, long accountId, ContentValues values) {
         throw new RuntimeException("Not implemented");
+    }
+
+    public String getProtocolVersion() {
+        return protocolVersion;
+    }
+
+    public void setProtocolVersion(String protocolVersion) {
+        this.protocolVersion = protocolVersion;
     }
 }

@@ -120,7 +120,7 @@ public class EasServerConnection {
         mHostAuth = hostAuth;
         mAccount = account;
         mAccountId = account.mId;
-        setProtocolVersion(account.mProtocolVersion);
+        setProtocolVersion(account.getProtocolVersion());
     }
 
     public void redirectHostAuth(final String newAddress) {
@@ -209,25 +209,6 @@ public class EasServerConnection {
      */
     public final String getUserAgent() {
         return USER_AGENT;
-    }
-
-    /**
-     * Send an http OPTIONS request to server.
-     * @return The {@link EasResponse} from the Exchange server.
-     * @throws IOException
-     */
-    protected EasResponse sendHttpClientOptions() throws IOException, CertificateException {
-        // For OPTIONS, just use the base string and the single header
-        Request request = new Request.Builder()
-                .header("Authorization", makeAuthString())
-                .header("User-Agent", getUserAgent())
-                .url(makeBaseUriString())
-                .method("OPTIONS", null)
-                .build();
-
-        Call call = getOkHttpClient(COMMAND_TIMEOUT).newCall(request);
-
-        return EasResponse.fromHttpCall(call);
     }
 
     protected void resetAuthorization(Request.Builder requestBuilder) {

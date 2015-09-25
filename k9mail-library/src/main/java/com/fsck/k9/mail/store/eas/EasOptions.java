@@ -46,6 +46,11 @@ public class EasOptions extends EasOperation {
         super(parentOperation);
     }
 
+    @Override
+    protected boolean needProtocolVersion() {
+        return false;
+    }
+
     /**
      * Perform the server request. If successful, callers should use
      * {@link #getProtocolVersionString} to get the actual protocol version value.
