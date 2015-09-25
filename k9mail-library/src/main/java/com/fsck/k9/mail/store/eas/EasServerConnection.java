@@ -245,18 +245,11 @@ public class EasServerConnection {
         requestBuilder.post(body);
 
         if (usePolicyKey) {
-            // If there's an account in existence, use its key; otherwise (we're creating the
-            // account), send "0".  The server will respond with code 449 if there are policies
-            // to be enforced
+            // Use an account's policy key if it exists; otherwise send "0".
+            // The server will respond with code 449 if there are policies to be enforced.
+            String accountKey = mAccount.getPolicyKey();
+
             final String key;
-            final String accountKey;
-            if (mAccountId == Account.NO_ACCOUNT) {
-                accountKey = null;
-            } else {
-               accountKey = Utility.getFirstRowString(mContext,
-                        ContentUris.withAppendedId(Account.CONTENT_URI, mAccountId),
-                        ACCOUNT_SECURITY_KEY_PROJECTION, null, null, null, 0);
-            }
             if (!TextUtils.isEmpty(accountKey)) {
                 key = accountKey;
             } else {

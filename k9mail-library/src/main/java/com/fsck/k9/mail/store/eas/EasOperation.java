@@ -86,6 +86,8 @@ public abstract class EasOperation {
     /** The maximum number of server redirects we allow before returning failure. */
     private static final int MAX_REDIRECTS = 3;
 
+    private static final int MAX_PROVISION_ERRORS = 2;
+
     /** Message MIME type for EAS version 14 and later. */
     private static final String EAS_14_MIME_TYPE = "application/vnd.ms-sync.wbxml";
 
@@ -249,8 +251,9 @@ public abstract class EasOperation {
     }
 
     private int performOperationInternal() {
-        // We handle server redirects by looping, but we need to protect against too much looping.
+        // We handle server redirects and provision errors by looping, but we need to protect against too much looping.
         int redirectCount = 0;
+        int provisionErrorCount = 0;
 
         do {
             // Perform the HTTP request and handle exceptions.
@@ -349,6 +352,11 @@ public abstract class EasOperation {
 
                 // Handle provisioning errors.
                 if (result == RESULT_PROVISIONING_ERROR || response.isProvisionError()) {
+                    provisionErrorCount++;
+                    if (provisionErrorCount > MAX_PROVISION_ERRORS) {
+                        return RESULT_PROVISIONING_ERROR;
+                    }
+
                     if (handleProvisionError()) {
                         // The provisioning error has been taken care of, so we should re-do this
                         // request.

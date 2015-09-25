@@ -19,6 +19,7 @@ public class Account {
     public long mId = NO_ACCOUNT;
     private String protocolVersion;
     public String mSyncKey;
+    private String policyKey;
 
 
     public HostAuth getOrCreateHostAuthRecv(Context context) {
@@ -43,5 +44,13 @@ public class Account {
 
     public void setProtocolVersion(String protocolVersion) {
         this.protocolVersion = protocolVersion;
+    }
+
+    public String getPolicyKey() {
+        return policyKey;
+    }
+
+    public void setPolicyKey(String policyKey) {
+        this.policyKey = policyKey;
     }
 }

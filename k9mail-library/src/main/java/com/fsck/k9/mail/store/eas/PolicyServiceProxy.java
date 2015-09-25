@@ -13,11 +13,12 @@ public class PolicyServiceProxy {
     }
 
     public static void setAccountPolicy(Context context, long accountId, Policy policy, String securityKey) {
-        throw new RuntimeException("Not implemented");
+        //FIXME
     }
 
     public static boolean isActive(Context context, Policy policy) {
-        throw new RuntimeException("Not implemented");
+        //FIXME
+        return true;
     }
 
     public static boolean canDisableCamera(Context context) {

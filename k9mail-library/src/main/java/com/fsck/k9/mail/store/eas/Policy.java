@@ -34,7 +34,28 @@ public class Policy {
     public int mMaxHtmlTruncationSize;
 
 
+    /**
+     * Normalize the Policy.  If the password mode is "none", zero out all password-related fields;
+     * zero out complex characters for simple passwords.
+     */
     public void normalize() {
-        throw new RuntimeException("Not implemented");
+        if (mPasswordMode == PASSWORD_MODE_NONE) {
+            mPasswordMaxFails = 0;
+            mMaxScreenLockTime = 0;
+            mPasswordMinLength = 0;
+            mPasswordComplexChars = 0;
+            mPasswordHistory = 0;
+            mPasswordExpirationDays = 0;
+        } else {
+            if ((mPasswordMode != PASSWORD_MODE_SIMPLE) &&
+                    (mPasswordMode != PASSWORD_MODE_STRONG)) {
+                throw new IllegalArgumentException("password mode");
+            }
+            // If we're only requiring a simple password, set complex chars to zero; note
+            // that EAS can erroneously send non-zero values in this case
+            if (mPasswordMode == PASSWORD_MODE_SIMPLE) {
+                mPasswordComplexChars = 0;
+            }
+        }
     }
 }

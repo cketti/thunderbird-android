@@ -187,7 +187,8 @@ public class EasProvision extends EasOperation {
         }
 
         // Write the final policy key to the Account.
-        PolicyServiceProxy.setAccountPolicy(mContext, accountId, mPolicy, mPolicyKey);
+//        PolicyServiceProxy.setAccountPolicy(mContext, accountId, mPolicy, mPolicyKey);
+        mAccount.setPolicyKey(mPolicyKey);
 
         // For 12.1 and 14.0, after provisioning we need to also send the device information via
         // the Settings command.
