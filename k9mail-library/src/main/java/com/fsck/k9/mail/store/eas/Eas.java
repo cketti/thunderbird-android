@@ -166,4 +166,21 @@ public class Eas {
         DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.S'Z'", Locale.US);
         DATE_FORMAT.setTimeZone(TimeZone.getTimeZone("UTC"));
     }
+
+    /**
+     * Gets the Exchange folder class for a mailbox type (PIM collections have different values
+     * from email), needed when forming the request.
+     * @param mailboxType The type of the mailbox we're interested in, from {@link Mailbox}.
+     * @return The folder class for the mailbox we're interested in.
+     */
+    public static String getFolderClass(final int mailboxType) {
+        switch (mailboxType) {
+            case Mailbox.TYPE_CALENDAR:
+                return "Calendar";
+            case Mailbox.TYPE_CONTACTS:
+                return "Contacts";
+            default:
+                return "Email";
+        }
+    }
 }
