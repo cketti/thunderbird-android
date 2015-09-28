@@ -16,12 +16,10 @@
 
 package com.fsck.k9.mail.store.eas.adapter;
 
-import android.content.ContentValues;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.OutputStream;
 
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -35,76 +33,164 @@ import static org.junit.Assert.assertArrayEquals;
 @Config(manifest = Config.NONE)
 public class SerializerTest {
 
-    private static final byte[] BYTE_ARRAY = new byte[] {1, 2, 3, 4, 5};
-    private static final int BYTE_ARRAY_LENGTH = 5;
-    private static final String ID = "ID";
-    private static final String KEY = "Key";
-
-    // Basic test for use of start, end, tag, data, opaque, and done
     @Test
-    public void testSerializer() throws IOException {
-        ContentValues values = new ContentValues();
-        // Create a test stream
-        Serializer s = new Serializer();
-        s.start(Tags.COMPOSE_SEND_MAIL);
+    public void testEmptyDocument() throws Exception {
+        byte[] expectedBytes = document();
 
-        // Test writeStringValue without and with data
-        s.writeStringValue(values, KEY, Tags.COMPOSE_ACCOUNT_ID);
-        values.put(KEY, ID);
-        s.writeStringValue(values, KEY, Tags.COMPOSE_ACCOUNT_ID);
+        Serializer serializer = new Serializer();
+        serializer.done();
+        byte[] bytes = serializer.toByteArray();
 
-        s.data(Tags.COMPOSE_CLIENT_ID, ID);
-        s.tag(Tags.COMPOSE_SAVE_IN_SENT_ITEMS);
-        s.start(Tags.COMPOSE_MIME);
-        s.opaque(new ByteArrayInputStream(BYTE_ARRAY), BYTE_ARRAY_LENGTH);
-        s.end();  // COMPOSE_MIME
-        s.end();  // COMPOSE_SEND_MAIL
-        s.done(); // DOCUMENT
-        // Get the bytes for the stream
-        byte[] bytes = s.toByteArray();
-        // These are the expected bytes (self-explanatory)
-        byte[] expectedBytes = new byte[] {
-                3,      // Version 1.3
-                1,      // unknown or missing public identifier
-                106,    // UTF-8
-                0,      // String array length
-                Wbxml.SWITCH_PAGE,
-                Tags.COMPOSE,
-                Tags.COMPOSE_SEND_MAIL - Tags.COMPOSE_PAGE + Wbxml.WITH_CONTENT,
-                Tags.COMPOSE_ACCOUNT_ID - Tags.COMPOSE_PAGE,
-                Tags.COMPOSE_ACCOUNT_ID - Tags.COMPOSE_PAGE + Wbxml.WITH_CONTENT,
-                Wbxml.STR_I,    // 0-terminated string
-                (byte)ID.charAt(0),
-                (byte)ID.charAt(1),
-                0,
-                Wbxml.END,  // COMPOSE_ACCOUNT_ID
-                Tags.COMPOSE_CLIENT_ID - Tags.COMPOSE_PAGE + Wbxml.WITH_CONTENT,
-                Wbxml.STR_I,    // 0-terminated string
-                (byte)ID.charAt(0),
-                (byte)ID.charAt(1),
-                0,
-                Wbxml.END,  // COMPOSE_CLIENT_ID
-                Tags.COMPOSE_SAVE_IN_SENT_ITEMS - Tags.COMPOSE_PAGE,
-                Tags.COMPOSE_MIME - Tags.COMPOSE_PAGE + Wbxml.WITH_CONTENT,
-                (byte)Wbxml.OPAQUE,
-                BYTE_ARRAY_LENGTH,
-                BYTE_ARRAY[0],
-                BYTE_ARRAY[1],
-                BYTE_ARRAY[2],
-                BYTE_ARRAY[3],
-                BYTE_ARRAY[4],
-                Wbxml.END,  // COMPOSE_MIME
-                Wbxml.END   // COMPOSE_SEND_MAIL
-         };
-        // Make sure we get what's expected
         assertArrayEquals("Serializer mismatch", bytes, expectedBytes);
     }
 
     @Test
-    public void testWriteInteger() throws IOException {
-        OutputStream output = new ByteArrayOutputStream();
-        Serializer.writeInteger(output, 384);
-        Serializer.writeInteger(output, 0);
-        Serializer.writeInteger(output, -1);
+    public void testDegeneratedTag() throws Exception {
+        byte[] expectedBytes = document(
+                Wbxml.SWITCH_PAGE,
+                Tags.EMAIL,
+                Tags.EMAIL_SUBJECT & Tags.PAGE_MASK);
+
+        Serializer serializer = new Serializer();
+        serializer.tag(Tags.EMAIL_SUBJECT);
+        serializer.done();
+        byte[] bytes = serializer.toByteArray();
+
+        assertArrayEquals("Serializer mismatch", bytes, expectedBytes);
+    }
+
+    @Test
+    public void testTagWithData() throws Exception {
+        byte[] expectedBytes = document(
+                Tags.SYNC_STATUS & Tags.PAGE_MASK | Wbxml.WITH_CONTENT,
+                Wbxml.STR_I,
+                '1',
+                0,
+                Wbxml.END);
+
+        Serializer serializer = new Serializer();
+        serializer.data(Tags.SYNC_STATUS, "1");
+        serializer.done();
+        byte[] bytes = serializer.toByteArray();
+
+        assertArrayEquals("Serializer mismatch", bytes, expectedBytes);
+    }
+
+    @Test(expected = IOException.class)
+    public void testTextWithNull() throws Exception {
+        Serializer serializer = new Serializer();
+        serializer.text(null);
+    }
+
+    @Test
+    public void testOpaque() throws Exception {
+        byte[] data = new byte[] { 1, 2, 3 };
+        byte[] expectedBytes = document(
+                Wbxml.SWITCH_PAGE,
+                Tags.EMAIL,
+                Tags.EMAIL_BODY & Tags.PAGE_MASK | Wbxml.WITH_CONTENT,
+                Wbxml.OPAQUE,
+                2,
+                data[0],
+                data[1],
+                Wbxml.END);
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
+
+        Serializer serializer = new Serializer();
+        serializer.start(Tags.EMAIL_BODY);
+        serializer.opaque(inputStream, 2);
+        serializer.end();
+        serializer.done();
+        byte[] bytes = serializer.toByteArray();
+
+        assertArrayEquals("Serializer mismatch", bytes, expectedBytes);
+    }
+
+    @Test
+    public void testOpaqueWithZeroLengthData() throws Exception {
+        byte[] data = new byte[0];
+        byte[] expectedBytes = document(
+                Wbxml.SWITCH_PAGE,
+                Tags.EMAIL,
+                Tags.EMAIL_BODY & Tags.PAGE_MASK);
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
+
+        Serializer serializer = new Serializer();
+        serializer.start(Tags.EMAIL_BODY);
+        serializer.opaque(inputStream, data.length);
+        serializer.end();
+        serializer.done();
+        byte[] bytes = serializer.toByteArray();
+
+        assertArrayEquals("Serializer mismatch", bytes, expectedBytes);
+    }
+
+    @Test(expected = IOException.class)
+    public void testOpaqueReadingBeyondEndOfStream() throws Exception {
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(new byte[] { 1 });
+
+        Serializer serializer = new Serializer();
+        serializer.start(Tags.EMAIL_BODY);
+        serializer.opaque(inputStream, 2);
+    }
+
+    @Test(expected = IOException.class)
+    public void testOpaqueWithNegativeLength() throws Exception {
+        ByteArrayInputStream inputStream = new ByteArrayInputStream(new byte[] { 1 });
+
+        Serializer serializer = new Serializer();
+        serializer.start(Tags.EMAIL_BODY);
+        serializer.opaque(inputStream, -1);
+    }
+
+    @Test(expected = IOException.class)
+    public void testDocumentWithUnclosedTag() throws Exception {
+        Serializer serializer = new Serializer();
+        serializer.start(Tags.SYNC_SYNC);
+        serializer.done();
+    }
+
+    @Test
+    public void testWriteIntegerWithSmallInteger() throws Exception {
+        byte[] expectedBytes = { 23 };
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        Serializer.writeInteger(outputStream, 23);
+
+        assertArrayEquals(expectedBytes, outputStream.toByteArray());
+    }
+
+    @Test
+    public void testWriteIntegerWithTwoByteInteger() throws Exception {
+        byte[] expectedBytes = { (byte) 0x81, 0x20 };
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        Serializer.writeInteger(outputStream, 0xA0);
+
+        assertArrayEquals(expectedBytes, outputStream.toByteArray());
+    }
+
+    @Test
+    public void testWriteIntegerWithThreeByteInteger() throws Exception {
+        byte[] expectedBytes = { (byte) 0x87, (byte) 0xC4, 0x40 };
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        Serializer.writeInteger(outputStream, 123456);
+
+        assertArrayEquals(expectedBytes, outputStream.toByteArray());
+    }
+
+    private byte[] document(int... data) {
+        byte[] bytes = new byte[4 + data.length];
+        bytes[0] = 3;   // Version 1.3
+        bytes[1] = 1;   // unknown or missing public identifier
+        bytes[2] = 106; // UTF-8
+        bytes[3] = 0;   // String array length
+
+        for (int i = 0, end = data.length; i < end; i++) {
+            bytes[4 + i] = (byte) (data[i] & 0xFF);
+        }
+
+        return bytes;
     }
 }

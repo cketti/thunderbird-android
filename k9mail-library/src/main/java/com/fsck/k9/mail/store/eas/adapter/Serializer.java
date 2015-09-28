@@ -23,8 +23,6 @@
 
 package com.fsck.k9.mail.store.eas.adapter;
 
-import android.content.ContentValues;
-import android.text.TextUtils;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -45,38 +43,20 @@ public class Serializer {
     private static final int BUFFER_SIZE = 16*1024;
     private static final int NOT_PENDING = -1;
 
+
     private final OutputStream mOutput;
     private int mPendingTag = NOT_PENDING;
     private final Deque<String> mNameStack = new ArrayDeque<String>();
     private int mTagPage = 0;
 
+
     public Serializer() throws IOException {
-        this(new ByteArrayOutputStream(), true);
+        this(new ByteArrayOutputStream());
     }
 
-    public Serializer(OutputStream os) throws IOException {
-        this(os, true);
-    }
-
-    public Serializer(boolean startDocument) throws IOException {
-        this(new ByteArrayOutputStream(), startDocument);
-    }
-
-    /**
-     * Base constructor
-     * @param outputStream the stream we're serializing to
-     * @param startDocument whether or not to start a document
-     * @throws IOException
-     */
-    public Serializer(final OutputStream outputStream, final boolean startDocument)
-            throws IOException {
-        super();
-        mOutput = outputStream;
-        if (startDocument) {
-            startDocument();
-        } else {
-            mOutput.write(0);
-        }
+    public Serializer(OutputStream output) throws IOException {
+        mOutput = output;
+        startDocument();
     }
 
     void log(final String str) {
@@ -216,7 +196,7 @@ public class Serializer {
      * without having to allocate the memory for the data copy.
      * Throws IOException if length is negative; is a no-op for length 0.
      */
-    public Serializer writeOpaqueHeader(final int length) throws IOException {
+    private Serializer writeOpaqueHeader(final int length) throws IOException {
         if (length < 0) {
             throw new IOException("Invalid negative opaque data length " + length);
         }
@@ -253,33 +233,18 @@ public class Serializer {
         out.write(0);
     }
 
-    /**
-     * Looks up key in cv; if absent or empty writes out <tag/> otherwise
-     * writes out <tag>value</tag>.
-     */
-    public void writeStringValue (final ContentValues cv, final String key,
-            final int tag) throws IOException {
-        final String value = cv.getAsString(key);
-        if (!TextUtils.isEmpty(value)) {
-            data(tag, value);
-        } else {
-            tag(tag);
-        }
-    }
-
     @Override
     public String toString() {
         if (mOutput instanceof ByteArrayOutputStream) {
-            return ((ByteArrayOutputStream)mOutput).toString();
+            return mOutput.toString();
         }
         throw new IllegalStateException();
     }
 
     public byte[] toByteArray() {
         if (mOutput instanceof ByteArrayOutputStream) {
-            return ((ByteArrayOutputStream)mOutput).toByteArray();
+            return ((ByteArrayOutputStream) mOutput).toByteArray();
         }
         throw new IllegalStateException();
     }
-
 }
