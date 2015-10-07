@@ -9,7 +9,7 @@ import android.net.Uri;
 /**
  * Stub class to get a minimal version of the imported EAS code running.
  */
-class HostAuth {
+public class HostAuth {
     public static final int FLAG_NONE         = 0x00;    // No flags
     public static final int FLAG_SSL          = 0x01;    // Use SSL
     public static final int FLAG_TLS          = 0x02;    // Use TLS

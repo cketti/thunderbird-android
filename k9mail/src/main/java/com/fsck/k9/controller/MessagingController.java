@@ -78,6 +78,7 @@ import com.fsck.k9.mailstore.UnavailableStorageException;
 import com.fsck.k9.notification.NotificationController;
 import com.fsck.k9.provider.EmailProvider;
 import com.fsck.k9.provider.EmailProvider.StatsColumns;
+import com.fsck.k9.remote.Backend;
 import com.fsck.k9.search.ConditionsTreeNode;
 import com.fsck.k9.search.LocalSearch;
 import com.fsck.k9.search.SearchAccount;
@@ -181,6 +182,7 @@ public class MessagingController implements Runnable {
 
     private final Context context;
     private final NotificationController notificationController;
+    private final BackendManager backendManager;
 
     private static final Set<Flag> SYNC_FLAGS = EnumSet.of(Flag.SEEN, Flag.FLAGGED, Flag.ANSWERED, Flag.FORWARDED);
 
@@ -237,9 +239,11 @@ public class MessagingController implements Runnable {
     }
 
 
-    private MessagingController(Context context, NotificationController notificationController) {
+    private MessagingController(Context context, NotificationController notificationController,
+            BackendManager backendManager) {
         this.context = context;
         this.notificationController = notificationController;
+        this.backendManager = backendManager;
         mThread = new Thread(this);
         mThread.setName("MessagingController");
         mThread.start();
@@ -252,7 +256,8 @@ public class MessagingController implements Runnable {
         if (inst == null) {
             Context appContext = context.getApplicationContext();
             NotificationController notificationController = NotificationController.newInstance(appContext);
-            inst = new MessagingController(appContext, notificationController);
+            BackendManager backendManager = BackendManager.newInstance(context);
+            inst = new MessagingController(appContext, notificationController, backendManager);
         }
         return inst;
     }
@@ -454,48 +459,13 @@ public class MessagingController implements Runnable {
             public void run() {
                 List<LocalFolder> localFolders = null;
                 try {
-                    Store store = account.getRemoteStore();
-
-                    List <? extends Folder > remoteFolders = store.getPersonalNamespaces(false);
+                    if (backendManager.isBackendSupported(account)) {
+                        syncFolders(account);
+                    } else {
+                        syncFoldersViaStore(account);
+                    }
 
                     LocalStore localStore = account.getLocalStore();
-                    Set<String> remoteFolderNames = new HashSet<String>();
-                    List<LocalFolder> foldersToCreate = new LinkedList<LocalFolder>();
-
-                    localFolders = localStore.getPersonalNamespaces(false);
-                    Set<String> localFolderNames = new HashSet<String>();
-                    for (Folder localFolder : localFolders) {
-                        localFolderNames.add(localFolder.getName());
-                    }
-                    for (Folder remoteFolder : remoteFolders) {
-                        if (localFolderNames.contains(remoteFolder.getName()) == false) {
-                            LocalFolder localFolder = localStore.getFolder(remoteFolder.getName());
-                            foldersToCreate.add(localFolder);
-                        }
-                        remoteFolderNames.add(remoteFolder.getName());
-                    }
-                    localStore.createFolders(foldersToCreate, account.getDisplayCount());
-
-                    localFolders = localStore.getPersonalNamespaces(false);
-
-                    /*
-                     * Clear out any folders that are no longer on the remote store.
-                     */
-                    for (Folder localFolder : localFolders) {
-                        String localFolderName = localFolder.getName();
-
-                        // FIXME: This is a hack used to clean up when we accidentally created the
-                        //        special placeholder folder "-NONE-".
-                        if (K9.FOLDER_NONE.equals(localFolderName)) {
-                            localFolder.delete(false);
-                        }
-
-                        if (!account.isSpecialFolder(localFolderName) &&
-                                !remoteFolderNames.contains(localFolderName)) {
-                            localFolder.delete(false);
-                        }
-                    }
-
                     localFolders = localStore.getPersonalNamespaces(false);
 
                     for (MessagingListener l : getListeners(listener)) {
@@ -518,6 +488,57 @@ public class MessagingController implements Runnable {
                 }
             }
         });
+    }
+
+    private void syncFolders(Account account) throws MessagingException {
+        Backend backend = backendManager.getBackend(account);
+        if (!backend.syncFolders()) {
+            throw new MessagingException("FolderSync failed");
+        }
+    }
+
+    private void syncFoldersViaStore(Account account) throws MessagingException {
+        Store store = account.getRemoteStore();
+
+        List<? extends Folder> remoteFolders = store.getPersonalNamespaces(false);
+
+        LocalStore localStore = account.getLocalStore();
+        Set<String> remoteFolderNames = new HashSet<String>();
+        List<LocalFolder> foldersToCreate = new LinkedList<LocalFolder>();
+
+        List<LocalFolder> localFolders = localStore.getPersonalNamespaces(false);
+        Set<String> localFolderNames = new HashSet<String>();
+        for (Folder localFolder : localFolders) {
+            localFolderNames.add(localFolder.getName());
+        }
+        for (Folder remoteFolder : remoteFolders) {
+            if (localFolderNames.contains(remoteFolder.getName()) == false) {
+                LocalFolder localFolder = localStore.getFolder(remoteFolder.getName());
+                foldersToCreate.add(localFolder);
+            }
+            remoteFolderNames.add(remoteFolder.getName());
+        }
+        localStore.createFolders(foldersToCreate, account.getDisplayCount());
+
+        localFolders = localStore.getPersonalNamespaces(false);
+
+        /*
+         * Clear out any folders that are no longer on the remote store.
+         */
+        for (Folder localFolder : localFolders) {
+            String localFolderName = localFolder.getName();
+
+            // FIXME: This is a hack used to clean up when we accidentally created the
+            //        special placeholder folder "-NONE-".
+            if (K9.FOLDER_NONE.equals(localFolderName)) {
+                localFolder.delete(false);
+            }
+
+            if (!account.isSpecialFolder(localFolderName) &&
+                    !remoteFolderNames.contains(localFolderName)) {
+                localFolder.delete(false);
+            }
+        }
     }
 
     /**

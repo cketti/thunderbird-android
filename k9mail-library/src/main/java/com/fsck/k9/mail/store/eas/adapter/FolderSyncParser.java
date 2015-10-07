@@ -38,6 +38,7 @@ public class FolderSyncParser extends Parser {
     public static final String TAG = "FolderSyncParser";
 
     private final FolderSyncCallback callback;
+    private final FolderSyncController controller;
 
     /** Indicates whether this sync is an initial FolderSync. */
     private boolean mInitialSync;
@@ -51,11 +52,12 @@ public class FolderSyncParser extends Parser {
     private final boolean mStatusOnly;
 
     public FolderSyncParser(Context context, InputStream in, Account account, boolean statusOnly,
-            FolderSyncCallback callback) throws IOException {
+            FolderSyncCallback callback, FolderSyncController controller) throws IOException {
         super(in);
         mAccount = account;
         mStatusOnly = statusOnly;
         this.callback = checkNotNull(callback, "Argument 'callback' can't be null");
+        this.controller = checkNotNull(controller, "Argument 'controller' can't be null");
     }
 
     @Override
@@ -191,13 +193,13 @@ public class FolderSyncParser extends Parser {
     }
 
     private void handleFolderStatus(int status) {
-        callback.folderStatus(status);
+        controller.folderStatus(status);
     }
 
     private void handleNewSyncKey(boolean resetFolders, String newKey) {
         if (newKey != null && !resetFolders) {
+            controller.updateSyncKey(newKey);
             mSyncKeyChanged = !newKey.equals(mAccount.mSyncKey);
-            mAccount.mSyncKey = newKey;
         }
     }
 

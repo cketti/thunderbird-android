@@ -22,6 +22,7 @@ import java.io.IOException;
 import android.content.Context;
 import android.os.Bundle;
 
+import com.fsck.k9.mail.store.eas.adapter.FolderSyncController;
 import com.fsck.k9.mail.store.eas.adapter.FolderSyncParser;
 import com.fsck.k9.mail.store.eas.adapter.Serializer;
 import com.fsck.k9.mail.store.eas.adapter.Tags;
@@ -158,7 +159,8 @@ public class EasFolderSync extends EasOperation {
     protected int handleResponse(final EasResponse response)
             throws IOException, CommandStatusException {
         if (!response.isEmpty()) {
-            new FolderSyncParser(mContext, response.getInputStream(), mAccount, mStatusOnly, callback).parse();
+            new FolderSyncParser(mContext, response.getInputStream(), mAccount, mStatusOnly, callback,
+                    new EasFolderSyncController()).parse();
         }
         return RESULT_OK;
     }
@@ -234,5 +236,29 @@ public class EasFolderSync extends EasOperation {
 //                break;
 //        }
 //        bundle.putInt(EmailServiceProxy.VALIDATE_BUNDLE_RESULT_CODE, messagingExceptionCode);
+    }
+
+
+    class EasFolderSyncController implements FolderSyncController {
+        @Override
+        public void updateSyncKey(String syncKey) {
+            mAccount.mSyncKey = syncKey;
+        }
+
+        @Override
+        public void folderStatus(int status) {
+            if (status != Eas.FOLDER_STATUS_OK) {
+                if (status == Eas.FOLDER_STATUS_INVALID_KEY) {
+                    callback.clearFolders();
+                    updateSyncKey("0");
+                    //TODO: trigger another folder sync
+                } else if (status == Eas.FOLDER_STATUS_INVALID_REQUEST) {
+                    //TODO: log exception
+                } else {
+                    //TODO: proper exception
+                    throw new RuntimeException("Folder status error");
+                }
+            }
+        }
     }
 }

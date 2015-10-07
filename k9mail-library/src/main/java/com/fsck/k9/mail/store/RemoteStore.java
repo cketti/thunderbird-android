@@ -9,6 +9,7 @@ import com.fsck.k9.mail.ServerSettings.Type;
 import com.fsck.k9.mail.Store;
 import com.fsck.k9.mail.ssl.DefaultTrustedSocketFactory;
 import com.fsck.k9.mail.ssl.TrustedSocketFactory;
+import com.fsck.k9.mail.store.eas.EasStore;
 import com.fsck.k9.mail.store.imap.ImapStore;
 import com.fsck.k9.mail.store.pop3.Pop3Store;
 import com.fsck.k9.mail.store.webdav.WebDavStore;
@@ -56,6 +57,8 @@ public abstract class RemoteStore extends Store {
                         new DefaultTrustedSocketFactory(context));
             } else if (uri.startsWith("webdav")) {
                 store = new WebDavStore(storeConfig);
+            } else if (uri.startsWith("eas")) {
+                store = new EasStore();
             }
 
             if (store != null) {

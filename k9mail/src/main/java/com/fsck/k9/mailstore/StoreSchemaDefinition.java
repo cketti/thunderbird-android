@@ -69,7 +69,10 @@ class StoreSchemaDefinition implements LockableDatabase.SchemaDefinition {
                         "push_class TEXT, " +
                         "display_class TEXT, " +
                         "notify_class TEXT, " +
-                        "more_messages TEXT default \"unknown\"" +
+                        "more_messages TEXT default \"unknown\", " +
+                        "server_id TEXT, " +
+                        "parent INTEGER, " +
+                        "sync_key TEXT DEFAULT \"0\"" +
                         ")");
 
                 db.execSQL("CREATE INDEX IF NOT EXISTS folder_name ON folders (name)");
@@ -575,6 +578,9 @@ class StoreSchemaDefinition implements LockableDatabase.SchemaDefinition {
                 if (db.getVersion() < 53) {
                     removeNullValuesFromEmptyColumnInMessagesTable(db);
                 }
+                if (db.getVersion() < 54) {
+                    addColumnsForActiveSyncSupport(db);
+                }
             }
 
             db.setVersion(LocalStore.DB_VERSION);
@@ -636,5 +642,11 @@ class StoreSchemaDefinition implements LockableDatabase.SchemaDefinition {
 
     private void removeNullValuesFromEmptyColumnInMessagesTable(SQLiteDatabase db) {
         db.execSQL("UPDATE messages SET empty = 0 WHERE empty IS NULL");
+    }
+
+    private void addColumnsForActiveSyncSupport(SQLiteDatabase db) {
+        db.execSQL("ALTER TABLE folders ADD server_id TEXT");
+        db.execSQL("ALTER TABLE folders ADD parent INTEGER");
+        db.execSQL("ALTER TABLE folders ADD sync_key TEXT DEFAULT \"0\"");
     }
 }
