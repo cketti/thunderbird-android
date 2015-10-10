@@ -65,6 +65,8 @@ public class FolderSyncParser extends Parser {
         int status;
         boolean res = false;
         boolean resetFolders = false;
+
+        //TODO: Move this logic to EasFolderSync
         mInitialSync = (mAccount.mSyncKey == null) || "0".equals(mAccount.mSyncKey);
         if (mInitialSync) {
             wipe();
