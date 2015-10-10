@@ -62,7 +62,7 @@ public class FolderSyncParserTest {
 
         verify(controller).folderStatus(1);
         verify(controller).updateSyncKey("1");
-        verify(callback/*, never()*/).clearFolders();//FIXME
+        verify(callback, never()).clearFolders();
         verify(callback, never()).addFolder(anyString(), anyString(), anyInt(), anyString());
         verify(callback, never()).changeFolder(anyString(), anyString(), anyString());
         verify(callback, never()).removeFolder(anyString());
@@ -183,11 +183,11 @@ public class FolderSyncParserTest {
 
         verify(controller).updateSyncKey("23");
         verify(controller).folderStatus(1);
-        verifyNoMoreInteractions(controller);
         verify(callback).removeFolder("FolderServerId1");
         verify(callback).addFolder("Folder1", "Folder #1", Eas.MAILBOX_TYPE_INBOX, "0");
         verify(callback).changeFolder("Folder1", "Folder #2", "0");
         verify(callback).commitFolderChanges();
+        verifyNoMoreInteractions(controller, callback);
     }
 
     @Test(expected = EasParserException.class)

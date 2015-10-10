@@ -89,7 +89,15 @@ public class EasFolderSync extends EasOperation {
             return validate();
         } else {
             LogUtils.d(LOG_TAG, "Performing FolderSync for account %d", getAccountId());
+            clearFoldersBeforeInitialSync();
             return super.performOperation();
+        }
+    }
+
+    private void clearFoldersBeforeInitialSync() {
+        boolean initialSync = (mAccount.mSyncKey == null) || "0".equals(mAccount.mSyncKey);
+        if (initialSync) {
+            callback.clearFolders();
         }
     }
 

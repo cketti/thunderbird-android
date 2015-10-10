@@ -34,7 +34,6 @@ import com.fsck.k9.mail.store.eas.callback.FolderSyncCallback;
  * Notifies the callback of the addition, deletion, and changes to folders in the user's Exchange account.
  **/
 public class FolderSyncParser extends Parser {
-
     public static final String TAG = "FolderSyncParser";
 
     private final FolderSyncCallback callback;
@@ -66,11 +65,6 @@ public class FolderSyncParser extends Parser {
         boolean res = false;
         boolean resetFolders = false;
 
-        //TODO: Move this logic to EasFolderSync
-        mInitialSync = (mAccount.mSyncKey == null) || "0".equals(mAccount.mSyncKey);
-        if (mInitialSync) {
-            wipe();
-        }
         if (nextTag(START_DOCUMENT) != Tags.FOLDER_FOLDER_SYNC)
             throw new EasParserException();
         while (nextTag(START_DOCUMENT) != END_DOCUMENT) {
@@ -188,10 +182,6 @@ public class FolderSyncParser extends Parser {
 
     private void commit() throws IOException {
         callback.commitFolderChanges();
-    }
-
-    private void wipe() {
-        callback.clearFolders();
     }
 
     private void handleFolderStatus(int status) {
