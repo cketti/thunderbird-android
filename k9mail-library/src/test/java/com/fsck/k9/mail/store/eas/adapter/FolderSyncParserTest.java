@@ -4,9 +4,6 @@ package com.fsck.k9.mail.store.eas.adapter;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 
-import android.content.Context;
-
-import com.fsck.k9.mail.store.eas.Account;
 import com.fsck.k9.mail.store.eas.Eas;
 import com.fsck.k9.mail.store.eas.adapter.Parser.EasParserException;
 import com.fsck.k9.mail.store.eas.callback.FolderSyncCallback;
@@ -15,7 +12,6 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
 import org.robolectric.RobolectricTestRunner;
-import org.robolectric.RuntimeEnvironment;
 import org.robolectric.annotation.Config;
 
 import static org.junit.Assert.assertEquals;
@@ -31,8 +27,6 @@ import static org.mockito.MockitoAnnotations.initMocks;
 @RunWith(RobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 public class FolderSyncParserTest {
-    private Context context;
-    private Account account;
     @Mock
     private FolderSyncCallback callback;
     @Mock
@@ -41,8 +35,6 @@ public class FolderSyncParserTest {
     @Before
     public void setUp() throws Exception {
         initMocks(this);
-        context = RuntimeEnvironment.application;
-        account = new Account();
     }
 
     @Test
@@ -56,7 +48,7 @@ public class FolderSyncParserTest {
                 .end()
                 .end().done();
         InputStream inputStream = inputStreamFromSerializer(serializer);
-        FolderSyncParser parser = new FolderSyncParser(context, inputStream, account, false, callback, controller);
+        FolderSyncParser parser = new FolderSyncParser(inputStream, callback, controller);
 
         parser.parse();
 
@@ -92,7 +84,7 @@ public class FolderSyncParserTest {
                 /**/.end()
                 .end().done();
         InputStream inputStream = inputStreamFromSerializer(serializer);
-        FolderSyncParser parser = new FolderSyncParser(context, inputStream, account, false, callback, controller);
+        FolderSyncParser parser = new FolderSyncParser(inputStream, callback, controller);
 
         parser.parse();
 
@@ -114,7 +106,7 @@ public class FolderSyncParserTest {
                 /**/.end()
                 .end().done();
         InputStream inputStream = inputStreamFromSerializer(serializer);
-        FolderSyncParser parser = new FolderSyncParser(context, inputStream, account, false, callback, controller);
+        FolderSyncParser parser = new FolderSyncParser(inputStream, callback, controller);
 
         parser.parse();
 
@@ -138,7 +130,7 @@ public class FolderSyncParserTest {
                 /**/.end()
                 .end().done();
         InputStream inputStream = inputStreamFromSerializer(serializer);
-        FolderSyncParser parser = new FolderSyncParser(context, inputStream, account, false, callback, controller);
+        FolderSyncParser parser = new FolderSyncParser(inputStream, callback, controller);
 
         parser.parse();
 
@@ -177,7 +169,7 @@ public class FolderSyncParserTest {
                 /**/.end()
                 .end().done();
         InputStream inputStream = inputStreamFromSerializer(serializer);
-        FolderSyncParser parser = new FolderSyncParser(context, inputStream, account, false, callback, controller);
+        FolderSyncParser parser = new FolderSyncParser(inputStream, callback, controller);
 
         parser.parse();
 
@@ -195,7 +187,7 @@ public class FolderSyncParserTest {
         Serializer serializer = new Serializer();
         serializer.start(Tags.SYNC_SYNC).end().done();
         InputStream inputStream = inputStreamFromSerializer(serializer);
-        FolderSyncParser parser = new FolderSyncParser(context, inputStream, account, false, callback, controller);
+        FolderSyncParser parser = new FolderSyncParser(inputStream, callback, controller);
 
         parser.parse();
     }
@@ -207,7 +199,7 @@ public class FolderSyncParserTest {
         InputStream inputStream = inputStreamFromSerializer(serializer);
 
         try {
-            new FolderSyncParser(context, inputStream, account, false, null, controller);
+            new FolderSyncParser(inputStream, null, controller);
             fail("Expected exception");
         } catch (IllegalArgumentException e) {
             assertEquals("Argument 'callback' can't be null", e.getMessage());
@@ -221,7 +213,7 @@ public class FolderSyncParserTest {
         InputStream inputStream = inputStreamFromSerializer(serializer);
 
         try {
-            new FolderSyncParser(context, inputStream, account, false, callback, null);
+            new FolderSyncParser(inputStream, callback, null);
             fail("Expected exception");
         } catch (IllegalArgumentException e) {
             assertEquals("Argument 'controller' can't be null", e.getMessage());

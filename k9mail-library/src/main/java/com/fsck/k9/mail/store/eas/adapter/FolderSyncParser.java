@@ -21,80 +21,65 @@ package com.fsck.k9.mail.store.eas.adapter;
 import java.io.IOException;
 import java.io.InputStream;
 
-import android.content.Context;
-
-import com.fsck.k9.mail.store.eas.Account;
 import com.fsck.k9.mail.store.eas.CommandStatusException;
 import com.fsck.k9.mail.store.eas.callback.FolderSyncCallback;
+
+import static com.fsck.k9.mail.util.Preconditions.checkNotNull;
 
 
 /**
  * Parse the result of a FolderSync command
- *
+ * <p/>
  * Notifies the callback of the addition, deletion, and changes to folders in the user's Exchange account.
  **/
 public class FolderSyncParser extends Parser {
-    public static final String TAG = "FolderSyncParser";
-
     private final FolderSyncCallback callback;
     private final FolderSyncController controller;
 
-    /** Indicates whether this sync is an initial FolderSync. */
-    private boolean mInitialSync;
-    /** Indicates whether the sync response provided a different sync key than we had. */
-    private boolean mSyncKeyChanged = false;
 
-    private final Account mAccount;
-
-    // If true, we only care about status (this is true when validating an account) and ignore
-    // other data
-    private final boolean mStatusOnly;
-
-    public FolderSyncParser(Context context, InputStream in, Account account, boolean statusOnly,
-            FolderSyncCallback callback, FolderSyncController controller) throws IOException {
-        super(in);
-        mAccount = account;
-        mStatusOnly = statusOnly;
+    public FolderSyncParser(InputStream inputStream, FolderSyncCallback callback,
+            FolderSyncController controller) throws IOException {
+        super(inputStream);
         this.callback = checkNotNull(callback, "Argument 'callback' can't be null");
         this.controller = checkNotNull(controller, "Argument 'controller' can't be null");
     }
 
     @Override
     public boolean parse() throws IOException, CommandStatusException {
-        int status;
-        boolean res = false;
-        boolean resetFolders = false;
-
-        if (nextTag(START_DOCUMENT) != Tags.FOLDER_FOLDER_SYNC)
+        if (nextTag(START_DOCUMENT) != Tags.FOLDER_FOLDER_SYNC) {
             throw new EasParserException();
+        }
+
         while (nextTag(START_DOCUMENT) != END_DOCUMENT) {
             if (tag == Tags.FOLDER_STATUS) {
-                status = getValueInt();
+                int status = getValueInt();
                 handleFolderStatus(status);
             } else if (tag == Tags.FOLDER_SYNC_KEY) {
-                final String newKey = getValue();
-                handleNewSyncKey(resetFolders, newKey);
+                String newKey = getValue();
+                handleNewSyncKey(newKey);
             } else if (tag == Tags.FOLDER_CHANGES) {
-                if (mStatusOnly) return res;
                 changesParser();
-            } else
+            } else {
                 skipTag();
+            }
         }
-        if (!mStatusOnly) {
-            commit();
-        }
-        return res;
+
+        commit();
+
+        return false;
     }
 
     private void deleteParser() throws IOException {
         while (nextTag(Tags.FOLDER_DELETE) != END) {
             switch (tag) {
-                case Tags.FOLDER_SERVER_ID:
-                    final String serverId = getValue();
+                case Tags.FOLDER_SERVER_ID: {
+                    String serverId = getValue();
                     callback.removeFolder(serverId);
                     break;
-                default:
+                }
+                default: {
                     skipTag();
+                }
             }
         }
     }
@@ -136,22 +121,28 @@ public class FolderSyncParser extends Parser {
         String serverId = null;
         String displayName = null;
         String parentId = null;
+
         while (nextTag(Tags.FOLDER_UPDATE) != END) {
             switch (tag) {
-                case Tags.FOLDER_SERVER_ID:
+                case Tags.FOLDER_SERVER_ID: {
                     serverId = getValue();
                     break;
-                case Tags.FOLDER_DISPLAY_NAME:
+                }
+                case Tags.FOLDER_DISPLAY_NAME: {
                     displayName = getValue();
                     break;
-                case Tags.FOLDER_PARENT_ID:
+                }
+                case Tags.FOLDER_PARENT_ID: {
                     parentId = getValue();
                     break;
-                default:
+                }
+                default: {
                     skipTag();
                     break;
+                }
             }
         }
+
         // We'll make a change if one of parentId or displayName are specified
         // serverId is required, but let's be careful just the same
         if (serverId != null && (displayName != null || parentId != null)) {
@@ -159,11 +150,6 @@ public class FolderSyncParser extends Parser {
         }
     }
 
-    /**
-     * Handle the Changes element of the FolderSync response. This is the container for Add, Delete,
-     * and Update elements.
-     * @throws IOException
-     */
     private void changesParser() throws IOException {
         while (nextTag(Tags.FOLDER_CHANGES) != END) {
             if (tag == Tags.FOLDER_ADD) {
@@ -175,8 +161,9 @@ public class FolderSyncParser extends Parser {
             } else if (tag == Tags.FOLDER_COUNT) {
                 // TODO: Maybe we can make use of this count somehow.
                 getValueInt();
-            } else
+            } else {
                 skipTag();
+            }
         }
     }
 
@@ -188,17 +175,9 @@ public class FolderSyncParser extends Parser {
         controller.folderStatus(status);
     }
 
-    private void handleNewSyncKey(boolean resetFolders, String newKey) {
-        if (newKey != null && !resetFolders) {
+    private void handleNewSyncKey(String newKey) {
+        if (newKey != null) {
             controller.updateSyncKey(newKey);
-            mSyncKeyChanged = !newKey.equals(mAccount.mSyncKey);
         }
-    }
-
-    private <T> T checkNotNull(T object, String message) {
-        if (object == null) {
-            throw new IllegalArgumentException(message);
-        }
-        return object;
     }
 }

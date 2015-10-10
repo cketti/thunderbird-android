@@ -20,7 +20,6 @@ package com.fsck.k9.mail.store.eas;
 import java.io.IOException;
 
 import android.content.Context;
-import android.os.Bundle;
 
 import com.fsck.k9.mail.store.eas.adapter.FolderSyncController;
 import com.fsck.k9.mail.store.eas.adapter.FolderSyncParser;
@@ -30,68 +29,28 @@ import com.fsck.k9.mail.store.eas.callback.FolderSyncCallback;
 
 
 /**
- * Implements the EAS FolderSync command. We use this both to actually do a folder sync, and also
- * during account adding flow as a convenient command to validate the account settings (e.g. since
- * it needs to login and will tell us about provisioning requirements).
- * TODO: Doing validation here is kind of wonky. There must be a better way.
- * TODO: Add the use of the Settings command during validation.
+ * Implements the EAS FolderSync command
  *
  * See http://msdn.microsoft.com/en-us/library/ee237648(v=exchg.80).aspx for more details.
  */
 public class EasFolderSync extends EasOperation {
-
-    /** Result code indicating the sync completed correctly. */
     public static final int RESULT_OK = 1;
 
-    /** Indicates whether this object is for validation rather than sync. */
-    private final boolean mStatusOnly;
-
-    /** During validation, this holds the policy we must enforce. */
-    private Policy mPolicy;
-
-    /** During validation, this holds the result. */
-    private Bundle mValidationResult;
 
     private final FolderSyncCallback callback;
 
-    /**
-     * Constructor for actually doing folder sync.
-     * @param context
-     * @param account
-     */
-    public EasFolderSync(final Context context, final Account account, FolderSyncCallback callback) {
+
+    public EasFolderSync(Context context, Account account, FolderSyncCallback callback) {
         super(context, account);
-        mStatusOnly = false;
-        mPolicy = null;
         this.callback = callback;
     }
 
-    private static Account makeAccount(final HostAuth hostAuth) {
-        final Account account = new Account();
-        account.mHostAuthRecv = hostAuth;
-        account.mEmailAddress = hostAuth.mLogin;
-        return account;
-    }
-
-//    /**
-//     * Constructor for account validation.
-//     * @param context
-//     * @param hostAuth
-//     */
-//    public EasFolderSync(final Context context, final HostAuth hostAuth) {
-//        super(context, makeAccount(hostAuth), hostAuth);
-//        mStatusOnly = true;
-//    }
-
     @Override
     public int performOperation() {
-        if (mStatusOnly) {
-            return validate();
-        } else {
-            LogUtils.d(LOG_TAG, "Performing FolderSync for account %d", getAccountId());
-            clearFoldersBeforeInitialSync();
-            return super.performOperation();
-        }
+        LogUtils.d(LOG_TAG, "Performing FolderSync for account %d", getAccountId());
+        clearFoldersBeforeInitialSync();
+
+        return super.performOperation();
     }
 
     private void clearFoldersBeforeInitialSync() {
@@ -101,54 +60,6 @@ public class EasFolderSync extends EasOperation {
         }
     }
 
-    /**
-     * Returns the validation results after this operation has been performed.
-     * @return The validation results.
-     */
-    public Bundle getValidationResult() {
-        return mValidationResult;
-    }
-
-    /**
-     * Helper function for {@link #performOperation} -- do some initial checks and, if they pass,
-     * perform a folder sync to verify that we can. This sets {@link #mValidationResult} as a side
-     * effect which holds the result details needed by the UI.
-     * @return A result code, either from above or from the base class.
-     */
-    private int validate() {
-        mValidationResult = new Bundle(3);
-        if (!mStatusOnly) {
-            writeResultCode(mValidationResult, RESULT_OTHER_FAILURE);
-            return RESULT_OTHER_FAILURE;
-        }
-        LogUtils.d(LOG_TAG, "Performing validation");
-
-        if (!registerClientCert()) {
-//            mValidationResult.putInt(EmailServiceProxy.VALIDATE_BUNDLE_RESULT_CODE,
-//                    MessagingException.CLIENT_CERTIFICATE_ERROR);
-            return RESULT_CLIENT_CERTIFICATE_REQUIRED;
-        }
-
-        if (shouldGetProtocolVersion()) {
-            final EasOptions options = new EasOptions(this);
-            final int result = options.getProtocolVersionFromServer();
-            if (result != EasOptions.RESULT_OK) {
-                writeResultCode(mValidationResult, result);
-                return result;
-            }
-            final String protocolVersion = options.getProtocolVersionString();
-//FIXME            setProtocolVersion(protocolVersion);
-//            mValidationResult.putString(EmailServiceProxy.VALIDATE_BUNDLE_PROTOCOL_VERSION,
-//                    protocolVersion);
-        }
-
-        // This is intentionally a call to super.performOperation. This is a helper function for
-        // our version of perfomOperation so calling that function would infinite loop.
-        final int result = super.performOperation();
-        writeResultCode(mValidationResult, result);
-        return result;
-    }
-
     @Override
     protected String getCommand() {
         return "FolderSync";
@@ -156,94 +67,25 @@ public class EasFolderSync extends EasOperation {
 
     @Override
     protected byte[] getRequestEntity() throws IOException {
-        final String syncKey = mAccount.mSyncKey != null ? mAccount.mSyncKey : "0";
-        final Serializer s = new Serializer();
-        s.start(Tags.FOLDER_FOLDER_SYNC).start(Tags.FOLDER_SYNC_KEY).text(syncKey)
-            .end().end().done();
-        return makeEntity(s);
+        String syncKey = mAccount.mSyncKey != null ? mAccount.mSyncKey : "0";
+
+        Serializer serializer = new Serializer();
+        serializer.start(Tags.FOLDER_FOLDER_SYNC)
+                .start(Tags.FOLDER_SYNC_KEY).text(syncKey).end()
+                .end().done();
+
+        return makeEntity(serializer);
     }
 
     @Override
-    protected int handleResponse(final EasResponse response)
-            throws IOException, CommandStatusException {
+    protected int handleResponse(EasResponse response) throws IOException, CommandStatusException {
         if (!response.isEmpty()) {
-            new FolderSyncParser(mContext, response.getInputStream(), mAccount, mStatusOnly, callback,
-                    new EasFolderSyncController()).parse();
+            EasFolderSyncController controller = new EasFolderSyncController();
+            FolderSyncParser folderSyncParser = new FolderSyncParser(response.getInputStream(), callback, controller);
+            folderSyncParser.parse();
         }
+
         return RESULT_OK;
-    }
-
-    @Override
-    protected boolean handleForbidden() {
-        return mStatusOnly;
-    }
-
-    @Override
-    protected boolean handleProvisionError() {
-        if (mStatusOnly) {
-            final EasProvision provisionOperation = new EasProvision(this);
-            mPolicy = provisionOperation.test();
-            // Regardless of whether the policy is supported, we return false because there's
-            // no need to re-run the operation.
-            return false;
-        }
-        return super.handleProvisionError();
-    }
-
-    /**
-     * Translate {@link EasOperation} result codes to the values needed by the RPC, and write
-     * them to the {@link Bundle}.
-     * @param bundle The {@link Bundle} to return to the RPC.
-     * @param resultCode The result code for this operation.
-     */
-    private void writeResultCode(final Bundle bundle, final int resultCode) {
-//        final int messagingExceptionCode;
-//        switch (resultCode) {
-//            case RESULT_ABORT:
-//                messagingExceptionCode = MessagingException.IOERROR;
-//                break;
-//            case RESULT_RESTART:
-//                messagingExceptionCode = MessagingException.IOERROR;
-//                break;
-//            case RESULT_TOO_MANY_REDIRECTS:
-//                messagingExceptionCode = MessagingException.UNSPECIFIED_EXCEPTION;
-//                break;
-//            case RESULT_NETWORK_PROBLEM:
-//                messagingExceptionCode = MessagingException.IOERROR;
-//                break;
-//            case RESULT_FORBIDDEN:
-//                messagingExceptionCode = MessagingException.ACCESS_DENIED;
-//                break;
-//            case RESULT_PROVISIONING_ERROR:
-//                if (mPolicy == null) {
-//                    messagingExceptionCode = MessagingException.UNSPECIFIED_EXCEPTION;
-//                } else {
-//                    bundle.putParcelable(EmailServiceProxy.VALIDATE_BUNDLE_POLICY_SET, mPolicy);
-//                    messagingExceptionCode = mPolicy.mProtocolPoliciesUnsupported == null ?
-//                            MessagingException.SECURITY_POLICIES_REQUIRED :
-//                            MessagingException.SECURITY_POLICIES_UNSUPPORTED;
-//                }
-//                break;
-//            case RESULT_AUTHENTICATION_ERROR:
-//                messagingExceptionCode = MessagingException.AUTHENTICATION_FAILED;
-//                break;
-//            case RESULT_CLIENT_CERTIFICATE_REQUIRED:
-//                messagingExceptionCode = MessagingException.CLIENT_CERTIFICATE_REQUIRED;
-//                break;
-//            case RESULT_PROTOCOL_VERSION_UNSUPPORTED:
-//                messagingExceptionCode = MessagingException.PROTOCOL_VERSION_UNSUPPORTED;
-//                break;
-//            case RESULT_OTHER_FAILURE:
-//                messagingExceptionCode = MessagingException.UNSPECIFIED_EXCEPTION;
-//                break;
-//            case RESULT_OK:
-//                messagingExceptionCode = MessagingException.NO_ERROR;
-//                break;
-//            default:
-//                messagingExceptionCode = MessagingException.UNSPECIFIED_EXCEPTION;
-//                break;
-//        }
-//        bundle.putInt(EmailServiceProxy.VALIDATE_BUNDLE_RESULT_CODE, messagingExceptionCode);
     }
 
 
