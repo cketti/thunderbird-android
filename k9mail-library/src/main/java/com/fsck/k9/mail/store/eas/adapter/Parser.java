@@ -302,6 +302,10 @@ public abstract class Parser {
         return num;
     }
 
+    protected boolean getValueBoolean() throws IOException {
+        return getValueInt() == 1;
+    }
+
     /**
      * Return the next tag found in the stream; special tags END and END_DOCUMENT are used to
      * mark the end of the current tag and end of document.  If we hit end of document without
