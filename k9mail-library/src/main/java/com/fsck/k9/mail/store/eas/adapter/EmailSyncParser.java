@@ -226,8 +226,10 @@ public class EmailSyncParser extends AbstractSyncParser {
         // We always ask for TEXT or HTML; there's no third option
         if (bodyType.equals(Eas.BODY_PREFERENCE_HTML)) {
             msg.setHtml(body);
-        } else {
+        } else if (bodyType.equals(Eas.BODY_PREFERENCE_TEXT)) {
             msg.setText(body);
+        } else {
+            msg.setMessageData(body);
         }
     }
 
@@ -239,6 +241,7 @@ public class EmailSyncParser extends AbstractSyncParser {
      */
     private static void mimeBodyParser(MessageData msg, String mimeData)
             throws IOException {
+        msg.setMessageData(mimeData);
 //        try {
 //            ByteArrayInputStream in = new ByteArrayInputStream(mimeData.getBytes());
 //            // The constructor parses the message

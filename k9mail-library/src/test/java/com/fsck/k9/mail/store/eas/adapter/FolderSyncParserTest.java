@@ -1,7 +1,6 @@
 package com.fsck.k9.mail.store.eas.adapter;
 
 
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 
 import com.fsck.k9.mail.store.eas.Eas;
@@ -14,6 +13,7 @@ import org.mockito.Mock;
 import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
 
+import static com.fsck.k9.mail.store.eas.adapter.ParserTestHelper.inputStreamFromSerializer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
 import static org.mockito.Matchers.anyInt;
@@ -218,9 +218,5 @@ public class FolderSyncParserTest {
         } catch (IllegalArgumentException e) {
             assertEquals("Argument 'controller' can't be null", e.getMessage());
         }
-    }
-
-    private ByteArrayInputStream inputStreamFromSerializer(Serializer serializer) {
-        return new ByteArrayInputStream(serializer.toByteArray());
     }
 }

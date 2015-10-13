@@ -72,6 +72,7 @@ public class MessageData {
     private List<AttachmentData> attachments;
     private String html;
     private String text;
+    private String messageData;
 
 
     public String getServerId() {
@@ -212,5 +213,13 @@ public class MessageData {
 
     public String getText() {
         return text;
+    }
+
+    public String getMessageData() {
+        return messageData;
+    }
+
+    public void setMessageData(String messageData) {
+        this.messageData = messageData;
     }
 }
