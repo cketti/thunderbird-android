@@ -2,12 +2,13 @@ package com.fsck.k9.mail.data;
 
 
 import java.util.List;
+import java.util.Set;
 
 
 public interface Header {
     int size();
 
-    List<String> names();
+    Set<String> names();
 
     String value(String name);
 
