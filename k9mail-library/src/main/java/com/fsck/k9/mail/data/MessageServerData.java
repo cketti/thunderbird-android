@@ -5,6 +5,8 @@ import com.fsck.k9.mail.Flag;
 
 
 public interface MessageServerData {
+    String folderServerId();
+
     String serverId();
 
     long timeStamp();

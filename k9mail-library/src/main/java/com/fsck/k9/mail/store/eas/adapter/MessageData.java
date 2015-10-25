@@ -1,14 +1,16 @@
 package com.fsck.k9.mail.store.eas.adapter;
 
 
-import java.util.ArrayList;
 import java.util.List;
 
 import com.fsck.k9.mail.Address;
+import com.fsck.k9.mail.Flag;
+import com.fsck.k9.mail.data.Message;
+import com.fsck.k9.mail.data.MessageServerData;
+import com.fsck.k9.mail.data.Part;
 
 
-//TODO: make this a proper Message subclass
-public class MessageData {
+public class MessageData implements MessageServerData {
     public static final int FLAG_LOADED_UNLOADED = 0;
     public static final int FLAG_LOADED_COMPLETE = 1;
     public static final int FLAG_LOADED_PARTIAL = 2;
@@ -72,7 +74,8 @@ public class MessageData {
     private List<AttachmentData> attachments;
     private String html;
     private String text;
-    private String messageData;
+    private Message message;
+    private String folderServerId;
 
 
     public String getServerId() {
@@ -215,11 +218,57 @@ public class MessageData {
         return text;
     }
 
-    public String getMessageData() {
-        return messageData;
+    public void setMessage(Message message) {
+        this.message = message;
     }
 
-    public void setMessageData(String messageData) {
-        this.messageData = messageData;
+    @Override
+    public String serverId() {
+        return serverId;
+    }
+
+    @Override
+    public long timeStamp() {
+        return timeStamp;
+    }
+
+    @Override
+    public boolean isFlagSet(Flag flag) {
+        switch (flag) {
+            case SEEN: {
+                return flagRead;
+            }
+            case ANSWERED: {
+                return (getFlags() & MessageData.FLAG_REPLIED_TO) != 0;
+            }
+            case FLAGGED: {
+                return flagFavorite;
+            }
+            case FORWARDED: {
+                return (getFlags() & MessageData.FLAG_FORWARDED) != 0;
+            }
+            default: {
+                return false;
+            }
+        }
+    }
+
+    @Override
+    public Message message() {
+        return message;
+    }
+
+    @Override
+    public String getServerIdForPart(Part part) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public String folderServerId() {
+        return folderServerId;
+    }
+
+    public void setFolderServerId(String folderServerId) {
+        this.folderServerId = folderServerId;
     }
 }

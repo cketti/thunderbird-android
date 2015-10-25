@@ -1,11 +1,11 @@
 package com.fsck.k9.mail.store.eas.callback;
 
 
-import com.fsck.k9.mail.store.eas.adapter.MessageData;
+import com.fsck.k9.mail.data.MessageServerData;
 
 
 public interface EmailSyncCallback extends BaseSyncCallback {
-    void addMessage(MessageData messageData);
+    void addMessage(MessageServerData messageData);
 
     void removeMessage(String serverId);
 

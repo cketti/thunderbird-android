@@ -1,6 +1,7 @@
 package com.fsck.k9.mail.store.eas.adapter;
 
 
+import java.io.IOException;
 import java.io.InputStream;
 
 import com.fsck.k9.mail.Address;
@@ -77,11 +78,11 @@ public class EmailSyncParserTest {
                 /**/.end()
                 .end().done();
         InputStream inputStream = inputStreamFromSerializer(serializer);
-        EmailSyncParser parser = new EmailSyncParser(inputStream, callback);
+        TestEmailSyncParser parser = new TestEmailSyncParser(inputStream, callback);
 
         parser.parse();
 
-        verifyParserResultForSimpleMessageResponse();
+        verifyParserResultForSimpleMessageResponse(parser);
     }
 
     @Test
@@ -118,14 +119,14 @@ public class EmailSyncParserTest {
                 /**/.end()
                 .end().done();
         InputStream inputStream = inputStreamFromSerializer(serializer);
-        EmailSyncParser parser = new EmailSyncParser(inputStream, callback);
+        TestEmailSyncParser parser = new TestEmailSyncParser(inputStream, callback);
 
         parser.parse();
 
-        verifyParserResultForSimpleMessageResponse();
+        verifyParserResultForSimpleMessageResponse(parser);
     }
 
-    private void verifyParserResultForSimpleMessageResponse() {
+    private void verifyParserResultForSimpleMessageResponse(TestEmailSyncParser parser) throws IOException {
         ArgumentCaptor<MessageData> argumentCaptor = ArgumentCaptor.forClass(MessageData.class);
         verify(callback).addMessage(argumentCaptor.capture());
         MessageData messageData = argumentCaptor.getValue();
@@ -136,7 +137,25 @@ public class EmailSyncParserTest {
         assertEquals("Test", messageData.getSubject());
         assertEquals(1444680000000L, messageData.getTimeStamp());
         assertEquals(true, messageData.isFlagRead());
-        assertEquals(SIMPLE_MESSAGE, messageData.getMessageData());
+        assertEquals(SIMPLE_MESSAGE, parser.getMimeData());
         verify(callback).commitMessageChanges();
+    }
+
+
+    static class TestEmailSyncParser extends EmailSyncParser {
+        private String mimeData;
+
+        public TestEmailSyncParser(InputStream in, EmailSyncCallback callback) throws IOException {
+            super(in, null, callback);
+        }
+
+        @Override
+        void mimeBodyParser(MessageData messageData, String mimeData) throws IOException {
+            this.mimeData = mimeData;
+        }
+
+        public String getMimeData() {
+            return mimeData;
+        }
     }
 }

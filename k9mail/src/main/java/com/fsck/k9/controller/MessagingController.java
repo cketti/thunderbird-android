@@ -800,6 +800,36 @@ public class MessagingController implements Runnable {
         });
     }
 
+    private void synchronizeMailboxSynchronous(Account account, String folder, MessagingListener listener,
+            Folder providedRemoteFolder) {
+        if (backendManager.isBackendSupported(account)) {
+            syncFolder(account, folder, listener);
+        } else {
+            synchronizeMailboxViaStore(account, folder, listener, providedRemoteFolder);
+        }
+    }
+
+    private void syncFolder(Account account, String folderServerId, MessagingListener listener) {
+        Backend backend = backendManager.getBackend(account);
+
+        for (MessagingListener l : getListeners(listener)) {
+            l.synchronizeMailboxStarted(account, folderServerId);
+        }
+
+        //TODO: Use MessagingListener for progress updates
+        if (!backend.syncFolder(folderServerId)) {
+            for (MessagingListener l : getListeners(listener)) {
+                l.synchronizeMailboxFailed(account, folderServerId, "");
+            }
+
+            return;
+        }
+
+        for (MessagingListener l : getListeners(listener)) {
+            l.synchronizeMailboxFinished(account, folderServerId, 0, 0);
+        }
+    }
+
     /**
      * Start foreground synchronization of the specified folder. This is generally only called
      * by synchronizeMailbox.
@@ -809,7 +839,8 @@ public class MessagingController implements Runnable {
      * TODO Break this method up into smaller chunks.
      * @param providedRemoteFolder TODO
      */
-    private void synchronizeMailboxSynchronous(final Account account, final String folder, final MessagingListener listener, Folder providedRemoteFolder) {
+    private void synchronizeMailboxViaStore(Account account, String folder, MessagingListener listener,
+            Folder providedRemoteFolder) {
         Folder remoteFolder = null;
         LocalFolder tLocalFolder = null;
 

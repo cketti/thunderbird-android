@@ -1,9 +1,17 @@
 package com.fsck.k9.controller;
 
 
+import java.util.Collections;
+
 import com.fsck.k9.Account;
+import com.fsck.k9.controller.legacy.LegacyMessage;
 import com.fsck.k9.mail.Folder.FolderClass;
+import com.fsck.k9.mail.Message;
+import com.fsck.k9.mail.MessagingException;
+import com.fsck.k9.mail.data.MessageServerData;
 import com.fsck.k9.mailstore.FolderType;
+import com.fsck.k9.mailstore.LocalFolder;
+import com.fsck.k9.mailstore.LocalStore;
 import com.fsck.k9.mailstore.MailStore;
 import com.fsck.k9.mailstore.data.Folder;
 import com.fsck.k9.remote.BackendFolderType;
@@ -67,6 +75,21 @@ class BackendStorage implements com.fsck.k9.remote.BackendStorage {
     @Override
     public void deleteAllFolders() {
         mailStore.deleteAllFolders();
+    }
+
+    @Override
+    public void createMessage(MessageServerData messageServerData) {
+        //TODO: Move code to store messages from LocalStore/LocalFolder to MailStore
+        try {
+            Message messageToSave = LegacyMessage.createFrom(messageServerData);
+
+            LocalStore localStore = account.getLocalStore();
+            LocalFolder localFolder = localStore.getFolderByServerId(messageServerData.folderServerId());
+            localFolder.open(LocalFolder.OPEN_MODE_RW);
+            localFolder.appendMessages(Collections.singletonList(messageToSave));
+        } catch (MessagingException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private FolderType convertFromBackendFolderType(BackendFolderType backendFolderType) {

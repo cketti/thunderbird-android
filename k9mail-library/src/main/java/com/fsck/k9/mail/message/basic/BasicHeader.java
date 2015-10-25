@@ -5,19 +5,21 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 
 import com.fsck.k9.mail.data.Header;
+import com.fsck.k9.mail.data.HeaderField;
 import com.fsck.k9.mail.data.builder.HeaderBuilder;
 import com.fsck.k9.mail.util.LinkedHashMultimap;
 import com.fsck.k9.mail.util.Multimap;
 
 
 class BasicHeader implements Header {
+    private final List<BasicHeaderField> fields;
     private final Multimap<String, BasicHeaderField> fieldMap;
 
 
     private BasicHeader(Builder builder) {
+        fields = builder.fields;
         fieldMap = LinkedHashMultimap.create(builder.fields.size());
         for (BasicHeaderField field : builder.fields) {
             String lowerCaseName = field.name().toLowerCase(Locale.ENGLISH);
@@ -31,8 +33,8 @@ class BasicHeader implements Header {
     }
 
     @Override
-    public Set<String> names() {
-        return fieldMap.keys();
+    public List<? extends HeaderField> fields() {
+        return Collections.unmodifiableList(fields);
     }
 
     @Override

@@ -19,6 +19,11 @@ class BasicContentBody implements ContentBody {
     }
 
     @Override
+    public long size() {
+        return raw.length;
+    }
+
+    @Override
     public InputStream raw() {
         return new ByteArrayInputStream(raw);
     }

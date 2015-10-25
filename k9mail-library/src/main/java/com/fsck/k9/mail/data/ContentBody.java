@@ -5,5 +5,6 @@ import java.io.InputStream;
 
 
 public interface ContentBody extends Body {
+    long size();
     InputStream raw();
 }

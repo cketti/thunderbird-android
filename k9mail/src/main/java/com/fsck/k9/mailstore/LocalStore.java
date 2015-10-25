@@ -26,6 +26,7 @@ import com.fsck.k9.mailstore.LocalFolder.MoreMessages;
 import com.fsck.k9.mailstore.StorageManager.StorageProvider;
 import com.fsck.k9.mailstore.LockableDatabase.DbCallback;
 import com.fsck.k9.mailstore.LockableDatabase.WrappedException;
+import com.fsck.k9.mailstore.exception.FolderNotFoundException;
 import com.fsck.k9.provider.EmailProvider;
 import com.fsck.k9.provider.EmailProvider.MessageColumns;
 import com.fsck.k9.search.LocalSearch;
@@ -357,6 +358,34 @@ public class LocalStore extends Store implements Serializable {
 
     public LocalFolder getFolderById(long folderId) {
         return new LocalFolder(this, folderId);
+    }
+
+    public LocalFolder getFolderByServerId(String serverId) throws MessagingException {
+        long folderId = getFolderIdByServerId(serverId);
+        return getFolderById(folderId);
+    }
+
+    private long getFolderIdByServerId(final String serverId) throws MessagingException {
+        return database.execute(false, new DbCallback<Long>() {
+            @Override
+            public Long doDbWork(SQLiteDatabase db) throws WrappedException, MessagingException {
+                Cursor cursor = db.query(
+                        "folders",
+                        new String[] { "id" },
+                        "server_id = ?",
+                        new String[] { serverId },
+                        null, null, null);
+                try {
+                    if (cursor.moveToFirst()) {
+                        return cursor.getLong(0);
+                    }
+                } finally {
+                    cursor.close();
+                }
+
+                throw new FolderNotFoundException("Folder with server ID '" + serverId + "' not found");
+            }
+        });
     }
 
     // TODO this takes about 260-300ms, seems slow.
@@ -787,7 +816,7 @@ public class LocalStore extends Store implements Serializable {
                     }
                     folder.refresh(name, prefHolder);   // Recover settings from Preferences
 
-                    db.execSQL("INSERT INTO folders (name, visible_limit, top_group, display_class, poll_class, notify_class, push_class, integrate) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", new Object[] {
+                    db.execSQL("INSERT INTO folders (name, visible_limit, top_group, display_class, poll_class, notify_class, push_class, integrate, server_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", new Object[] {
                                    name,
                                    visibleLimit,
                                    prefHolder.inTopGroup ? 1 : 0,
@@ -796,6 +825,7 @@ public class LocalStore extends Store implements Serializable {
                                    prefHolder.notifyClass.name(),
                                    prefHolder.pushClass.name(),
                                    prefHolder.integrate ? 1 : 0,
+                                   name
                                });
 
                 }

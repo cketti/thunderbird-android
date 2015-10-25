@@ -1189,9 +1189,9 @@ public class LocalFolder extends Folder<LocalMessage> implements Serializable {
 
     protected void saveMessage(SQLiteDatabase db, Message message, boolean copy, Map<String, String> uidMap)
             throws MessagingException {
-        if (!(message instanceof MimeMessage)) {
-            throw new Error("LocalStore can only store Messages that extend MimeMessage");
-        }
+//        if (!(message instanceof MimeMessage)) {
+//            throw new Error("LocalStore can only store Messages that extend MimeMessage");
+//        }
 
         long oldMessageId = -1;
         String uid = message.getUid();

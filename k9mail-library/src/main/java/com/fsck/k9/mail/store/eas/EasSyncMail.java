@@ -76,7 +76,7 @@ public class EasSyncMail extends EasSyncCollectionTypeBase {
             if (protocolVersion >= Eas.SUPPORTED_PROTOCOL_EX2007_DOUBLE) {
                 s.start(Tags.BASE_BODY_PREFERENCE);
                 // HTML for email
-                s.data(Tags.BASE_TYPE, Eas.BODY_PREFERENCE_HTML);
+                s.data(Tags.BASE_TYPE, Eas.BODY_PREFERENCE_MIME);
                 s.data(Tags.BASE_TRUNCATION_SIZE, Eas.EAS12_TRUNCATION_SIZE);
                 s.end();
             } else {
@@ -108,7 +108,8 @@ public class EasSyncMail extends EasSyncCollectionTypeBase {
     @Override
     public AbstractSyncParser getParser(final Context context, final Account account,
             final Mailbox mailbox, final InputStream is) throws IOException {
-        return new EmailSyncParser(is, callback);
+        String folderServerId = mailbox.mServerId;
+        return new EmailSyncParser(is, folderServerId, callback);
     }
 
     /**

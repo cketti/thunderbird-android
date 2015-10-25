@@ -1,7 +1,10 @@
 package com.fsck.k9.mail.message.basic;
 
 
-class BasicHeaderField {
+import com.fsck.k9.mail.data.HeaderField;
+
+
+class BasicHeaderField implements HeaderField {
     private final String name;
     private final String value;
     private final String raw;
@@ -37,10 +40,12 @@ class BasicHeaderField {
         return new BasicHeaderField(name, null, raw);
     }
 
+    @Override
     public String name() {
         return name;
     }
 
+    @Override
     public String value() {
         if (value != null) {
             return value;
@@ -54,10 +59,12 @@ class BasicHeaderField {
         return raw.substring(delimiterIndex + 1).trim();
     }
 
+    @Override
     public String raw() {
         return raw;
     }
 
+    @Override
     public boolean hasRawData() {
         return raw != null;
     }

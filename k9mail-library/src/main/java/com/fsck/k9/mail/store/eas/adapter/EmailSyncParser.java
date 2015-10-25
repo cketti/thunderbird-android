@@ -16,11 +16,14 @@ import android.util.Base64;
 import android.webkit.MimeTypeMap;
 
 import com.fsck.k9.mail.Address;
+import com.fsck.k9.mail.data.Message;
+import com.fsck.k9.mail.message.MessageParser;
 import com.fsck.k9.mail.store.eas.CommandStatusException;
 import com.fsck.k9.mail.store.eas.Eas;
 import com.fsck.k9.mail.store.eas.LogUtils;
 import com.fsck.k9.mail.store.eas.Utility;
 import com.fsck.k9.mail.store.eas.callback.EmailSyncCallback;
+import com.fsck.k9.mail.util.StreamHelper;
 
 
 /**
@@ -49,13 +52,15 @@ public class EmailSyncParser extends AbstractSyncParser {
     public static final int EAS_SYNC_STATUS_RETRY = 16;
 
 
+    private final String folderServerId;
     private final EmailSyncCallback callback;
     private final Map<String, Integer> messageUpdateStatus = new HashMap<String, Integer>();
     private boolean fetchNeeded = false;
 
 
-    public EmailSyncParser(InputStream in, EmailSyncCallback callback) throws IOException {
+    public EmailSyncParser(InputStream in, String folderServerId, EmailSyncCallback callback) throws IOException {
         super(in, callback);
+        this.folderServerId = folderServerId;
         this.callback = callback;
     }
 
@@ -206,6 +211,7 @@ public class EmailSyncParser extends AbstractSyncParser {
         int status = 1;
 
         MessageData messageData = new MessageData();
+        messageData.setFolderServerId(folderServerId);
         messageData.setFlagLoaded(MessageData.FLAG_LOADED_COMPLETE);
 
         while (nextTag(endingTag) != END) {
@@ -279,14 +285,14 @@ public class EmailSyncParser extends AbstractSyncParser {
         } else if (bodyType.equals(Eas.BODY_PREFERENCE_TEXT)) {
             messageData.setText(body);
         } else {
-            //TODO: parse Message
-            messageData.setMessageData(body);
+            mimeBodyParser(messageData, body);
         }
     }
 
-    private static void mimeBodyParser(MessageData messageData, String mimeData) throws IOException {
-        //TODO: parse Message
-        messageData.setMessageData(mimeData);
+    void mimeBodyParser(MessageData messageData, String mimeData) throws IOException {
+        InputStream inputStream = StreamHelper.inputStreamFromString(mimeData);
+        Message message = MessageParser.parse(inputStream);
+        messageData.setMessage(message);
     }
 
     private void attachmentsParser(List<AttachmentData> attachmentDataList, int endingTag) throws IOException {

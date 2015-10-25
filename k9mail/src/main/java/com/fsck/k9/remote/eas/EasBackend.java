@@ -12,13 +12,15 @@ import com.fsck.k9.remote.Backend;
 
 public class EasBackend implements Backend {
     private final FolderSync folderSync;
+    private final EmailSync emailSync;
     private final com.fsck.k9.mail.store.eas.Account easAccount;
 
 
     //TODO: Instead of Account pass EasConfig
     public EasBackend(Context context, Account account, BackendStorage backendStorage) {
         easAccount = createEasAccount(account);
-        this.folderSync = new FolderSync(context, easAccount, backendStorage);
+        folderSync = new FolderSync(context, easAccount, backendStorage);
+        emailSync = new EmailSync(context, easAccount, backendStorage);
     }
 
     public static String createEasStoreUri(String hostname, String username, String password) {
@@ -34,6 +36,11 @@ public class EasBackend implements Backend {
     @Override
     public boolean syncFolders() {
         return folderSync.syncFolders();
+    }
+
+    @Override
+    public boolean syncFolder(String serverId) {
+        return emailSync.syncFolder(serverId);
     }
 
     private com.fsck.k9.mail.store.eas.Account createEasAccount(Account account) {
