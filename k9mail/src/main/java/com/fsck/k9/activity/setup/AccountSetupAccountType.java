@@ -13,6 +13,8 @@ import com.fsck.k9.K9;
 import com.fsck.k9.Preferences;
 import com.fsck.k9.R;
 import com.fsck.k9.activity.K9Activity;
+import com.fsck.k9.ui.setup.EasServerSettingsActivity;
+
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -42,6 +44,7 @@ public class AccountSetupAccountType extends K9Activity implements OnClickListen
         findViewById(R.id.pop).setOnClickListener(this);
         findViewById(R.id.imap).setOnClickListener(this);
         findViewById(R.id.webdav).setOnClickListener(this);
+        findViewById(R.id.eas).setOnClickListener(this);
 
         String accountUuid = getIntent().getStringExtra(EXTRA_ACCOUNT);
         mAccount = Preferences.getPreferences(this).getAccount(accountUuid);
@@ -82,6 +85,17 @@ public class AccountSetupAccountType extends K9Activity implements OnClickListen
         mAccount.setStoreUri(uri.toString());
     }
 
+    private void runEasSetup() throws URISyntaxException {
+        URI uriForDecode = new URI(mAccount.getStoreUri());
+
+        String[] userInfo = uriForDecode.getUserInfo().split(":");
+        String email = mAccount.getEmail();
+        String password = userInfo[2];
+
+        EasServerSettingsActivity.start(this, mAccount, email, password);
+        finish();
+    }
+
     public void onClick(View v) {
         try {
             switch (v.getId()) {
@@ -97,12 +111,17 @@ public class AccountSetupAccountType extends K9Activity implements OnClickListen
                     setupDav();
                     break;
                 }
+                case R.id.eas: {
+                    runEasSetup();
+                    return;
+                }
             }
+
+            AccountSetupIncoming.actionIncomingSettings(this, mAccount, mMakeDefault);
         } catch (Exception ex) {
             failure(ex);
         }
 
-        AccountSetupIncoming.actionIncomingSettings(this, mAccount, mMakeDefault);
         finish();
     }
 

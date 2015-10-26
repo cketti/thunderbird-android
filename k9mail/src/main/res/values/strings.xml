@@ -385,6 +385,7 @@ Please submit bug reports, contribute new features and ask questions at
     <string name="account_setup_account_type_pop_action">POP3</string>
     <string name="account_setup_account_type_imap_action">IMAP</string>
     <string name="account_setup_account_type_webdav_action">Exchange (WebDAV)</string>
+    <string name="account_setup_account_type_eas_action">Exchange (ActiveSync)</string>
 
     <string name="account_setup_auth_type_normal_password">Normal password</string>
     <string name="account_setup_auth_type_insecure_password">Password, transmitted insecurely</string>
@@ -398,6 +399,7 @@ Please submit bug reports, contribute new features and ask questions at
     <string name="account_setup_incoming_pop_server_label">POP3 server</string>
     <string name="account_setup_incoming_imap_server_label">IMAP server</string>
     <string name="account_setup_incoming_webdav_server_label">Exchange server</string>
+    <string name="account_setup_incoming_eas_server_label">Exchange ActiveSync server</string>
     <string name="account_setup_incoming_port_label">Port</string>
     <string name="account_setup_incoming_security_label">Security</string>
     <string name="account_setup_incoming_auth_type_label">Authentication</string>
@@ -1159,4 +1161,5 @@ Please submit bug reports, contribute new features and ask questions at
     <!-- Note: This references message_view_download_remainder -->
     <string name="crypto_download_complete_message_to_decrypt">Click \'Download complete message\' to allow decryption.</string>
 
+    <string name="eas_server_settings_activity_title">Server settings</string>
 </resources>

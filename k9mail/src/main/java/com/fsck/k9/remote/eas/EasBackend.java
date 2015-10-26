@@ -21,6 +21,16 @@ public class EasBackend implements Backend {
         this.folderSync = new FolderSync(context, easAccount, backendStorage);
     }
 
+    public static String createEasStoreUri(String hostname, String username, String password) {
+        return new Uri.Builder()
+                .scheme("eas")
+                .authority(hostname)
+                .appendQueryParameter("username", username)
+                .appendQueryParameter("password", password)
+                .build()
+                .toString();
+    }
+
     @Override
     public boolean syncFolders() {
         return folderSync.syncFolders();
@@ -29,9 +39,8 @@ public class EasBackend implements Backend {
     private com.fsck.k9.mail.store.eas.Account createEasAccount(Account account) {
         Uri storeUri = Uri.parse(account.getStoreUri());
 
-        String[] userInfoParts = storeUri.getUserInfo().split(":");
-        String username = userInfoParts[0];
-        String password = userInfoParts[1];
+        String username = storeUri.getQueryParameter("username");
+        String password = storeUri.getQueryParameter("password");
         String host = storeUri.getHost();
 
         HostAuth hostAuth = new HostAuth();
