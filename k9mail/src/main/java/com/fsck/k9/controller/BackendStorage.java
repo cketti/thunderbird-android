@@ -36,6 +36,7 @@ class BackendStorage implements com.fsck.k9.remote.BackendStorage {
 
         FolderType folderType = convertFromBackendFolderType(backendFolderType);
         folder.type = folderType;
+        folderType.setSpecialFolder(account, serverId);
 
         boolean integrate = false;
         boolean inTopGroup = false;
