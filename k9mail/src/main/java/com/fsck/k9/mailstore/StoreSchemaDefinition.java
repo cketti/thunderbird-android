@@ -580,7 +580,7 @@ class StoreSchemaDefinition implements LockableDatabase.SchemaDefinition {
                     removeNullValuesFromEmptyColumnInMessagesTable(db);
                 }
                 if (db.getVersion() < 54) {
-                    addColumnsForActiveSyncSupport(db);
+                    makeChangesForActiveSyncSupport(db);
                 }
             }
 
@@ -645,9 +645,11 @@ class StoreSchemaDefinition implements LockableDatabase.SchemaDefinition {
         db.execSQL("UPDATE messages SET empty = 0 WHERE empty IS NULL");
     }
 
-    private void addColumnsForActiveSyncSupport(SQLiteDatabase db) {
+    private void makeChangesForActiveSyncSupport(SQLiteDatabase db) {
         db.execSQL("ALTER TABLE folders ADD server_id TEXT");
         db.execSQL("ALTER TABLE folders ADD parent INTEGER");
         db.execSQL("ALTER TABLE folders ADD sync_key TEXT DEFAULT \"0\"");
+
+        db.execSQL("UPDATE folders SET server_id = name");
     }
 }
