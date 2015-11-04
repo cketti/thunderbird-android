@@ -89,11 +89,11 @@ public class LocalStore extends Store implements Serializable {
         "forwarded, message_part_id, mime_type ";
 
     static final String GET_FOLDER_COLS =
-        "folders.id, name, visible_limit, last_updated, status, push_state, last_pushed, " +
-        "integrate, top_group, poll_class, push_class, display_class, notify_class, more_messages";
+        "folders.id, server_id, visible_limit, last_updated, status, push_state, last_pushed, " +
+        "integrate, top_group, poll_class, push_class, display_class, notify_class, more_messages, name";
 
     static final int FOLDER_ID_INDEX = 0;
-    static final int FOLDER_NAME_INDEX = 1;
+    static final int FOLDER_SERVER_ID_INDEX = 1;
     static final int FOLDER_VISIBLE_LIMIT_INDEX = 2;
     static final int FOLDER_LAST_CHECKED_INDEX = 3;
     static final int FOLDER_STATUS_INDEX = 4;
@@ -105,7 +105,8 @@ public class LocalStore extends Store implements Serializable {
     static final int FOLDER_PUSH_CLASS_INDEX = 10;
     static final int FOLDER_DISPLAY_CLASS_INDEX = 11;
     static final int FOLDER_NOTIFY_CLASS_INDEX = 12;
-    static final int MORE_MESSAGES_INDEX = 13;
+    static final int FOLDER_MORE_MESSAGES_INDEX = 13;
+    static final int FOLDER_DISPLAY_NAME = 14;
 
     static final String[] UID_CHECK_PROJECTION = { "uid" };
 
@@ -405,7 +406,7 @@ public class LocalStore extends Store implements Serializable {
                             if (cursor.isNull(FOLDER_ID_INDEX)) {
                                 continue;
                             }
-                            String folderName = cursor.getString(FOLDER_NAME_INDEX);
+                            String folderName = cursor.getString(FOLDER_SERVER_ID_INDEX);
                             LocalFolder folder = new LocalFolder(LocalStore.this, folderName);
                             folder.open(cursor);
 
@@ -791,6 +792,7 @@ public class LocalStore extends Store implements Serializable {
             public Void doDbWork(final SQLiteDatabase db) throws WrappedException {
                 for (LocalFolder folder : foldersToCreate) {
                     String name = folder.getName();
+                    String displayName = folder.getDisplayName();
                     final  LocalFolder.PreferencesHolder prefHolder = folder.new PreferencesHolder();
 
                     // When created, special folders should always be displayed
@@ -816,8 +818,9 @@ public class LocalStore extends Store implements Serializable {
                     }
                     folder.refresh(name, prefHolder);   // Recover settings from Preferences
 
-                    db.execSQL("INSERT INTO folders (name, visible_limit, top_group, display_class, poll_class, notify_class, push_class, integrate, server_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", new Object[] {
-                                   name,
+                    String serverId = name;
+                    db.execSQL("INSERT INTO folders (server_id, visible_limit, top_group, display_class, poll_class, notify_class, push_class, integrate, name) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", new Object[] {
+                                   serverId,
                                    visibleLimit,
                                    prefHolder.inTopGroup ? 1 : 0,
                                    prefHolder.displayClass.name(),
@@ -825,7 +828,7 @@ public class LocalStore extends Store implements Serializable {
                                    prefHolder.notifyClass.name(),
                                    prefHolder.pushClass.name(),
                                    prefHolder.integrate ? 1 : 0,
-                                   name
+                                   displayName
                                });
 
                 }

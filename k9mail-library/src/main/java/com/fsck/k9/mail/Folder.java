@@ -158,6 +158,7 @@ public abstract class Folder<T extends Message> {
 
     public abstract String getName();
 
+    public abstract String getDisplayName();
 
     /**
      * Indicated by the server "\*" ( * OK [PERMANENTFLAGS (\Answered .. \*)] Flags permitted). that

@@ -875,6 +875,11 @@ public class ImapStore extends RemoteStore {
             return mName;
         }
 
+        @Override
+        public String getDisplayName() {
+            return mName;
+        }
+
         /**
          * Check if a given folder exists on the server.
          *

@@ -66,7 +66,7 @@ public class LocalFolder extends Folder<LocalMessage> implements Serializable {
 
     private final LocalStore localStore;
 
-    private String mName = null;
+    private String serverId = null;
     private long mFolderId = -1;
     private int mVisibleLimit = -1;
     private String prefId = null;
@@ -81,11 +81,13 @@ public class LocalFolder extends Folder<LocalMessage> implements Serializable {
     // know whether or not an unread message added to the local folder is actually "new" or not.
     private Integer mLastUid = null;
     private MoreMessages moreMessages = MoreMessages.UNKNOWN;
+    private String displayName;
 
-    public LocalFolder(LocalStore localStore, String name) {
+    public LocalFolder(LocalStore localStore, String serverId) {
         super();
         this.localStore = localStore;
-        this.mName = name;
+        this.serverId = serverId;
+        this.displayName = serverId;
 
         if (getAccount().getInboxFolderName().equals(getName())) {
             mSyncClass =  FolderClass.FIRST_CLASS;
@@ -140,8 +142,8 @@ public class LocalFolder extends Folder<LocalMessage> implements Serializable {
                     try {
                         String baseQuery = "SELECT " + LocalStore.GET_FOLDER_COLS + " FROM folders ";
 
-                        if (mName != null) {
-                            cursor = db.rawQuery(baseQuery + "where folders.name = ?", new String[] { mName });
+                        if (serverId != null) {
+                            cursor = db.rawQuery(baseQuery + "where folders.server_id = ?", new String[] { serverId });
                         } else {
                             cursor = db.rawQuery(baseQuery + "where folders.id = ?", new String[] { Long.toString(mFolderId) });
                         }
@@ -171,7 +173,7 @@ public class LocalFolder extends Folder<LocalMessage> implements Serializable {
 
     void open(Cursor cursor) throws MessagingException {
         mFolderId = cursor.getInt(LocalStore.FOLDER_ID_INDEX);
-        mName = cursor.getString(LocalStore.FOLDER_NAME_INDEX);
+        serverId = cursor.getString(LocalStore.FOLDER_SERVER_ID_INDEX);
         mVisibleLimit = cursor.getInt(LocalStore.FOLDER_VISIBLE_LIMIT_INDEX);
         mPushState = cursor.getString(LocalStore.FOLDER_PUSH_STATE_INDEX);
         super.setStatus(cursor.getString(LocalStore.FOLDER_STATUS_INDEX));
@@ -190,13 +192,14 @@ public class LocalFolder extends Folder<LocalMessage> implements Serializable {
         mPushClass = Folder.FolderClass.valueOf((pushClass == null) ? noClass : pushClass);
         String syncClass = cursor.getString(LocalStore.FOLDER_SYNC_CLASS_INDEX);
         mSyncClass = Folder.FolderClass.valueOf((syncClass == null) ? noClass : syncClass);
-        String moreMessagesValue = cursor.getString(LocalStore.MORE_MESSAGES_INDEX);
+        String moreMessagesValue = cursor.getString(LocalStore.FOLDER_MORE_MESSAGES_INDEX);
         moreMessages = MoreMessages.fromDatabaseName(moreMessagesValue);
+        displayName = cursor.getString(LocalStore.FOLDER_DISPLAY_NAME);
     }
 
     @Override
     public boolean isOpen() {
-        return (mFolderId != -1 && mName != null);
+        return (mFolderId != -1 && serverId != null);
     }
 
     @Override
@@ -206,7 +209,12 @@ public class LocalFolder extends Folder<LocalMessage> implements Serializable {
 
     @Override
     public String getName() {
-        return mName;
+        return serverId;
+    }
+
+    @Override
+    public String getDisplayName() {
+        return displayName;
     }
 
     @Override
@@ -216,7 +224,7 @@ public class LocalFolder extends Folder<LocalMessage> implements Serializable {
             public Boolean doDbWork(final SQLiteDatabase db) throws WrappedException {
                 Cursor cursor = null;
                 try {
-                    cursor = db.rawQuery("SELECT id FROM folders where folders.name = ?",
+                    cursor = db.rawQuery("SELECT id FROM folders where folders.server_id = ?",
                             new String[] { LocalFolder.this.getName() });
                     if (cursor.moveToFirst()) {
                         int folderId = cursor.getInt(0);
@@ -239,7 +247,7 @@ public class LocalFolder extends Folder<LocalMessage> implements Serializable {
     @Override
     public boolean create(FolderType type, final int visibleLimit) throws MessagingException {
         if (exists()) {
-            throw new MessagingException("Folder " + mName + " already exists.");
+            throw new MessagingException("Folder " + serverId + " already exists.");
         }
         List<LocalFolder> foldersToCreate = new ArrayList<LocalFolder>(1);
         foldersToCreate.add(this);
@@ -533,7 +541,7 @@ public class LocalFolder extends Folder<LocalMessage> implements Serializable {
 
     private String getPrefId() throws MessagingException {
         open(OPEN_MODE_RW);
-        return getPrefId(mName);
+        return getPrefId(serverId);
     }
 
     public void delete() throws MessagingException {
@@ -1715,14 +1723,14 @@ public class LocalFolder extends Folder<LocalMessage> implements Serializable {
     @Override
     public boolean equals(Object o) {
         if (o instanceof LocalFolder) {
-            return ((LocalFolder)o).mName.equals(mName);
+            return ((LocalFolder)o).serverId.equals(serverId);
         }
         return super.equals(o);
     }
 
     @Override
     public int hashCode() {
-        return mName.hashCode();
+        return serverId.hashCode();
     }
 
     void deleteMessagePartsAndDataFromDisk(final long rootMessagePartId) throws MessagingException {
@@ -1820,7 +1828,7 @@ public class LocalFolder extends Folder<LocalMessage> implements Serializable {
             }
         });
         if (K9.DEBUG)
-            Log.d(K9.LOG_TAG, "Updated last UID for folder " + mName + " to " + lastUid);
+            Log.d(K9.LOG_TAG, "Updated last UID for folder " + serverId + " to " + lastUid);
         mLastUid = lastUid;
     }
 

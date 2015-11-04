@@ -104,7 +104,8 @@ public class EmailProvider extends ContentProvider {
         FolderColumns.TOP_GROUP,
         FolderColumns.POLL_CLASS,
         FolderColumns.PUSH_CLASS,
-        FolderColumns.DISPLAY_CLASS
+        FolderColumns.DISPLAY_CLASS,
+        FolderColumns.SERVER_ID
     };
 
     private static final String THREADS_TABLE = "threads";
@@ -124,7 +125,7 @@ public class EmailProvider extends ContentProvider {
 
         public static final String THREAD_COUNT = "thread_count";
 
-        public static final String FOLDER_NAME = "name";
+        public static final String FOLDER_SERVER_ID = "server_id";
         public static final String INTEGRATE = "integrate";
     }
 
@@ -171,6 +172,7 @@ public class EmailProvider extends ContentProvider {
         public static final String POLL_CLASS = "poll_class";
         public static final String PUSH_CLASS = "push_class";
         public static final String DISPLAY_CLASS = "display_class";
+        public static final String SERVER_ID = "server_id";
     }
 
     public interface ThreadColumns {

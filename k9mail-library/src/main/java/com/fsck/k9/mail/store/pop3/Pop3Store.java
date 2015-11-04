@@ -541,6 +541,11 @@ public class Pop3Store extends RemoteStore {
         }
 
         @Override
+        public String getDisplayName() {
+            return mName;
+        }
+
+        @Override
         public boolean create(FolderType type) throws MessagingException {
             return false;
         }

@@ -128,7 +128,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
         MessageColumns.PREVIEW,
         ThreadColumns.ROOT,
         SpecialColumns.ACCOUNT_UUID,
-        SpecialColumns.FOLDER_NAME,
+        SpecialColumns.FOLDER_SERVER_ID,
 
         SpecialColumns.THREAD_COUNT,
     };
@@ -150,7 +150,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
     private static final int PREVIEW_COLUMN = 14;
     private static final int THREAD_ROOT_COLUMN = 15;
     private static final int ACCOUNT_UUID_COLUMN = 16;
-    private static final int FOLDER_NAME_COLUMN = 17;
+    private static final int FOLDER_SERVER_ID_COLUMN = 17;
     private static final int THREAD_COUNT_COLUMN = 18;
 
     private static final String[] PROJECTION = Arrays.copyOf(THREADED_PROJECTION,
@@ -2000,7 +2000,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
 
             if (mActiveMessage != null) {
                 String uid = cursor.getString(UID_COLUMN);
-                String folderName = cursor.getString(FOLDER_NAME_COLUMN);
+                String folderName = cursor.getString(FOLDER_SERVER_ID_COLUMN);
 
                 if (account.getUuid().equals(mActiveMessage.getAccountUuid()) &&
                         folderName.equals(mActiveMessage.getFolderName()) &&
@@ -2988,7 +2988,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
             Cursor cursor = (Cursor) mAdapter.getItem(i);
 
             String accountUuid = cursor.getString(ACCOUNT_UUID_COLUMN);
-            String folderName = cursor.getString(FOLDER_NAME_COLUMN);
+            String folderName = cursor.getString(FOLDER_SERVER_ID_COLUMN);
             String messageUid = cursor.getString(UID_COLUMN);
             MessageReference ref = new MessageReference(accountUuid, folderName, messageUid, null);
 
@@ -3055,7 +3055,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
         Cursor cursor = (Cursor) mAdapter.getItem(position);
 
         String accountUuid = cursor.getString(ACCOUNT_UUID_COLUMN);
-        String folderName = cursor.getString(FOLDER_NAME_COLUMN);
+        String folderName = cursor.getString(FOLDER_SERVER_ID_COLUMN);
         String messageUid = cursor.getString(UID_COLUMN);
         return new MessageReference(accountUuid, folderName, messageUid, null);
     }
@@ -3082,7 +3082,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
             Cursor cursor = (Cursor) mAdapter.getItem(i);
 
             String accountUuid = cursor.getString(ACCOUNT_UUID_COLUMN);
-            String folderName = cursor.getString(FOLDER_NAME_COLUMN);
+            String folderName = cursor.getString(FOLDER_SERVER_ID_COLUMN);
             String uid = cursor.getString(UID_COLUMN);
 
             if (accountUuid.equals(messageReference.getAccountUuid()) &&
@@ -3325,7 +3325,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
             boolean selectActive = mActiveMessage != null && mActiveMessage.getAccountUuid().equals(accountUuid);
 
             if (selectActive) {
-                query.append("(" + MessageColumns.UID + " = ? AND " + SpecialColumns.FOLDER_NAME + " = ?) OR (");
+                query.append("(" + MessageColumns.UID + " = ? AND " + SpecialColumns.FOLDER_SERVER_ID + " = ?) OR (");
                 queryArgs.add(mActiveMessage.getUid());
                 queryArgs.add(mActiveMessage.getFolderName());
             }

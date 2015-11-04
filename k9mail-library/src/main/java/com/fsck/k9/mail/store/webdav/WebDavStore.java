@@ -1372,6 +1372,11 @@ public class WebDavStore extends RemoteStore {
         }
 
         @Override
+        public String getDisplayName() {
+            return mName;
+        }
+
+        @Override
         public boolean exists() {
             return true;
         }
