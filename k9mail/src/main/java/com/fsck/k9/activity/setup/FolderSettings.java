@@ -76,7 +76,8 @@ public class FolderSettings extends K9PreferenceActivity {
 
         addPreferencesFromResource(R.xml.folder_settings_preferences);
 
-        String displayName = FolderInfoHolder.getDisplayName(this, mAccount, mFolder.getName());
+        String displayName = FolderInfoHolder.getDisplayName(this, mAccount, mFolder.getName(),
+                mFolder.getDisplayName());
         Preference category = findPreference(PREFERENCE_TOP_CATERGORY);
         category.setTitle(displayName);
 

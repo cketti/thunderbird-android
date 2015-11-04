@@ -27,4 +27,14 @@ public class EasStore extends Store {
     public void checkSettings() throws MessagingException {
         throw new UnsupportedOperationException();
     }
+
+    @Override
+    public boolean isCopyCapable() {
+        return true;
+    }
+
+    @Override
+    public boolean isMoveCapable() {
+        return true;
+    }
 }

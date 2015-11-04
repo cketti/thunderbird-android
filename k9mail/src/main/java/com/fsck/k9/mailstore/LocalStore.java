@@ -389,6 +389,29 @@ public class LocalStore extends Store implements Serializable {
         });
     }
 
+    public String getFolderDisplayNameByServerId(final String serverId) throws MessagingException {
+        return database.execute(false, new DbCallback<String>() {
+            @Override
+            public String doDbWork(SQLiteDatabase db) throws WrappedException, MessagingException {
+                Cursor cursor = db.query(
+                        "folders",
+                        new String[] { "name" },
+                        "server_id = ?",
+                        new String[] { serverId },
+                        null, null, null);
+                try {
+                    if (cursor.moveToFirst()) {
+                        return cursor.getString(0);
+                    }
+                } finally {
+                    cursor.close();
+                }
+
+                throw new FolderNotFoundException("Folder with server ID '" + serverId + "' not found");
+            }
+        });
+    }
+
     // TODO this takes about 260-300ms, seems slow.
     @Override
     public List<LocalFolder> getPersonalNamespaces(boolean forceListAll) throws MessagingException {

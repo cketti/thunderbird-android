@@ -680,8 +680,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
         // regular folder content display
         if (!isManualSearch() && mSingleFolderMode) {
             Activity activity = getActivity();
-            String displayName = FolderInfoHolder.getDisplayName(activity, mAccount,
-                mFolderName);
+            String displayName = mCurrentFolder.displayName;
 
             mFragmentListener.setMessageListTitle(displayName);
 
@@ -1754,12 +1753,12 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
         }
 
         @Override
-        public void synchronizeMailboxStarted(Account account, String folder) {
+        public void synchronizeMailboxStarted(Account account, String folder, String folderDisplayName) {
             if (updateForMe(account, folder)) {
                 mHandler.progress(true);
                 mHandler.folderLoading(folder, true);
             }
-            super.synchronizeMailboxStarted(account, folder);
+            super.synchronizeMailboxStarted(account, folder, folderDisplayName);
         }
 
         @Override

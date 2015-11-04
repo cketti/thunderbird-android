@@ -81,7 +81,7 @@ public class FolderInfoHolder implements Comparable<FolderInfoHolder> {
 
         this.status = truncateStatus(folder.getStatus());
 
-        this.displayName = getDisplayName(context, account, name);
+        this.displayName = getDisplayName(context, account, name, folder.getDisplayName());
         setMoreMessagesFromFolder(folder);
     }
 
@@ -89,46 +89,35 @@ public class FolderInfoHolder implements Comparable<FolderInfoHolder> {
      * Returns the display name for a folder.
      *
      * <p>
-     * This will return localized strings for special folders like the Inbox or the Trash folder.
+     * This will append localized strings for special folders like the Inbox or the Trash folder.
      * </p>
-     *
-     * @param context
-     *         A {@link Context} instance that is used to get the string resources.
-     * @param account
-     *         The {@link Account} the folder belongs to.
-     * @param name
-     *         The name of the folder for which to return the display name.
-     *
-     * @return The localized name for the provided folder if it's a special folder or the original
-     *         folder name if it's a non-special folder.
      */
-    public static String getDisplayName(Context context, Account account, String name) {
-        final String displayName;
+    public static String getDisplayName(Context context, Account account, String name, String displayName) {
+        final String augmentedDisplayName;
         if (name.equals(account.getSpamFolderName())) {
-            displayName = String.format(
-                    context.getString(R.string.special_mailbox_name_spam_fmt), name);
+            augmentedDisplayName = String.format(
+                    context.getString(R.string.special_mailbox_name_spam_fmt), displayName);
         } else if (name.equals(account.getArchiveFolderName())) {
-            displayName = String.format(
-                    context.getString(R.string.special_mailbox_name_archive_fmt), name);
+            augmentedDisplayName = String.format(
+                    context.getString(R.string.special_mailbox_name_archive_fmt), displayName);
         } else if (name.equals(account.getSentFolderName())) {
-            displayName = String.format(
-                    context.getString(R.string.special_mailbox_name_sent_fmt), name);
+            augmentedDisplayName = String.format(
+                    context.getString(R.string.special_mailbox_name_sent_fmt), displayName);
         } else if (name.equals(account.getTrashFolderName())) {
-            displayName = String.format(
-                    context.getString(R.string.special_mailbox_name_trash_fmt), name);
+            augmentedDisplayName = String.format(
+                    context.getString(R.string.special_mailbox_name_trash_fmt), displayName);
         } else if (name.equals(account.getDraftsFolderName())) {
-            displayName = String.format(
-                    context.getString(R.string.special_mailbox_name_drafts_fmt), name);
+            augmentedDisplayName = String.format(
+                    context.getString(R.string.special_mailbox_name_drafts_fmt), displayName);
         } else if (name.equals(account.getOutboxFolderName())) {
-            displayName = context.getString(R.string.special_mailbox_name_outbox);
-        // FIXME: We really shouldn't do a case-insensitive comparison here
-        } else if (name.equalsIgnoreCase(account.getInboxFolderName())) {
-            displayName = context.getString(R.string.special_mailbox_name_inbox);
+            augmentedDisplayName = context.getString(R.string.special_mailbox_name_outbox);
+        } else if (name.equals(account.getInboxFolderName())) {
+            augmentedDisplayName = context.getString(R.string.special_mailbox_name_inbox);
         } else {
-            displayName = name;
+            augmentedDisplayName = displayName;
         }
 
-        return displayName;
+        return augmentedDisplayName;
     }
 
     public void setMoreMessagesFromFolder(LocalFolder folder) {

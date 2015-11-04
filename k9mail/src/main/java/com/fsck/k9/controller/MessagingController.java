@@ -812,8 +812,9 @@ public class MessagingController implements Runnable {
     private void syncFolder(Account account, String folderServerId, MessagingListener listener) {
         Backend backend = backendManager.getBackend(account);
 
+        String folderDisplayName = getFolderDisplayName(account, folderServerId);
         for (MessagingListener l : getListeners(listener)) {
-            l.synchronizeMailboxStarted(account, folderServerId);
+            l.synchronizeMailboxStarted(account, folderServerId, folderDisplayName);
         }
 
         //TODO: Use MessagingListener for progress updates
@@ -827,6 +828,15 @@ public class MessagingController implements Runnable {
 
         for (MessagingListener l : getListeners(listener)) {
             l.synchronizeMailboxFinished(account, folderServerId, 0, 0);
+        }
+    }
+
+    private String getFolderDisplayName(Account account, String folderServerId) {
+        try {
+            LocalStore localStore = account.getLocalStore();
+            return localStore.getFolderDisplayNameByServerId(folderServerId);
+        } catch (MessagingException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -847,8 +857,9 @@ public class MessagingController implements Runnable {
         if (K9.DEBUG)
             Log.i(K9.LOG_TAG, "Synchronizing folder " + account.getDescription() + ":" + folder);
 
+        String folderDisplayName = getFolderDisplayName(account, folder);
         for (MessagingListener l : getListeners(listener)) {
-            l.synchronizeMailboxStarted(account, folder);
+            l.synchronizeMailboxStarted(account, folder, folderDisplayName);
         }
         /*
          * We don't ever sync the Outbox or errors folder
@@ -4670,6 +4681,7 @@ public class MessagingController implements Runnable {
     static class Memory {
         Account account;
         String folderName;
+        String folderDisplayName;
         MemorizingState syncingState = null;
         MemorizingState sendingState = null;
         MemorizingState pushingState = null;
@@ -4724,8 +4736,9 @@ public class MessagingController implements Runnable {
         }
 
         @Override
-        public synchronized void synchronizeMailboxStarted(Account account, String folder) {
+        public synchronized void synchronizeMailboxStarted(Account account, String folder, String folderDisplayName) {
             Memory memory = getMemory(account, folder);
+            memory.folderDisplayName = folderDisplayName;
             memory.syncingState = MemorizingState.STARTED;
             memory.folderCompleted = 0;
             memory.folderTotal = 0;
@@ -4812,7 +4825,8 @@ public class MessagingController implements Runnable {
                 }
                 Memory somethingStarted = null;
                 if (syncStarted != null) {
-                    other.synchronizeMailboxStarted(syncStarted.account, syncStarted.folderName);
+                    other.synchronizeMailboxStarted(syncStarted.account, syncStarted.folderName,
+                            syncStarted.folderDisplayName);
                     somethingStarted = syncStarted;
                 }
                 if (sendStarted != null) {

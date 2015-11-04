@@ -1024,7 +1024,7 @@ public class AccountSettings extends K9PreferenceActivity {
 
             int i = 1;
             for (Folder folder : folders) {
-                allFolderLabels[i] = folder.getName();
+                allFolderLabels[i] = folder.getDisplayName();
                 allFolderValues[i] = folder.getName();
                 i++;
             }

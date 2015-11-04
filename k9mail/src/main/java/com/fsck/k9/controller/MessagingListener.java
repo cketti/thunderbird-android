@@ -55,7 +55,7 @@ public class MessagingListener {
     public void listLocalMessagesFailed(Account account, String folder, String message) {}
 
 
-    public void synchronizeMailboxStarted(Account account, String folder) {}
+    public void synchronizeMailboxStarted(Account account, String folder, String folderDisplayName) {}
 
     public void synchronizeMailboxHeadersStarted(Account account, String folder) {}
 

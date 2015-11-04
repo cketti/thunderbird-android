@@ -15,6 +15,7 @@ import com.fsck.k9.service.MailService;
 public class ActivityListener extends MessagingListener {
     private Account mAccount = null;
     private String mLoadingFolderName = null;
+    private String loadingFolderDisplayName = null;
     private String mLoadingHeaderFolderName = null;
     private String mLoadingAccountDescription = null;
     private String mSendingAccountDescription = null;
@@ -32,7 +33,7 @@ public class ActivityListener extends MessagingListener {
 
     public String getOperation(Context context) {
         String operation;
-        String progress = null;
+        String progress;
         if (mLoadingAccountDescription  != null
                 || mSendingAccountDescription != null
                 || mLoadingHeaderFolderName != null
@@ -41,16 +42,21 @@ public class ActivityListener extends MessagingListener {
                         context.getString(R.string.folder_progress, mFolderCompleted, mFolderTotal) : "");
 
             if (mLoadingFolderName != null || mLoadingHeaderFolderName != null) {
-                String displayName = mLoadingFolderName;
-                if ((mAccount != null) && (mAccount.getInboxFolderName() != null) && mAccount.getInboxFolderName().equalsIgnoreCase(displayName)) {
+                String folderName = mLoadingFolderName;
+                String displayName;
+                if ((mAccount != null) && (mAccount.getInboxFolderName() != null) &&
+                        mAccount.getInboxFolderName().equalsIgnoreCase(folderName)) {
                     displayName = context.getString(R.string.special_mailbox_name_inbox);
-                } else if ((mAccount != null) && mAccount.getOutboxFolderName().equals(displayName)) {
+                } else if ((mAccount != null) && mAccount.getOutboxFolderName().equals(folderName)) {
                     displayName = context.getString(R.string.special_mailbox_name_outbox);
+                } else {
+                    displayName = loadingFolderDisplayName;
                 }
 
                 if (mLoadingHeaderFolderName != null) {
 
-                    operation = context.getString(R.string.status_loading_account_folder_headers, mLoadingAccountDescription, displayName, progress);
+                    operation = context.getString(R.string.status_loading_account_folder_headers,
+                            mLoadingAccountDescription, displayName, progress);
                 } else {
                     operation = context.getString(R.string.status_loading_account_folder, mLoadingAccountDescription, displayName, progress);
                 }
@@ -100,14 +106,16 @@ public class ActivityListener extends MessagingListener {
         int numNewMessages) {
         mLoadingAccountDescription = null;
         mLoadingFolderName = null;
+        loadingFolderDisplayName = null;
         mAccount = null;
         informUserOfStatus();
     }
 
     @Override
-    public void synchronizeMailboxStarted(Account account, String folder) {
+    public void synchronizeMailboxStarted(Account account, String folder, String folderDisplayName) {
         mLoadingAccountDescription = account.getDescription();
         mLoadingFolderName = folder;
+        loadingFolderDisplayName = folderDisplayName;
         mAccount = account;
         mFolderCompleted = 0;
         mFolderTotal = 0;
@@ -151,6 +159,7 @@ public class ActivityListener extends MessagingListener {
                                          String message) {
         mLoadingAccountDescription = null;
         mLoadingFolderName = null;
+        loadingFolderDisplayName = null;
         mAccount = null;
         informUserOfStatus();
 
