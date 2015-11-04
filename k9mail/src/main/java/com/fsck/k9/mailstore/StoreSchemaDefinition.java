@@ -75,7 +75,8 @@ class StoreSchemaDefinition implements LockableDatabase.SchemaDefinition {
                         "sync_key TEXT DEFAULT \"0\"" +
                         ")");
 
-                db.execSQL("CREATE INDEX IF NOT EXISTS folder_name ON folders (name)");
+                db.execSQL("CREATE INDEX IF NOT EXISTS folders_server_id ON folders (server_id)");
+
                 db.execSQL("DROP TABLE IF EXISTS messages");
                 db.execSQL("CREATE TABLE messages (" +
                         "id INTEGER PRIMARY KEY, " +
