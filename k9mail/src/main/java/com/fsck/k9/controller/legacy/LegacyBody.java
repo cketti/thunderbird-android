@@ -12,16 +12,19 @@ import com.fsck.k9.mail.data.Message;
 import com.fsck.k9.mail.data.Multipart;
 import com.fsck.k9.mail.data.Part;
 import com.fsck.k9.mail.internet.SizeAware;
+import com.fsck.k9.mail.message.TransferEncoding;
 import okio.BufferedSink;
 import okio.Okio;
 import okio.Source;
 
 
 class LegacyBody implements com.fsck.k9.mail.Body, SizeAware {
+    Part part;
     ContentBody contentBody;
 
 
-    LegacyBody(ContentBody contentBody) {
+    LegacyBody(Part part, ContentBody contentBody) {
+        this.part = part;
         this.contentBody = contentBody;
     }
 
@@ -34,7 +37,7 @@ class LegacyBody implements com.fsck.k9.mail.Body, SizeAware {
             return new LegacyMultipart(part);
         } else if (body instanceof ContentBody) {
             ContentBody contentBody = (ContentBody) body;
-            return new LegacyBody(contentBody);
+            return new LegacyBody(part, contentBody);
         }
 
         throw new IllegalArgumentException("Unknown body: " + body.getClass().getSimpleName());
@@ -42,7 +45,7 @@ class LegacyBody implements com.fsck.k9.mail.Body, SizeAware {
 
     @Override
     public InputStream getInputStream() throws MessagingException {
-        throw new UnsupportedOperationException("Not implemented");
+        return TransferEncoding.decode(part);
     }
 
     @Override
