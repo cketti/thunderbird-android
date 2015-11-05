@@ -9,6 +9,7 @@ import android.view.View;
 import android.view.View.OnClickListener;
 import android.widget.Toast;
 import com.fsck.k9.Account;
+import com.fsck.k9.BuildConfig;
 import com.fsck.k9.K9;
 import com.fsck.k9.Preferences;
 import com.fsck.k9.R;
@@ -44,7 +45,12 @@ public class AccountSetupAccountType extends K9Activity implements OnClickListen
         findViewById(R.id.pop).setOnClickListener(this);
         findViewById(R.id.imap).setOnClickListener(this);
         findViewById(R.id.webdav).setOnClickListener(this);
-        findViewById(R.id.eas).setOnClickListener(this);
+        View easButton = findViewById(R.id.eas);
+        if (BuildConfig.FEATURE_EAS) {
+            easButton.setOnClickListener(this);
+        } else {
+            easButton.setVisibility(View.GONE);
+        }
 
         String accountUuid = getIntent().getStringExtra(EXTRA_ACCOUNT);
         mAccount = Preferences.getPreferences(this).getAccount(accountUuid);

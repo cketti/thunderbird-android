@@ -58,6 +58,7 @@ android {
             }
 
             buildConfigField "boolean", "DEVELOPER_MODE", "false"
+            buildConfigField "boolean", "FEATURE_EAS", "false"
         }
 
         debug {
@@ -65,6 +66,7 @@ android {
             testCoverageEnabled rootProject.testCoverage
 
             buildConfigField "boolean", "DEVELOPER_MODE", "true"
+            buildConfigField "boolean", "FEATURE_EAS", "true"
         }
     }
 
