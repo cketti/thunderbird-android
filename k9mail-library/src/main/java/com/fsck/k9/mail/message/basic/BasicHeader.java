@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Locale;
 
 import com.fsck.k9.mail.data.Header;
-import com.fsck.k9.mail.data.HeaderField;
 import com.fsck.k9.mail.data.builder.HeaderBuilder;
 import com.fsck.k9.mail.util.LinkedHashMultimap;
 import com.fsck.k9.mail.util.Multimap;
@@ -22,7 +21,7 @@ class BasicHeader implements Header {
         fields = builder.fields;
         fieldMap = LinkedHashMultimap.create(builder.fields.size());
         for (BasicHeaderField field : builder.fields) {
-            String lowerCaseName = field.name().toLowerCase(Locale.ENGLISH);
+            String lowerCaseName = lowerCase(field.name());
             fieldMap.put(lowerCaseName, field);
         }
     }
@@ -33,24 +32,25 @@ class BasicHeader implements Header {
     }
 
     @Override
-    public List<? extends HeaderField> fields() {
+    public List<BasicHeaderField> fields() {
         return Collections.unmodifiableList(fields);
     }
 
     @Override
     public String value(String name) {
-        String lowerCaseName = name.toLowerCase(Locale.ENGLISH);
+        String lowerCaseName = lowerCase(name);
         List<BasicHeaderField> values = fieldMap.get(lowerCaseName);
         return (values.isEmpty()) ? null : values.get(0).value();
     }
 
     @Override
     public List<String> values(String name) {
-        if (!fieldMap.containsKey(name)) {
+        String lowerCaseName = lowerCase(name);
+        if (!fieldMap.containsKey(lowerCaseName)) {
             return Collections.emptyList();
         }
 
-        List<BasicHeaderField> values = fieldMap.get(name);
+        List<BasicHeaderField> values = fieldMap.get(lowerCaseName);
         List<String> result = new ArrayList<String>(values.size());
         for (BasicHeaderField field : values) {
             result.add(field.value());
@@ -58,6 +58,11 @@ class BasicHeader implements Header {
 
         return result;
     }
+
+    private String lowerCase(String input) {
+        return input.toLowerCase(Locale.ENGLISH);
+    }
+
 
     public static class Builder implements HeaderBuilder {
         private List<BasicHeaderField> fields = new ArrayList<BasicHeaderField>();
