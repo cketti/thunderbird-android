@@ -1,6 +1,8 @@
 package com.fsck.k9.remote.eas;
 
 
+import java.util.UUID;
+
 import android.content.Context;
 import android.net.Uri;
 
@@ -58,12 +60,7 @@ public class EasBackend implements Backend {
 
         EasAccount easAccount = new EasAccount(backendStorage);
         easAccount.mHostAuthRecv = hostAuth;
-        easAccount.mEmailAddress = hostAuth.mLogin;
-
-        easAccount.mSyncKey = backendStorage.getFoldersSyncKey();
-
-        String policyKey = backendStorage.getPolicyKey();
-        easAccount.setPolicyKeyInternal(policyKey);
+        easAccount.mEmailAddress = account.getEmail();
 
         return easAccount;
     }
@@ -71,10 +68,21 @@ public class EasBackend implements Backend {
 
     static class EasAccount extends com.fsck.k9.mail.store.eas.Account {
         private final BackendStorage backendStorage;
+        private String deviceId;
 
 
         EasAccount(BackendStorage backendStorage) {
             this.backendStorage = backendStorage;
+            init();
+        }
+
+        private void init() {
+            mSyncKey = backendStorage.getFoldersSyncKey();
+
+            String policyKey = backendStorage.getPolicyKey();
+            setPolicyKeyInternal(policyKey);
+
+            deviceId = backendStorage.getDeviceId();
         }
 
         @Override
@@ -85,6 +93,26 @@ public class EasBackend implements Backend {
 
         void setPolicyKeyInternal(String policyKey) {
             super.setPolicyKey(policyKey);
+        }
+
+        @Override
+        public String getDeviceId() {
+            if (deviceId == null) {
+                deviceId = createAndSaveDeviceId();
+            }
+
+            return deviceId;
+        }
+
+        private String createAndSaveDeviceId() {
+            String deviceId = createDeviceId();
+            backendStorage.setDeviceId(deviceId);
+
+            return deviceId;
+        }
+
+        private String createDeviceId() {
+            return UUID.randomUUID().toString().replaceAll("-", "");
         }
     }
 }

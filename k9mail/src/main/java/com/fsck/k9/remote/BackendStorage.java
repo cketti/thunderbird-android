@@ -10,6 +10,8 @@ public interface BackendStorage {
     void setFoldersSyncKey(String syncKey);
     String getPolicyKey();
     void setPolicyKey(String policyKey);
+    String getDeviceId();
+    void setDeviceId(String deviceId);
 
     String getSyncKeyForFolder(String serverId);
     void setSyncKeyForFolder(String serverId, String syncKey);

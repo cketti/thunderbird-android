@@ -53,4 +53,8 @@ public class Account {
     public void setPolicyKey(String policyKey) {
         this.policyKey = policyKey;
     }
+
+    public String getDeviceId() {
+        return "0";
+    }
 }

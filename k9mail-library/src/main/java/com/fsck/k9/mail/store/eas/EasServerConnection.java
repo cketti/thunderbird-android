@@ -155,7 +155,7 @@ public class EasServerConnection {
 
     private String makeUserString() {
         if (sDeviceId == null) {
-            sDeviceId = new AccountServiceProxy(mContext).getDeviceId();
+            sDeviceId = mAccount.getDeviceId();
             if (sDeviceId == null) {
                 LogUtils.e(TAG, "Could not get device id, defaulting to '0'");
                 sDeviceId = "0";

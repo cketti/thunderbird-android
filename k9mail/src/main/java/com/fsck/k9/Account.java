@@ -235,6 +235,7 @@ public class Account implements BaseAccount, StoreConfig {
 
     private String foldersSyncKey;
     private String policyKey;
+    private String deviceId;
 
     /**
      * Indicates whether this account is enabled, i.e. ready for use, or not.
@@ -477,6 +478,7 @@ public class Account implements BaseAccount, StoreConfig {
         mAlwaysShowCcBcc = prefs.getBoolean(mUuid + ".alwaysShowCcBcc", false);
         foldersSyncKey = prefs.getString(mUuid + ".foldersSyncKey", null);
         policyKey = prefs.getString(mUuid + ".policyKey", null);
+        deviceId = prefs.getString(mUuid + ".deviceId", null);
 
         cacheChips();
 
@@ -574,6 +576,7 @@ public class Account implements BaseAccount, StoreConfig {
         editor.remove(mUuid + ".notifyMailCheck");
         editor.remove(mUuid + ".foldersSyncKey");
         editor.remove(mUuid + ".policyKey");
+        editor.remove(mUuid + ".deviceId");
         for (NetworkType type : NetworkType.values()) {
             editor.remove(mUuid + ".useCompression." + type.name());
         }
@@ -742,6 +745,7 @@ public class Account implements BaseAccount, StoreConfig {
         editor.putBoolean(mUuid + ".alwaysShowCcBcc", mAlwaysShowCcBcc);
         editor.putString(mUuid + ".foldersSyncKey", foldersSyncKey);
         editor.putString(mUuid + ".policyKey", policyKey);
+        editor.putString(mUuid + ".deviceId", deviceId);
 
         editor.putBoolean(mUuid + ".vibrate", mNotificationSetting.shouldVibrate());
         editor.putInt(mUuid + ".vibratePattern", mNotificationSetting.getVibratePattern());
@@ -1738,6 +1742,14 @@ public class Account implements BaseAccount, StoreConfig {
 
     public void setPolicyKey(String policyKey) {
         this.policyKey = policyKey;
+    }
+
+    public String getDeviceId() {
+        return deviceId;
+    }
+
+    public void setDeviceId(String deviceId) {
+        this.deviceId = deviceId;
     }
 
     /**

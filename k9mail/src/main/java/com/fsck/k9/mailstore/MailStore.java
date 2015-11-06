@@ -47,6 +47,15 @@ public class MailStore {
         saveAccount();
     }
 
+    public String getDeviceId() {
+        return account.getDeviceId();
+    }
+
+    public void setDeviceId(String deviceId) {
+        account.setDeviceId(deviceId);
+        saveAccount();
+    }
+
     public String getSyncKeyForFolder(final String serverId) {
         return dbOperation(new DbCallback<String>() {
             @Override
