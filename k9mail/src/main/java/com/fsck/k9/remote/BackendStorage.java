@@ -15,6 +15,7 @@ public interface BackendStorage {
     void setSyncKeyForFolder(String serverId, String syncKey);
 
     void createFolder(String name, BackendFolderType backendFolderType, String serverId, String parentServerId);
+    void changeFolder(String serverId, String name, String parentServerId);
     void deleteFolderByServerId(String serverId);
     void deleteAllFolders();
 

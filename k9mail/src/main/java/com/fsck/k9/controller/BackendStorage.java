@@ -101,6 +101,11 @@ class BackendStorage implements com.fsck.k9.remote.BackendStorage {
     }
 
     @Override
+    public void changeFolder(String serverId, String name, String parentServerId) {
+        mailStore.changeFolder(serverId, name, parentServerId);
+    }
+
+    @Override
     public void deleteFolderByServerId(String serverId) {
         mailStore.deleteFolderByServerId(serverId);
     }

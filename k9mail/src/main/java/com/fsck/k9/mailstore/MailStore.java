@@ -97,6 +97,21 @@ public class MailStore {
         });
     }
 
+    public void changeFolder(final String serverId, String name, String parentServerId) {
+        long parentId = getFolderIdByServerId(parentServerId);
+
+        final ContentValues values = new ContentValues();
+        values.put(FolderColumns.NAME, name);
+        values.put(FolderColumns.PARENT, parentId);
+
+        dbOperation(new DbCallback<Integer>() {
+            @Override
+            public Integer doDbWork(SQLiteDatabase db) throws WrappedException, MessagingException {
+                return db.update(Tables.FOLDERS, values, FolderColumns.SERVER_ID + " = ?", new String[] { serverId });
+            }
+        });
+    }
+
     public int deleteFolderByServerId(final String serverId) {
         return dbOperation(new DbCallback<Integer>() {
             @Override

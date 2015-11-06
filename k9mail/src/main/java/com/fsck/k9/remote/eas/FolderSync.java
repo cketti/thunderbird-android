@@ -48,7 +48,7 @@ class FolderSync implements FolderSyncCallback {
 
     @Override
     public void changeFolder(String serverId, String name, String parentServerId) {
-        //TODO: implement
+        backendStorage.changeFolder(serverId, name, parentServerId);
     }
 
     @Override
