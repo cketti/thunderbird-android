@@ -256,7 +256,7 @@ public class MessagingController implements Runnable {
         if (inst == null) {
             Context appContext = context.getApplicationContext();
             NotificationController notificationController = NotificationController.newInstance(appContext);
-            BackendManager backendManager = BackendManager.newInstance(context);
+            BackendManager backendManager = BackendManager.newInstance(appContext);
             inst = new MessagingController(appContext, notificationController, backendManager);
         }
         return inst;

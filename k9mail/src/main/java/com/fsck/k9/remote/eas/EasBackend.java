@@ -13,12 +13,12 @@ import com.fsck.k9.remote.Backend;
 public class EasBackend implements Backend {
     private final FolderSync folderSync;
     private final EmailSync emailSync;
-    private final com.fsck.k9.mail.store.eas.Account easAccount;
+    private final EasAccount easAccount;
 
 
     //TODO: Instead of Account pass EasConfig
     public EasBackend(Context context, Account account, BackendStorage backendStorage) {
-        easAccount = createEasAccount(account);
+        easAccount = createEasAccount(account, backendStorage);
         folderSync = new FolderSync(context, easAccount, backendStorage);
         emailSync = new EmailSync(context, easAccount, backendStorage);
     }
@@ -43,7 +43,7 @@ public class EasBackend implements Backend {
         return emailSync.syncFolder(serverId);
     }
 
-    private com.fsck.k9.mail.store.eas.Account createEasAccount(Account account) {
+    private EasAccount createEasAccount(Account account, BackendStorage backendStorage) {
         Uri storeUri = Uri.parse(account.getStoreUri());
 
         String username = storeUri.getQueryParameter("username");
@@ -56,10 +56,35 @@ public class EasBackend implements Backend {
         hostAuth.mAddress = host;
         hostAuth.mFlags = HostAuth.FLAG_SSL;
 
-        com.fsck.k9.mail.store.eas.Account easAccount = new com.fsck.k9.mail.store.eas.Account();
+        EasAccount easAccount = new EasAccount(backendStorage);
         easAccount.mHostAuthRecv = hostAuth;
         easAccount.mEmailAddress = hostAuth.mLogin;
 
+        easAccount.mSyncKey = backendStorage.getFoldersSyncKey();
+
+        String policyKey = backendStorage.getPolicyKey();
+        easAccount.setPolicyKeyInternal(policyKey);
+
         return easAccount;
+    }
+
+
+    static class EasAccount extends com.fsck.k9.mail.store.eas.Account {
+        private final BackendStorage backendStorage;
+
+
+        EasAccount(BackendStorage backendStorage) {
+            this.backendStorage = backendStorage;
+        }
+
+        @Override
+        public void setPolicyKey(String policyKey) {
+            setPolicyKeyInternal(policyKey);
+            backendStorage.setPolicyKey(policyKey);
+        }
+
+        void setPolicyKeyInternal(String policyKey) {
+            super.setPolicyKey(policyKey);
+        }
     }
 }

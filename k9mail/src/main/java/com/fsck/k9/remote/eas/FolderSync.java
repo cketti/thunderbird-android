@@ -58,7 +58,14 @@ class FolderSync implements FolderSyncCallback {
 
     @Override
     public void commitFolderChanges() {
-        // Nothing to do here
+        saveSyncKeyIfChanged(account.mSyncKey);
+    }
+
+    private void saveSyncKeyIfChanged(String syncKey) {
+        boolean syncKeyHasChanged = !syncKey.equals(backendStorage.getFoldersSyncKey());
+        if (syncKeyHasChanged) {
+            backendStorage.setFoldersSyncKey(syncKey);
+        }
     }
 
     private BackendFolderType convertFolderType(int type) {

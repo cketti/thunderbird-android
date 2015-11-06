@@ -5,6 +5,8 @@ import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 
+import com.fsck.k9.Account;
+import com.fsck.k9.Preferences;
 import com.fsck.k9.mail.MessagingException;
 import com.fsck.k9.mailstore.LockableDatabase.DbCallback;
 import com.fsck.k9.mailstore.LockableDatabase.WrappedException;
@@ -16,10 +18,36 @@ public class MailStore {
 
 
     private final LocalStore localStore;
+    private final Account account;
+    private final Preferences preferences;
 
 
     MailStore(LocalStore localStore) {
         this.localStore = localStore;
+        account = localStore.getAccount();
+        preferences = Preferences.getPreferences(localStore.context);
+    }
+
+    public String getFoldersSyncKey() {
+        return account.getFoldersSyncKey();
+    }
+
+    public void setFoldersSyncKey(String syncKey) {
+        account.setFoldersSyncKey(syncKey);
+        saveAccount();
+    }
+
+    public String getPolicyKey() {
+        return account.getPolicyKey();
+    }
+
+    public void setPolicyKey(String policyKey) {
+        account.setPolicyKey(policyKey);
+        saveAccount();
+    }
+
+    private void saveAccount() {
+        account.save(preferences);
     }
 
     public long createFolder(Folder folder) {

@@ -19,7 +19,6 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.database.Cursor;
 import android.graphics.Color;
-import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.util.Log;
 
@@ -234,6 +233,8 @@ public class Account implements BaseAccount, StoreConfig {
     private ColorChip mFlaggedUnreadColorChip;
     private ColorChip mFlaggedReadColorChip;
 
+    private String foldersSyncKey;
+    private String policyKey;
 
     /**
      * Indicates whether this account is enabled, i.e. ready for use, or not.
@@ -474,6 +475,8 @@ public class Account implements BaseAccount, StoreConfig {
         mEnabled = prefs.getBoolean(mUuid + ".enabled", true);
         mMarkMessageAsReadOnView = prefs.getBoolean(mUuid + ".markMessageAsReadOnView", true);
         mAlwaysShowCcBcc = prefs.getBoolean(mUuid + ".alwaysShowCcBcc", false);
+        foldersSyncKey = prefs.getString(mUuid + ".foldersSyncKey", null);
+        policyKey = prefs.getString(mUuid + ".policyKey", null);
 
         cacheChips();
 
@@ -569,6 +572,8 @@ public class Account implements BaseAccount, StoreConfig {
         editor.remove(mUuid + ".messageFormat");
         editor.remove(mUuid + ".messageReadReceipt");
         editor.remove(mUuid + ".notifyMailCheck");
+        editor.remove(mUuid + ".foldersSyncKey");
+        editor.remove(mUuid + ".policyKey");
         for (NetworkType type : NetworkType.values()) {
             editor.remove(mUuid + ".useCompression." + type.name());
         }
@@ -735,6 +740,8 @@ public class Account implements BaseAccount, StoreConfig {
         editor.putBoolean(mUuid + ".enabled", mEnabled);
         editor.putBoolean(mUuid + ".markMessageAsReadOnView", mMarkMessageAsReadOnView);
         editor.putBoolean(mUuid + ".alwaysShowCcBcc", mAlwaysShowCcBcc);
+        editor.putString(mUuid + ".foldersSyncKey", foldersSyncKey);
+        editor.putString(mUuid + ".policyKey", policyKey);
 
         editor.putBoolean(mUuid + ".vibrate", mNotificationSetting.shouldVibrate());
         editor.putInt(mUuid + ".vibratePattern", mNotificationSetting.getVibratePattern());
@@ -1715,6 +1722,22 @@ public class Account implements BaseAccount, StoreConfig {
 
     public void setRemoteSearchFullText(boolean val) {
         mRemoteSearchFullText = val;
+    }
+
+    public String getFoldersSyncKey() {
+        return foldersSyncKey;
+    }
+
+    public void setFoldersSyncKey(String syncKey) {
+        foldersSyncKey = syncKey;
+    }
+
+    public String getPolicyKey() {
+        return policyKey;
+    }
+
+    public void setPolicyKey(String policyKey) {
+        this.policyKey = policyKey;
     }
 
     /**

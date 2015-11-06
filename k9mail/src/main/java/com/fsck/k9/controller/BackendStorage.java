@@ -27,6 +27,26 @@ class BackendStorage implements com.fsck.k9.remote.BackendStorage {
     }
 
     @Override
+    public String getFoldersSyncKey() {
+        return mailStore.getFoldersSyncKey();
+    }
+
+    @Override
+    public void setFoldersSyncKey(String syncKey) {
+        mailStore.setFoldersSyncKey(syncKey);
+    }
+
+    @Override
+    public String getPolicyKey() {
+        return mailStore.getPolicyKey();
+    }
+
+    @Override
+    public void setPolicyKey(String policyKey) {
+        mailStore.setPolicyKey(policyKey);
+    }
+
+    @Override
     public void createFolder(String name, BackendFolderType backendFolderType, String serverId, String parentServerId) {
         Folder folder = new Folder();
         folder.name = name;
