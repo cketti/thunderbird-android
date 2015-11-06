@@ -10,6 +10,9 @@ public interface BackendStorage {
     String getPolicyKey();
     void setPolicyKey(String policyKey);
 
+    String getSyncKeyForFolder(String serverId);
+    void setSyncKeyForFolder(String serverId, String syncKey);
+
     void createFolder(String name, BackendFolderType backendFolderType, String serverId, String parentServerId);
     void deleteFolderByServerId(String serverId);
     void deleteAllFolders();

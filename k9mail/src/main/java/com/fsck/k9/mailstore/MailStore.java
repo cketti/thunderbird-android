@@ -14,7 +14,8 @@ import com.fsck.k9.mailstore.data.Folder;
 
 
 public class MailStore {
-    private static final String[] FOLDER_ID_COLUMN = new String[] { FolderColumns.ID };
+    private static final String[] FOLDERS_ID_COLUMN = new String[] { FolderColumns.ID };
+    private static final String[] FOLDERS_SYNC_KEY_COLUMN = new String[] { FolderColumns.SYNC_KEY };
 
 
     private final LocalStore localStore;
@@ -44,6 +45,28 @@ public class MailStore {
     public void setPolicyKey(String policyKey) {
         account.setPolicyKey(policyKey);
         saveAccount();
+    }
+
+    public String getSyncKeyForFolder(final String serverId) {
+        return dbOperation(new DbCallback<String>() {
+            @Override
+            public String doDbWork(SQLiteDatabase db) throws WrappedException, MessagingException {
+                return getSyncKeyByServerId(db, serverId);
+            }
+        });
+    }
+
+    public void setSyncKeyForFolder(final String serverId, String syncKey) {
+        final ContentValues values = new ContentValues();
+        values.put(FolderColumns.SYNC_KEY, syncKey);
+
+        dbOperation(new DbCallback<Void>() {
+            @Override
+            public Void doDbWork(SQLiteDatabase db) throws WrappedException, MessagingException {
+                db.update(Tables.FOLDERS, values, FolderColumns.SERVER_ID + " = ?", new String[] { serverId });
+                return null;
+            }
+        });
     }
 
     private void saveAccount() {
@@ -102,7 +125,7 @@ public class MailStore {
     }
 
     private long getFolderIdByServerId(SQLiteDatabase db, String serverId) {
-        Cursor cursor = db.query(Tables.FOLDERS, FOLDER_ID_COLUMN, FolderColumns.SERVER_ID + " = ?",
+        Cursor cursor = db.query(Tables.FOLDERS, FOLDERS_ID_COLUMN, FolderColumns.SERVER_ID + " = ?",
                 new String[] { serverId }, null, null, null);
         try {
             if (cursor.moveToFirst()) {
@@ -113,6 +136,20 @@ public class MailStore {
         }
 
         return -1;
+    }
+
+    private String getSyncKeyByServerId(SQLiteDatabase db, String serverId) {
+        Cursor cursor = db.query(Tables.FOLDERS, FOLDERS_SYNC_KEY_COLUMN, FolderColumns.SERVER_ID + " = ?",
+                new String[] { serverId }, null, null, null);
+        try {
+            if (cursor.moveToFirst()) {
+                return cursor.getString(0);
+            }
+        } finally {
+            cursor.close();
+        }
+
+        return null;
     }
 
     private <T> T dbOperation(DbCallback<T> callback) {

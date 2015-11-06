@@ -12,11 +12,10 @@ import com.fsck.k9.mail.store.eas.callback.EmailSyncCallback;
 import com.fsck.k9.remote.BackendStorage;
 
 
-class EmailSync implements EmailSyncCallback {
+class EmailSync {
     private final Context context;
     private final Account account;
     private final BackendStorage backendStorage;
-    private Mailbox mailbox;
 
 
     EmailSync(Context context, Account account, BackendStorage backendStorage) {
@@ -26,11 +25,11 @@ class EmailSync implements EmailSyncCallback {
     }
 
     public boolean syncFolder(String serverId) {
-        EasSyncMail syncMail = new EasSyncMail(this);
-
-        mailbox = new Mailbox();
+        Mailbox mailbox = new Mailbox();
         mailbox.mServerId = serverId;
-        //TODO: fetch syncKey from backendStorage and use it
+        mailbox.mSyncKey = backendStorage.getSyncKeyForFolder(serverId);
+
+        EasSyncMail syncMail = new EasSyncMail(new BackendEmailSyncCallback(mailbox));
 
         EasSyncBase syncBase = new EasSyncBase(context, account, mailbox, syncMail);
         int result = syncBase.performOperation();
@@ -38,59 +37,82 @@ class EmailSync implements EmailSyncCallback {
         return result >= EasSyncBase.RESULT_MIN_OK_RESULT;
     }
 
-    @Override
-    public void addMessage(MessageServerData messageServerData) {
-        backendStorage.createMessage(messageServerData);
-    }
+    class BackendEmailSyncCallback implements EmailSyncCallback {
+        private final Mailbox mailbox;
+        private boolean syncKeyChanged = false;
 
-    @Override
-    public void removeMessage(String serverId) {
-        //TODO: implement
-    }
 
-    @Override
-    public void readStateChanged(String serverId, boolean read) {
-        //TODO: implement
-    }
+        BackendEmailSyncCallback(Mailbox mailbox) {
+            this.mailbox = mailbox;
+        }
 
-    @Override
-    public void flagStateChanged(String serverId, boolean flag) {
-        //TODO: implement
-    }
+        @Override
+        public void addMessage(MessageServerData messageServerData) {
+            backendStorage.createMessage(messageServerData);
+        }
 
-    @Override
-    public void messageWasRepliedTo(String serverId) {
-        //TODO: implement
-    }
+        @Override
+        public void removeMessage(String serverId) {
+            //TODO: implement
+        }
 
-    @Override
-    public void messageWasForwarded(String serverId) {
-        //TODO: implement
-    }
+        @Override
+        public void readStateChanged(String serverId, boolean read) {
+            //TODO: implement
+        }
 
-    @Override
-    public void commitMessageChanges() {
-        //TODO: implement
-    }
+        @Override
+        public void flagStateChanged(String serverId, boolean flag) {
+            //TODO: implement
+        }
 
-    @Override
-    public boolean isFirstSync() {
-        return "0".equals(mailbox.mSyncKey);
-    }
+        @Override
+        public void messageWasRepliedTo(String serverId) {
+            //TODO: implement
+        }
 
-    @Override
-    public boolean setSyncKey(String syncKey) {
-        mailbox.mSyncKey = syncKey;
-        return false;
-    }
+        @Override
+        public void messageWasForwarded(String serverId) {
+            //TODO: implement
+        }
 
-    @Override
-    public void restartSync() {
-        //TODO: implement
-    }
+        @Override
+        public void commitMessageChanges() {
+            saveSyncKeyIfChanged();
+        }
 
-    @Override
-    public void wipe() {
-        //TODO: implement
+        private void saveSyncKeyIfChanged() {
+            if (syncKeyChanged) {
+                backendStorage.setSyncKeyForFolder(mailbox.mServerId, mailbox.mSyncKey);
+            }
+        }
+
+        @Override
+        public boolean isFirstSync() {
+            return "0".equals(mailbox.mSyncKey);
+        }
+
+        @Override
+        public boolean setSyncKey(String syncKey) {
+            String oldSyncKey = mailbox.mSyncKey;
+            boolean changed = oldSyncKey == null || !oldSyncKey.equals(syncKey);
+            if (!syncKeyChanged && changed) {
+                syncKeyChanged = true;
+            }
+
+            mailbox.mSyncKey = syncKey;
+
+            return changed;
+        }
+
+        @Override
+        public void restartSync() {
+            //TODO: implement
+        }
+
+        @Override
+        public void wipe() {
+            //TODO: implement
+        }
     }
 }
