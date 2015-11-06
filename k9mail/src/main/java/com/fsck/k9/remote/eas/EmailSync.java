@@ -3,6 +3,7 @@ package com.fsck.k9.remote.eas;
 
 import android.content.Context;
 
+import com.fsck.k9.mail.Flag;
 import com.fsck.k9.mail.data.MessageServerData;
 import com.fsck.k9.mail.store.eas.Account;
 import com.fsck.k9.mail.store.eas.EasSyncBase;
@@ -53,27 +54,32 @@ class EmailSync {
 
         @Override
         public void removeMessage(String serverId) {
-            //TODO: implement
+            String folderServerId = mailbox.mServerId;
+            backendStorage.removeMessage(folderServerId, serverId);
         }
 
         @Override
         public void readStateChanged(String serverId, boolean read) {
-            //TODO: implement
+            String folderServerId = mailbox.mServerId;
+            backendStorage.setMessageFlag(folderServerId, serverId, Flag.SEEN, read);
         }
 
         @Override
         public void flagStateChanged(String serverId, boolean flag) {
-            //TODO: implement
+            String folderServerId = mailbox.mServerId;
+            backendStorage.setMessageFlag(folderServerId, serverId, Flag.FLAGGED, flag);
         }
 
         @Override
         public void messageWasRepliedTo(String serverId) {
-            //TODO: implement
+            String folderServerId = mailbox.mServerId;
+            backendStorage.setMessageFlag(folderServerId, serverId, Flag.ANSWERED, true);
         }
 
         @Override
         public void messageWasForwarded(String serverId) {
-            //TODO: implement
+            String folderServerId = mailbox.mServerId;
+            backendStorage.setMessageFlag(folderServerId, serverId, Flag.FORWARDED, true);
         }
 
         @Override
@@ -107,7 +113,8 @@ class EmailSync {
 
         @Override
         public void restartSync() {
-            //TODO: implement
+            String folderServerId = mailbox.mServerId;
+            backendStorage.removeAllMessages(folderServerId);
         }
 
         @Override

@@ -5,12 +5,14 @@ import java.util.Collections;
 
 import com.fsck.k9.Account;
 import com.fsck.k9.controller.legacy.LegacyMessage;
+import com.fsck.k9.mail.Flag;
 import com.fsck.k9.mail.Folder.FolderClass;
 import com.fsck.k9.mail.Message;
 import com.fsck.k9.mail.MessagingException;
 import com.fsck.k9.mail.data.MessageServerData;
 import com.fsck.k9.mailstore.FolderType;
 import com.fsck.k9.mailstore.LocalFolder;
+import com.fsck.k9.mailstore.LocalMessage;
 import com.fsck.k9.mailstore.LocalStore;
 import com.fsck.k9.mailstore.MailStore;
 import com.fsck.k9.mailstore.data.Folder;
@@ -118,6 +120,47 @@ class BackendStorage implements com.fsck.k9.remote.BackendStorage {
             LocalFolder localFolder = localStore.getFolderByServerId(messageServerData.folderServerId());
             localFolder.open(LocalFolder.OPEN_MODE_RW);
             localFolder.appendMessages(Collections.singletonList(messageToSave));
+        } catch (MessagingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void removeMessage(String folderServerId, String messageServerId) {
+        try {
+            LocalStore localStore = account.getLocalStore();
+            LocalFolder localFolder = localStore.getFolderByServerId(folderServerId);
+
+            localFolder.open(LocalFolder.OPEN_MODE_RW);
+            LocalMessage message = localFolder.getMessage(messageServerId);
+            message.destroy();
+        } catch (MessagingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void setMessageFlag(String folderServerId, String messageServerId, Flag flag, boolean state) {
+        try {
+            LocalStore localStore = account.getLocalStore();
+            LocalFolder localFolder = localStore.getFolderByServerId(folderServerId);
+
+            localFolder.open(LocalFolder.OPEN_MODE_RW);
+            LocalMessage message = localFolder.getMessage(messageServerId);
+            message.setFlag(flag, state);
+        } catch (MessagingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void removeAllMessages(String folderServerId) {
+        try {
+            LocalStore localStore = account.getLocalStore();
+            LocalFolder localFolder = localStore.getFolderByServerId(folderServerId);
+
+            localFolder.open(LocalFolder.OPEN_MODE_RW);
+            localFolder.clearAllMessages();
         } catch (MessagingException e) {
             throw new RuntimeException(e);
         }
