@@ -1674,6 +1674,8 @@ public class LocalFolder extends Folder<LocalMessage> implements Serializable {
                                 "(SELECT id FROM messages WHERE folder_id = ?)", folderIdArg);
                         db.execSQL("DELETE FROM messages WHERE folder_id = ?", folderIdArg);
 
+                        db.execSQL("UPDATE folders SET sync_key = NULL WHERE id = ?", folderIdArg);
+
                         setMoreMessages(MoreMessages.UNKNOWN);
 
                         return null;

@@ -4231,6 +4231,7 @@ public class MessagingController implements Runnable {
                     long oldSize = localStore.getSize();
                     localStore.clear();
                     localStore.resetVisibleLimits(account.getDisplayCount());
+                    resetFoldersSyncKey(account);
                     long newSize = localStore.getSize();
                     AccountStats stats = new AccountStats();
                     stats.size = newSize;
@@ -4250,6 +4251,11 @@ public class MessagingController implements Runnable {
         });
     }
 
+    private void resetFoldersSyncKey(Account account) {
+        account.setFoldersSyncKey(null);
+        account.save(Preferences.getPreferences(context));
+    }
+
     public void recreate(final Account account, final MessagingListener ml) {
         putBackground("recreate:" + account.getDescription(), ml, new Runnable() {
             @Override
@@ -4264,6 +4270,7 @@ public class MessagingController implements Runnable {
                     stats.size = newSize;
                     stats.unreadMessageCount = 0;
                     stats.flaggedMessageCount = 0;
+                    resetFoldersSyncKey(account);
                     for (MessagingListener l : getListeners(ml)) {
                         l.accountSizeChanged(account, oldSize, newSize);
                         l.accountStatusChanged(account, stats);
