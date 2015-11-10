@@ -76,6 +76,7 @@ public class MessageData implements MessageServerData {
     private String text;
     private Message message;
     private String folderServerId;
+    private boolean messageTruncated;
 
 
     public String getServerId() {
@@ -270,5 +271,14 @@ public class MessageData implements MessageServerData {
 
     public void setFolderServerId(String folderServerId) {
         this.folderServerId = folderServerId;
+    }
+
+    @Override
+    public boolean isMessageTruncated() {
+        return messageTruncated;
+    }
+
+    public void setMessageTruncated(boolean messageTruncated) {
+        this.messageTruncated = messageTruncated;
     }
 }

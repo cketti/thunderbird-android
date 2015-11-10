@@ -16,4 +16,6 @@ public interface MessageServerData {
     Message message();
 
     String getServerIdForPart(Part part);
+
+    boolean isMessageTruncated();
 }

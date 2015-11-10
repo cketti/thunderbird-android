@@ -202,6 +202,8 @@ public class EmailSyncParser extends AbstractSyncParser {
             }
         }
 
+        messageData.setMessageTruncated(truncated);
+
         if (attachmentDataList.size() > 0) {
             messageData.setAttachments(attachmentDataList);
         }

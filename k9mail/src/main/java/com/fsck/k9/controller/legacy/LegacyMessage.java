@@ -13,15 +13,37 @@ public class LegacyMessage extends LegacySimpleMessage {
         super(messageServerData.message());
 
         setUid(messageServerData.serverId());
+        initFlags(messageServerData);
+    }
 
+    private void initFlags(MessageServerData messageServerData) {
+        initInternalFlags(messageServerData);
+        initServerFlags(messageServerData);
+    }
+
+    private void initInternalFlags(MessageServerData messageServerData) {
+        setFlagOrThrow(Flag.X_GOT_ALL_HEADERS, true);
+
+        if (messageServerData.isMessageTruncated()) {
+            setFlagOrThrow(Flag.X_DOWNLOADED_PARTIAL, true);
+        } else {
+            setFlagOrThrow(Flag.X_DOWNLOADED_FULL, true);
+        }
+    }
+
+    private void initServerFlags(MessageServerData messageServerData) {
         for (Flag flag : INTERESTING_FLAGS) {
             if (messageServerData.isFlagSet(flag)) {
-                try {
-                    setFlag(flag, true);
-                } catch (MessagingException e) {
-                    throw new RuntimeException(e);
-                }
+                setFlagOrThrow(flag, true);
             }
+        }
+    }
+
+    private void setFlagOrThrow(Flag flag, boolean value) {
+        try {
+            setFlag(flag, value);
+        } catch (MessagingException e) {
+            throw new RuntimeException(e);
         }
     }
 
