@@ -650,6 +650,8 @@ class StoreSchemaDefinition implements LockableDatabase.SchemaDefinition {
         db.execSQL("ALTER TABLE folders ADD parent INTEGER");
         db.execSQL("ALTER TABLE folders ADD sync_key TEXT DEFAULT \"0\"");
 
+        db.execSQL("CREATE INDEX IF NOT EXISTS folders_server_id ON folders (server_id)");
+
         db.execSQL("UPDATE folders SET server_id = name");
     }
 }
