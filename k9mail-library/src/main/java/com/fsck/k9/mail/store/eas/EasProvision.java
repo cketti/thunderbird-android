@@ -25,6 +25,7 @@ import android.content.Context;
 import com.fsck.k9.mail.store.eas.adapter.ProvisionParser;
 import com.fsck.k9.mail.store.eas.adapter.Serializer;
 import com.fsck.k9.mail.store.eas.adapter.Tags;
+import com.squareup.okhttp.RequestBody;
 import org.apache.http.HttpEntity;
 
 /**
@@ -81,7 +82,7 @@ public class EasProvision extends EasOperation {
     /**
      * Because this operation supports variants of the request and parsing, and {@link EasOperation}
      * has no way to communicate this into {@link #performOperation}, we use this member variable
-     * to vary how {@link #getRequestEntity} and {@link #handleResponse} work.
+     * to vary how {@link #getRequestBody} and {@link #handleResponse} work.
      */
     private int mPhase;
 
@@ -263,13 +264,13 @@ public class EasProvision extends EasOperation {
      * @return The {@link HttpEntity} that was generated for this request.
      */
     @Override
-    protected byte[] getRequestEntity() throws IOException {
+    protected RequestBody getRequestBody() throws IOException {
         final String policyType = getPolicyType();
         final String userAgent = getUserAgent();
         final double protocolVersion = getProtocolVersion();
         final Serializer s = generateRequestEntitySerializer(mContext, userAgent, mPolicyKey,
                 policyType, mStatus, mPhase, protocolVersion);
-        return makeEntity(s);
+        return makeRequestBody(s);
     }
 
     @Override

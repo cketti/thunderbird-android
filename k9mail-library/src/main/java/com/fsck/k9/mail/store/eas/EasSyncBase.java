@@ -10,6 +10,7 @@ import com.fsck.k9.mail.store.eas.adapter.AbstractSyncParser;
 import com.fsck.k9.mail.store.eas.adapter.Parser;
 import com.fsck.k9.mail.store.eas.adapter.Serializer;
 import com.fsck.k9.mail.store.eas.adapter.Tags;
+import com.squareup.okhttp.RequestBody;
 
 
 /**
@@ -66,7 +67,7 @@ public class EasSyncBase extends EasOperation {
     }
 
     @Override
-    protected byte[] getRequestEntity() throws IOException {
+    protected RequestBody getRequestBody() throws IOException {
         final String className = Eas.getFolderClass(mMailbox.mType);
         final String syncKey = getSyncKey();
         LogUtils.d(TAG, "Syncing account %d mailbox %d (class %s) with syncKey %s", mAccount.mId,
@@ -86,7 +87,7 @@ public class EasSyncBase extends EasOperation {
                 mInitialSync, mNumWindows);
         s.end().end().end().done();
 
-        return makeEntity(s);
+        return makeRequestBody(s);
     }
 
     @Override

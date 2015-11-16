@@ -31,7 +31,11 @@ import android.text.format.DateUtils;
 
 import com.fsck.k9.mail.store.eas.adapter.Serializer;
 import com.fsck.k9.mail.store.eas.adapter.Tags;
+import com.squareup.okhttp.MediaType;
 import com.squareup.okhttp.Request;
+import com.squareup.okhttp.RequestBody;
+import okio.ByteString;
+
 
 /**
  * Base class for all Exchange operations that use a POST to talk to the server.
@@ -475,8 +479,7 @@ public abstract class EasOperation {
      */
     protected Request makeRequest() throws IOException, MessageInvalidException {
         final String requestUri = getRequestUri();
-        return mConnection.makePost(requestUri, getRequestEntity(),
-                getRequestContentType(), addPolicyKeyHeaderToRequest()).build();
+        return mConnection.makePost(requestUri, getRequestBody(), addPolicyKeyHeaderToRequest()).build();
     }
 
     /**
@@ -495,12 +498,12 @@ public abstract class EasOperation {
 
     /**
      * Build the payload which is used to construct the POST. Typically this function
-     * will build the Exchange request using a {@link Serializer} and then call {@link #makeEntity}.
+     * will build the Exchange request using a {@link Serializer} and then call {@link #makeRequestBody}.
      * If the subclass is not using a POST, then it should override this to return null.
-     * @return The byte array to pass to {@link EasServerConnection#makePost}.
+     * @return The {@code RequestBody} to pass to {@link EasServerConnection#makePost}.
      * @throws IOException
      */
-    protected abstract byte[] getRequestEntity() throws IOException, MessageInvalidException;
+    protected abstract RequestBody getRequestBody() throws IOException, MessageInvalidException;
 
     /**
      * Parse the response from the Exchange perform whatever actions are dictated by that.
@@ -573,10 +576,20 @@ public abstract class EasOperation {
      */
 
     /**
-     * Convenience method to make a byte array from {@link Serializer}.
+     * Convenience method to make a {@link RequestBody} from {@link Serializer}.
      */
-    protected final byte[] makeEntity(final Serializer s) {
-        return s.toByteArray();
+    protected final RequestBody makeRequestBody(Serializer serializer) {
+        String contentType = getRequestContentType();
+        byte[] payload = serializer.toByteArray();
+
+        if (contentType == null || payload == null) {
+            // If there is no payload, we should not be setting a content-type since this will
+            // result in a 400 from the server in the case of loading an attachment.
+            return RequestBody.create(null, ByteString.EMPTY);
+        }
+
+        MediaType mediaType = MediaType.parse(contentType);
+        return RequestBody.create(mediaType, payload);
     }
 
     /**

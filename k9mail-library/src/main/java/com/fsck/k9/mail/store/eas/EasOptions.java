@@ -22,6 +22,8 @@ import java.util.Set;
 
 import com.fsck.k9.mail.store.eas.util.Sets;
 import com.squareup.okhttp.Request;
+import com.squareup.okhttp.RequestBody;
+import okio.ByteString;
 
 
 /**
@@ -77,7 +79,7 @@ public class EasOptions extends EasOperation {
     }
 
     @Override
-    protected byte[] getRequestEntity() {
+    protected RequestBody getRequestBody() {
         return null;
     }
 

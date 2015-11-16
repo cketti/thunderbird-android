@@ -8,7 +8,9 @@ import android.content.Context;
 import android.net.Uri;
 import android.util.Xml;
 
+import com.squareup.okhttp.MediaType;
 import com.squareup.okhttp.Request;
+import com.squareup.okhttp.RequestBody;
 import org.apache.http.HttpStatus;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -120,7 +122,7 @@ public class EasAutoDiscover extends EasOperation {
     }
 
     @Override
-    protected byte[] getRequestEntity() throws IOException, MessageInvalidException {
+    protected RequestBody getRequestBody() throws IOException, MessageInvalidException {
         try {
             final XmlSerializer s = Xml.newSerializer();
             final ByteArrayOutputStream os = new ByteArrayOutputStream(1024);
@@ -136,7 +138,10 @@ public class EasAutoDiscover extends EasOperation {
             s.endTag(null, "Request");
             s.endTag(null, "Autodiscover");
             s.endDocument();
-            return os.toByteArray();
+
+            MediaType contentType = MediaType.parse(getRequestContentType());
+            byte[] content = os.toByteArray();
+            return RequestBody.create(contentType, content);
         } catch (final IOException e) {
             // For all exception types, we can simply punt on autodiscover.
         } catch (final IllegalArgumentException e) {
@@ -157,8 +162,7 @@ public class EasAutoDiscover extends EasOperation {
         if (mAttemptNumber == ATTEMPT_UNAUTHENTICATED_GET) {
             request = mConnection.makeGet(requestUri).build();
         } else {
-            request = mConnection.makePost(requestUri, getRequestEntity(),
-                    getRequestContentType(), addPolicyKeyHeaderToRequest()).build();
+            request = mConnection.makePost(requestUri, getRequestBody(), addPolicyKeyHeaderToRequest()).build();
         }
         return request;
     }

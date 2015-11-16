@@ -219,13 +219,11 @@ public class EasServerConnection {
     /**
      * Create a {@link Request.Builder} for a specific POST request.
      * @param uri The uri for this request, as a {@link String}.
-     * @param payload The payload for this request.
-     * @param contentType The Content-Type for this request.
+     * @param body The {@code RequestBody} for this request.
      * @param usePolicyKey Whether or not a policy key should be sent.
      * @return
      */
-    public Request.Builder makePost(final String uri, final byte[] payload, final String contentType,
-            final boolean usePolicyKey) {
+    public Request.Builder makePost(String uri, RequestBody body, boolean usePolicyKey) {
         Request.Builder requestBuilder = new Builder()
                 .url(uri)
                 .header("Authorization", makeAuthString())
@@ -233,15 +231,6 @@ public class EasServerConnection {
                 .header("User-Agent", getUserAgent())
                 .header("Accept-Encoding", "gzip");
 
-        // If there is no payload, we should not be setting a content-type since this will
-        // result in a 400 from the server in the case of loading an attachment.
-        RequestBody body;
-        if (contentType != null && payload != null) {
-            MediaType mediaType = MediaType.parse(contentType);
-            body = RequestBody.create(mediaType, payload);
-        } else {
-            body = RequestBody.create(null, ByteString.EMPTY);
-        }
         requestBuilder.post(body);
 
         if (usePolicyKey) {
@@ -277,60 +266,6 @@ public class EasServerConnection {
                 .header("Authorization", makeAuthString())
                 .header("User-Agent", getUserAgent())
                 .method("OPTIONS", null);
-    }
-
-    /**
-     * Send a POST request to the server.
-     * @param cmd The command we're sending to the server.
-     * @param payload The byte array containing the payload of the message.
-     * @param timeout The timeout for this POST.
-     * @return The response from the Exchange server.
-     * @throws IOException
-     */
-    public EasResponse sendHttpClientPost(String cmd, final byte[] payload, final long timeout)
-            throws IOException, CertificateException {
-        final boolean isPingCommand = cmd.equals("Ping");
-
-        // Split the mail sending commands
-        // TODO: This logic should not be here, the command should be generated correctly
-        // in a subclass of EasOperation.
-        String extra = null;
-        boolean msg = false;
-        if (cmd.startsWith("SmartForward&") || cmd.startsWith("SmartReply&")) {
-            final int cmdLength = cmd.indexOf('&');
-            extra = cmd.substring(cmdLength);
-            cmd = cmd.substring(0, cmdLength);
-            msg = true;
-        } else if (cmd.startsWith("SendMail&")) {
-            msg = true;
-        }
-
-        // Send the proper Content-Type header; it's always wbxml except for messages when
-        // the EAS protocol version is < 14.0
-        // If entity is null (e.g. for attachments), don't set this header
-        final String contentType;
-        if (msg && (getProtocolVersion() < Eas.SUPPORTED_PROTOCOL_EX2010_DOUBLE)) {
-            contentType = "message/rfc822";
-        } else if (payload != null) {
-            contentType = EAS_14_MIME_TYPE;
-        } else {
-            contentType = null;
-        }
-        final String uriString;
-        if (extra == null) {
-            uriString = makeUriString(cmd);
-        } else {
-            uriString = makeUriString(cmd, extra);
-        }
-        Request.Builder requestBuilder = makePost(uriString, payload, contentType, !isPingCommand);
-        // NOTE
-        // The next lines are added at the insistence of $VENDOR, who is seeing inappropriate
-        // network activity related to the Ping command on some networks with some servers.
-        // This code should be removed when the underlying issue is resolved
-        if (isPingCommand) {
-            requestBuilder.header("Connection", "close");
-        }
-        return executeHttpUriRequest(requestBuilder.build(), timeout);
     }
 
     /**

@@ -26,6 +26,7 @@ import com.fsck.k9.mail.store.eas.adapter.FolderSyncParser;
 import com.fsck.k9.mail.store.eas.adapter.Serializer;
 import com.fsck.k9.mail.store.eas.adapter.Tags;
 import com.fsck.k9.mail.store.eas.callback.FolderSyncCallback;
+import com.squareup.okhttp.RequestBody;
 
 
 /**
@@ -66,7 +67,7 @@ public class EasFolderSync extends EasOperation {
     }
 
     @Override
-    protected byte[] getRequestEntity() throws IOException {
+    protected RequestBody getRequestBody() throws IOException {
         String syncKey = mAccount.mSyncKey != null ? mAccount.mSyncKey : "0";
 
         Serializer serializer = new Serializer();
@@ -74,7 +75,7 @@ public class EasFolderSync extends EasOperation {
                 .start(Tags.FOLDER_SYNC_KEY).text(syncKey).end()
                 .end().done();
 
-        return makeEntity(serializer);
+        return makeRequestBody(serializer);
     }
 
     @Override
