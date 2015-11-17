@@ -17,10 +17,11 @@
 package com.fsck.k9.mail.store.eas.adapter;
 
 
-import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 
+import com.fsck.k9.mail.store.eas.adapter.Serializer.OpaqueWriter;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.robolectric.RobolectricTestRunner;
@@ -94,11 +95,11 @@ public class SerializerTest {
                 data[0],
                 data[1],
                 Wbxml.END);
-        ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
+        OpaqueWriter opaqueWriter = new OpaqueByteWriter(data);
 
         Serializer serializer = new Serializer();
         serializer.start(Tags.EMAIL_BODY);
-        serializer.opaque(inputStream, 2);
+        serializer.opaque(opaqueWriter, 2);
         serializer.end();
         serializer.done();
         byte[] bytes = serializer.toByteArray();
@@ -113,11 +114,11 @@ public class SerializerTest {
                 Wbxml.SWITCH_PAGE,
                 Tags.EMAIL,
                 Tags.EMAIL_BODY & Tags.PAGE_MASK);
-        ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
+        OpaqueWriter opaqueWriter = new OpaqueByteWriter(data);
 
         Serializer serializer = new Serializer();
         serializer.start(Tags.EMAIL_BODY);
-        serializer.opaque(inputStream, data.length);
+        serializer.opaque(opaqueWriter, data.length);
         serializer.end();
         serializer.done();
         byte[] bytes = serializer.toByteArray();
@@ -127,20 +128,20 @@ public class SerializerTest {
 
     @Test(expected = IOException.class)
     public void testOpaqueReadingBeyondEndOfStream() throws Exception {
-        ByteArrayInputStream inputStream = new ByteArrayInputStream(new byte[] { 1 });
+        OpaqueWriter opaqueWriter = new OpaqueByteWriter(new byte[] { 1 });
 
         Serializer serializer = new Serializer();
         serializer.start(Tags.EMAIL_BODY);
-        serializer.opaque(inputStream, 2);
+        serializer.opaque(opaqueWriter, 2);
     }
 
     @Test(expected = IOException.class)
     public void testOpaqueWithNegativeLength() throws Exception {
-        ByteArrayInputStream inputStream = new ByteArrayInputStream(new byte[] { 1 });
+        OpaqueWriter opaqueWriter = new OpaqueByteWriter(new byte[] { 1 });
 
         Serializer serializer = new Serializer();
         serializer.start(Tags.EMAIL_BODY);
-        serializer.opaque(inputStream, -1);
+        serializer.opaque(opaqueWriter, -1);
     }
 
     @Test(expected = IOException.class)
@@ -192,5 +193,20 @@ public class SerializerTest {
         }
 
         return bytes;
+    }
+
+
+    private static class OpaqueByteWriter implements OpaqueWriter {
+        private final byte[] data;
+
+
+        public OpaqueByteWriter(byte[] data) {
+            this.data = data;
+        }
+
+        @Override
+        public void writeTo(OutputStream outputStream) throws IOException {
+            outputStream.write(data);
+        }
     }
 }

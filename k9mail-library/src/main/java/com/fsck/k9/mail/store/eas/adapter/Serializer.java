@@ -26,12 +26,12 @@ package com.fsck.k9.mail.store.eas.adapter;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayDeque;
 import java.util.Arrays;
 import java.util.Deque;
 
+import com.fsck.k9.mail.filter.FixedLengthOutputStream;
 import com.fsck.k9.mail.store.eas.Eas;
 import com.fsck.k9.mail.store.eas.EasService;
 import com.fsck.k9.mail.store.eas.FileLogger;
@@ -40,7 +40,6 @@ import com.fsck.k9.mail.store.eas.LogUtils;
 
 public class Serializer {
     private static final String TAG = Eas.LOG_TAG;
-    private static final int BUFFER_SIZE = 16*1024;
     private static final int NOT_PENDING = -1;
 
 
@@ -169,24 +168,23 @@ public class Serializer {
     }
 
     /**
-     * Writes out opaque data blocks. Throws IOException for negative buffer
-     * sizes or if is unable to read sufficient bytes from input stream.
+     * Writes out opaque data blocks.
+     *
+     * @throws IOException for negative buffer sizes or if the writer is unable to write sufficient bytes to the
+     *         output stream.
      */
-    public Serializer opaque(final InputStream is, final int length) throws IOException {
+    public Serializer opaque(OpaqueWriter opaqueWriter, int length) throws IOException {
         writeOpaqueHeader(length);
         log("opaque: " + length);
-        // Now write out the opaque data in batches
-        final byte[] buffer = new byte[BUFFER_SIZE];
-        int totalBytesRead = 0;
-        while (totalBytesRead < length) {
-            final int bytesRead = is.read(buffer, 0, Math.min(BUFFER_SIZE, length));
-            if (bytesRead == -1) {
-                throw new IOException("Invalid opaque data block; read "
-                        + totalBytesRead + " bytes but expected " + length);
-            }
-            mOutput.write(buffer, 0, bytesRead);
-            totalBytesRead += bytesRead;
+
+        FixedLengthOutputStream fixedLengthOutputStream = new FixedLengthOutputStream(mOutput, length);
+        opaqueWriter.writeTo(fixedLengthOutputStream);
+
+        if (!fixedLengthOutputStream.isWriteComplete()) {
+            throw new IOException("Invalid opaque data block; wrote " +
+                    fixedLengthOutputStream.getNumberOfBytesWritten() + " bytes but expected " + length);
         }
+
         return this;
     }
 
@@ -196,7 +194,7 @@ public class Serializer {
      * without having to allocate the memory for the data copy.
      * Throws IOException if length is negative; is a no-op for length 0.
      */
-    private Serializer writeOpaqueHeader(final int length) throws IOException {
+    public Serializer writeOpaqueHeader(int length) throws IOException {
         if (length < 0) {
             throw new IOException("Invalid negative opaque data length " + length);
         }
@@ -246,5 +244,10 @@ public class Serializer {
             return ((ByteArrayOutputStream) mOutput).toByteArray();
         }
         throw new IllegalStateException();
+    }
+
+
+    public interface OpaqueWriter {
+        void writeTo(OutputStream outputStream) throws IOException;
     }
 }
