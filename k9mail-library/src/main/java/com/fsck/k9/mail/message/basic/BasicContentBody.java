@@ -20,7 +20,7 @@ class BasicContentBody implements ContentBody {
     }
 
     @Override
-    public long size() {
+    public long length() {
         return raw.length;
     }
 

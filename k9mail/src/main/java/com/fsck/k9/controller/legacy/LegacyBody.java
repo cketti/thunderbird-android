@@ -63,6 +63,6 @@ class LegacyBody implements com.fsck.k9.mail.Body, SizeAware {
 
     @Override
     public long getSize() {
-        return contentBody.size();
+        return contentBody.length();
     }
 }
