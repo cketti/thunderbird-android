@@ -15,5 +15,7 @@ public interface MultipartBuilder extends BodyBuilder {
 
     void epilogue(byte[] epilogue);
 
+    void boundary(String boundary);
+
     Multipart build();
 }

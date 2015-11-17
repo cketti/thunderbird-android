@@ -115,6 +115,8 @@ public class MessageParser {
             PartBuilder partBuilder = (PartBuilder) stack.peek();
 
             MultipartBuilder multipartBuilder = factory.createMultipartBuilder();
+            multipartBuilder.boundary(bodyDescriptor.getBoundary());
+
             partBuilder.body(multipartBuilder);
             stack.addFirst(multipartBuilder);
         }

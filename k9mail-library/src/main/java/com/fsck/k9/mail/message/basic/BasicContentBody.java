@@ -4,6 +4,7 @@ package com.fsck.k9.mail.message.basic;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.OutputStream;
 
 import com.fsck.k9.mail.data.ContentBody;
 import com.fsck.k9.mail.data.builder.ContentBodyBuilder;
@@ -26,6 +27,11 @@ class BasicContentBody implements ContentBody {
     @Override
     public InputStream raw() {
         return new ByteArrayInputStream(raw);
+    }
+
+    @Override
+    public void writeTo(OutputStream outputStream) throws IOException {
+        outputStream.write(raw);
     }
 
 

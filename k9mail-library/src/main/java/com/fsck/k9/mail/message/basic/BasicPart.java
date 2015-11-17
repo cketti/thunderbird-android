@@ -1,6 +1,9 @@
 package com.fsck.k9.mail.message.basic;
 
 
+import java.io.IOException;
+import java.io.OutputStream;
+
 import com.fsck.k9.mail.data.Body;
 import com.fsck.k9.mail.data.Header;
 import com.fsck.k9.mail.data.Part;
@@ -10,6 +13,9 @@ import com.fsck.k9.mail.data.builder.PartBuilder;
 
 
 class BasicPart implements Part {
+    private static final byte[] CRLF = { '\r', '\n' };
+
+
     private final Header header;
     private final Body body;
 
@@ -27,6 +33,13 @@ class BasicPart implements Part {
     @Override
     public Body body() {
         return body;
+    }
+
+    @Override
+    public void writeTo(OutputStream outputStream) throws IOException {
+        header().writeTo(outputStream);
+        outputStream.write(CRLF);
+        body().writeTo(outputStream);
     }
 
 

@@ -1,6 +1,8 @@
 package com.fsck.k9.mail.message.basic;
 
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -10,9 +12,14 @@ import com.fsck.k9.mail.data.Header;
 import com.fsck.k9.mail.data.builder.HeaderBuilder;
 import com.fsck.k9.mail.util.LinkedHashMultimap;
 import com.fsck.k9.mail.util.Multimap;
+import okio.BufferedSink;
+import okio.Okio;
 
 
 class BasicHeader implements Header {
+    private static final byte[] CRLF = { '\r', '\n' };
+
+
     private final List<BasicHeaderField> fields;
     private final Multimap<String, BasicHeaderField> fieldMap;
 
@@ -57,6 +64,16 @@ class BasicHeader implements Header {
         }
 
         return result;
+    }
+
+    @Override
+    public void writeTo(OutputStream outputStream) throws IOException {
+        BufferedSink bufferedSink = Okio.buffer(Okio.sink(outputStream));
+        for (BasicHeaderField field : fields) {
+            bufferedSink.writeUtf8(field.raw());
+            bufferedSink.write(CRLF);
+        }
+        bufferedSink.flush();
     }
 
     private String lowerCase(String input) {
