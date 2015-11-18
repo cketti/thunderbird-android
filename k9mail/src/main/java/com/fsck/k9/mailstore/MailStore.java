@@ -1,6 +1,8 @@
 package com.fsck.k9.mailstore;
 
 
+import java.util.List;
+
 import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
@@ -8,9 +10,11 @@ import android.database.sqlite.SQLiteDatabase;
 import com.fsck.k9.Account;
 import com.fsck.k9.Preferences;
 import com.fsck.k9.mail.MessagingException;
+import com.fsck.k9.mail.data.Message;
 import com.fsck.k9.mailstore.LockableDatabase.DbCallback;
 import com.fsck.k9.mailstore.LockableDatabase.WrappedException;
 import com.fsck.k9.mailstore.data.Folder;
+import com.fsck.k9.mailstore.legacy.LegacyMailStore;
 
 
 public class MailStore {
@@ -21,12 +25,14 @@ public class MailStore {
     private final LocalStore localStore;
     private final Account account;
     private final Preferences preferences;
+    private final LegacyMailStore legacyMailStore;
 
 
     MailStore(LocalStore localStore) {
         this.localStore = localStore;
         account = localStore.getAccount();
         preferences = Preferences.getPreferences(localStore.context);
+        legacyMailStore = new LegacyMailStore(localStore);
     }
 
     public String getFoldersSyncKey() {
@@ -146,6 +152,22 @@ public class MailStore {
                 return getFolderIdByServerId(db, serverId);
             }
         });
+    }
+
+    public List<Long> getMessageStorageIds(long folderStorageId) {
+        return legacyMailStore.getMessageStorageIds(folderStorageId);
+    }
+
+    public Message getMessage(long messageStorageId) {
+        return legacyMailStore.getMessage(messageStorageId);
+    }
+
+    public void removeMessage(long messageStorageId) {
+        legacyMailStore.removeMessage(messageStorageId);
+    }
+
+    public void moveMessage(long messageStorageId, String folderServerId) {
+        legacyMailStore.moveMessage(messageStorageId, folderServerId);
     }
 
     private long getFolderIdByServerId(SQLiteDatabase db, String serverId) {

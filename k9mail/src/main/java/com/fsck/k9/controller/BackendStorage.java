@@ -23,9 +23,14 @@ class BackendStorage implements com.fsck.k9.remote.BackendStorage {
     private final Account account;
     private final MailStore mailStore;
 
+
     BackendStorage(Account account, MailStore mailStore) {
         this.account = account;
         this.mailStore = mailStore;
+    }
+
+    public MailStore getMailStore() {
+        return mailStore;
     }
 
     @Override

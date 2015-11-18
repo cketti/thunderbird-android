@@ -14,6 +14,7 @@ import android.util.Log;
 import com.fsck.k9.Account;
 import com.fsck.k9.K9;
 import com.fsck.k9.Preferences;
+import com.fsck.k9.activity.MessageReference;
 import com.fsck.k9.helper.UrlEncodingHelper;
 import com.fsck.k9.helper.Utility;
 import com.fsck.k9.mail.Flag;
@@ -408,6 +409,33 @@ public class LocalStore extends Store implements Serializable {
                 }
 
                 throw new FolderNotFoundException("Folder with server ID '" + serverId + "' not found");
+            }
+        });
+    }
+
+    public MessageReference getMessageReference(final long messageId) throws MessagingException {
+        return database.execute(false, new DbCallback<MessageReference>() {
+            @Override
+            public MessageReference doDbWork(SQLiteDatabase db) throws WrappedException, MessagingException {
+                Cursor cursor = db.rawQuery("SELECT " +
+                        "m.uid, f.server_id " +
+                        "FROM messages m " +
+                        "JOIN folders f ON (m.folder_id = f.id)" +
+                        "WHERE m.id = ?",
+                        new String[] { Long.toString(messageId) });
+                try {
+                    if (cursor.moveToFirst()) {
+                        String uid = cursor.getString(0);
+                        String folderName = cursor.getString(1);
+
+                        String accountUuid = mAccount.getUuid();
+                        return new MessageReference(accountUuid, folderName, uid, null);
+                    }
+                } finally {
+                    cursor.close();
+                }
+
+                return null;
             }
         });
     }

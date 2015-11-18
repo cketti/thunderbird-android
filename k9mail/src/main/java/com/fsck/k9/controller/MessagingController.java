@@ -183,6 +183,7 @@ public class MessagingController implements Runnable {
     private final Context context;
     private final NotificationController notificationController;
     private final BackendManager backendManager;
+    private final SendMailController sendMailController;
 
     private static final Set<Flag> SYNC_FLAGS = EnumSet.of(Flag.SEEN, Flag.FLAGGED, Flag.ANSWERED, Flag.FORWARDED);
 
@@ -244,6 +245,9 @@ public class MessagingController implements Runnable {
         this.context = context;
         this.notificationController = notificationController;
         this.backendManager = backendManager;
+
+        sendMailController = new SendMailController(this, backendManager, notificationController);
+
         mThread = new Thread(this);
         mThread.setName("MessagingController");
         mThread.start();
@@ -2058,6 +2062,25 @@ public class MessagingController implements Runnable {
         }
     }
 
+    public void uploadMessage(Account account, long messageStorageId) {
+        try {
+            LocalStore localStore = account.getLocalStore();
+            MessageReference messageReference = localStore.getMessageReference(messageStorageId);
+
+            String folderName = messageReference.getFolderName();
+            String uid = messageReference.getUid();
+
+            PendingCommand command = new PendingCommand();
+            command.command = PENDING_COMMAND_APPEND;
+            command.arguments = new String[] { folderName, uid };
+            queuePendingCommand(account, command);
+
+            processPendingCommands(account);
+        } catch (MessagingException e) {
+            throw new RuntimeException();
+        }
+    }
+
     /**
      * Convert pending command to new format and call
      * {@link #processPendingMoveOrCopy(PendingCommand, Account)}.
@@ -2896,7 +2919,7 @@ public class MessagingController implements Runnable {
 
                     LocalMessage message = localFolder.getMessage(uid);
                     if (message == null
-                    || message.getId() == 0) {
+                            || message.getId() == 0) {
                         throw new IllegalArgumentException("Message not found: folder=" + folder + ", uid=" + uid);
                     }
                     // IMAP search results will usually need to be downloaded before viewing.
@@ -3120,9 +3143,16 @@ public class MessagingController implements Runnable {
 
     /**
      * Attempt to send any messages that are sitting in the Outbox.
-     * @param account
      */
-    public void sendPendingMessagesSynchronous(final Account account) {
+    public void sendPendingMessagesSynchronous(Account account) {
+        if (backendManager.isBackendSupported(account)) {
+            sendMailController.sendPendingMessages(account);
+        } else {
+            sendPendingMessagesViaStore(account);
+        }
+    }
+
+    private void sendPendingMessagesViaStore(Account account) {
         Folder localFolder = null;
         Exception lastFailure = null;
         boolean wasPermanentFailure = false;

@@ -8,12 +8,12 @@ import android.content.Context;
 
 import com.fsck.k9.Account;
 import com.fsck.k9.remote.Backend;
-import com.fsck.k9.remote.BackendStorage;
 import com.fsck.k9.remote.eas.EasBackend;
 
 
 class BackendManager {
     private final Map<String, Backend> instances = new HashMap<String, Backend>();
+    private final Map<String, BackendStorage> storages = new HashMap<String, BackendStorage>();
     private final Context context;
     private final BackendStorageFactory backendStorageFactory;
 
@@ -48,7 +48,26 @@ class BackendManager {
     }
 
     private Backend createBackend(Account account) {
-        BackendStorage backendStorage = backendStorageFactory.createBackendStorage(account);
+        BackendStorage backendStorage = createAndSaveBackendStorage(account);
         return new EasBackend(context, account, backendStorage);
+    }
+
+    private BackendStorage createAndSaveBackendStorage(Account account) {
+        BackendStorage backendStorage = backendStorageFactory.createBackendStorage(account);
+
+        String accountUuid = account.getUuid();
+        storages.put(accountUuid, backendStorage);
+
+        return backendStorage;
+    }
+
+    public synchronized BackendStorage getBackendStorage(Account account) {
+        String accountUuid = account.getUuid();
+        BackendStorage backendStorage = storages.get(accountUuid);
+        if (backendStorage == null) {
+            throw new IllegalStateException("No BackendStorage found for account: " + account);
+        }
+
+        return backendStorage;
     }
 }

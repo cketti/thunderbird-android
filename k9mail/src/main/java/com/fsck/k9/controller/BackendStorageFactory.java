@@ -21,7 +21,7 @@ class BackendStorageFactory {
         return new BackendStorageFactory(mailStoreFactory);
     }
 
-    public com.fsck.k9.remote.BackendStorage createBackendStorage(Account account) {
+    public BackendStorage createBackendStorage(Account account) {
         MailStore mailStore = mailStoreFactory.createMailStore(account);
         return new BackendStorage(account, mailStore);
     }
