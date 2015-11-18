@@ -7,6 +7,7 @@ import android.content.Context;
 import android.net.Uri;
 
 import com.fsck.k9.Account;
+import com.fsck.k9.mail.data.Message;
 import com.fsck.k9.mail.store.eas.HostAuth;
 import com.fsck.k9.remote.BackendStorage;
 import com.fsck.k9.remote.Backend;
@@ -15,6 +16,7 @@ import com.fsck.k9.remote.Backend;
 public class EasBackend implements Backend {
     private final FolderSync folderSync;
     private final EmailSync emailSync;
+    private final EmailSend emailSend;
     private final EasAccount easAccount;
 
 
@@ -23,6 +25,7 @@ public class EasBackend implements Backend {
         easAccount = createEasAccount(account, backendStorage);
         folderSync = new FolderSync(context, easAccount, backendStorage);
         emailSync = new EmailSync(context, easAccount, backendStorage);
+        emailSend = new EmailSend(context, easAccount);
     }
 
     public static String createEasStoreUri(String hostname, String username, String password) {
@@ -43,6 +46,11 @@ public class EasBackend implements Backend {
     @Override
     public boolean syncFolder(String serverId) {
         return emailSync.syncFolder(serverId);
+    }
+
+    @Override
+    public boolean sendMessage(Message message) {
+        return emailSend.sendMessage(message);
     }
 
     private EasAccount createEasAccount(Account account, BackendStorage backendStorage) {
