@@ -9,8 +9,10 @@ import android.database.sqlite.SQLiteDatabase;
 
 import com.fsck.k9.Account;
 import com.fsck.k9.Preferences;
+import com.fsck.k9.mail.Flag;
 import com.fsck.k9.mail.MessagingException;
 import com.fsck.k9.mail.data.Message;
+import com.fsck.k9.mail.data.MessageServerData;
 import com.fsck.k9.mailstore.LockableDatabase.DbCallback;
 import com.fsck.k9.mailstore.LockableDatabase.WrappedException;
 import com.fsck.k9.mailstore.data.Folder;
@@ -152,6 +154,22 @@ public class MailStore {
                 return getFolderIdByServerId(db, serverId);
             }
         });
+    }
+
+    public void createMessage(MessageServerData messageServerData) {
+        legacyMailStore.createMessage(messageServerData);
+    }
+
+    public void removeMessage(String folderServerId, String messageServerId) {
+        legacyMailStore.removeMessage(folderServerId, messageServerId);
+    }
+
+    public void setMessageFlag(String folderServerId, String messageServerId, Flag flag, boolean state) {
+        legacyMailStore.setMessageFlag(folderServerId, messageServerId, flag, state);
+    }
+
+    public void removeAllMessages(String folderServerId) {
+        legacyMailStore.removeAllMessages(folderServerId);
     }
 
     public List<Long> getMessageStorageIds(long folderStorageId) {
