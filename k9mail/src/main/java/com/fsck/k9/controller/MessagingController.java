@@ -2264,11 +2264,10 @@ public class MessagingController implements Runnable {
      * @param command arguments = (String folder, String uid, boolean read)
      * @param account
      */
-    private void processPendingSetFlag(PendingCommand command, Account account)
-    throws MessagingException {
-        String folder = command.arguments[0];
+    private void processPendingSetFlag(PendingCommand command, Account account) throws MessagingException {
+        String folderServerId = command.arguments[0];
 
-        if (account.getErrorFolderName().equals(folder)) {
+        if (account.getErrorFolderName().equals(folderServerId)) {
             return;
         }
 
@@ -2276,6 +2275,38 @@ public class MessagingController implements Runnable {
 
         Flag flag = Flag.valueOf(command.arguments[2]);
 
+        int numberOfMessages = command.arguments.length - 3;
+        List<String> messageServerIds = new ArrayList<String>(numberOfMessages);
+        for (int i = 3, end = command.arguments.length; i < end; i++) {
+            String messageServerId = command.arguments[i];
+            if (!messageServerId.startsWith(K9.LOCAL_UID_PREFIX)) {
+                messageServerIds.add(messageServerId);
+            }
+        }
+
+        if (messageServerIds.isEmpty()) {
+            return;
+        }
+
+        if (backendManager.isBackendSupported(account)) {
+            processPendingSetFlagViaBackend(account, folderServerId, messageServerIds, flag, newState);
+        } else {
+            processPendingSetFlagViaStore(account, folderServerId, messageServerIds, flag, newState);
+        }
+    }
+
+    private void processPendingSetFlagViaBackend(Account account, String folderServerId, List<String> messageServerIds,
+            Flag flag, boolean newState) throws MessagingException {
+        Backend backend = backendManager.getBackend(account);
+        boolean success = backend.setFlag(folderServerId, messageServerIds, flag, newState);
+
+        if (!success) {
+            throw new MessagingException("Failed to set flags");
+        }
+    }
+
+    private void processPendingSetFlagViaStore(Account account, String folder, List<String> uids, Flag flag,
+            boolean newState) throws MessagingException {
         Store remoteStore = account.getRemoteStore();
         Folder remoteFolder = remoteStore.getFolder(folder);
         if (!remoteFolder.exists() || !remoteFolder.isFlagSupported(flag)) {
@@ -2287,17 +2318,12 @@ public class MessagingController implements Runnable {
             if (remoteFolder.getMode() != Folder.OPEN_MODE_RW) {
                 return;
             }
-            List<Message> messages = new ArrayList<Message>();
-            for (int i = 3; i < command.arguments.length; i++) {
-                String uid = command.arguments[i];
-                if (!uid.startsWith(K9.LOCAL_UID_PREFIX)) {
-                    messages.add(remoteFolder.getMessage(uid));
-                }
+
+            List<Message> messages = new ArrayList<Message>(uids.size());
+            for (String uid : uids) {
+                messages.add(remoteFolder.getMessage(uid));
             }
 
-            if (messages.isEmpty()) {
-                return;
-            }
             remoteFolder.setFlags(messages, Collections.singleton(flag), newState);
         } finally {
             closeFolder(remoteFolder);

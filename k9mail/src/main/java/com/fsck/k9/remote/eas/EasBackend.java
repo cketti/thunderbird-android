@@ -1,12 +1,14 @@
 package com.fsck.k9.remote.eas;
 
 
+import java.util.List;
 import java.util.UUID;
 
 import android.content.Context;
 import android.net.Uri;
 
 import com.fsck.k9.Account;
+import com.fsck.k9.mail.Flag;
 import com.fsck.k9.mail.data.Message;
 import com.fsck.k9.mail.store.eas.HostAuth;
 import com.fsck.k9.remote.BackendStorage;
@@ -51,6 +53,11 @@ public class EasBackend implements Backend {
     @Override
     public boolean sendMessage(Message message) {
         return emailSend.sendMessage(message);
+    }
+
+    @Override
+    public boolean setFlag(String folderServerId, List<String> messageServerIds, Flag flag, boolean newState) {
+        return emailSync.setFlag(folderServerId, messageServerIds, flag, newState);
     }
 
     private EasAccount createEasAccount(Account account, BackendStorage backendStorage) {
