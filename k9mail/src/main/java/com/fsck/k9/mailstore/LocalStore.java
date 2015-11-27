@@ -1166,7 +1166,7 @@ public class LocalStore extends Store implements Serializable {
                     throws UnavailableStorageException {
 
                 if (threadedList) {
-                    String sql = "SELECT m.uid, f.name " +
+                    String sql = "SELECT m.uid, f.server_id " +
                             "FROM threads t " +
                             "LEFT JOIN messages m ON (t.message_id = m.id) " +
                             "LEFT JOIN folders f ON (m.folder_id = f.id) " +
@@ -1177,7 +1177,7 @@ public class LocalStore extends Store implements Serializable {
 
                 } else {
                     String sql =
-                            "SELECT m.uid, f.name " +
+                            "SELECT m.uid, f.server_id " +
                             "FROM messages m " +
                             "LEFT JOIN folders f ON (m.folder_id = f.id) " +
                             "WHERE m.empty = 0 AND m.id" + selectionSet;
