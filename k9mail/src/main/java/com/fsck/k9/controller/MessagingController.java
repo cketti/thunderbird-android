@@ -79,6 +79,7 @@ import com.fsck.k9.notification.NotificationController;
 import com.fsck.k9.provider.EmailProvider;
 import com.fsck.k9.provider.EmailProvider.StatsColumns;
 import com.fsck.k9.remote.Backend;
+import com.fsck.k9.remote.MoveStatus;
 import com.fsck.k9.search.ConditionsTreeNode;
 import com.fsck.k9.search.LocalSearch;
 import com.fsck.k9.search.SearchAccount;
@@ -2113,80 +2114,138 @@ public class MessagingController implements Runnable {
         processPendingMoveOrCopy(newCommand, account);
     }
 
-    /**
-     * Process a pending trash message command.
-     *
-     * @param command arguments = (String folder, String uid)
-     * @param account
-     * @throws MessagingException
-     */
-    private void processPendingMoveOrCopy(PendingCommand command, Account account)
-    throws MessagingException {
-        Folder remoteSrcFolder = null;
-        Folder remoteDestFolder = null;
-        LocalFolder localDestFolder = null;
+    private void processPendingMoveOrCopy(PendingCommand command, Account account) throws MessagingException {
+        String srcFolder = command.arguments[0];
+        if (account.getErrorFolderName().equals(srcFolder)) {
+            return;
+        }
+
+        String destFolder = command.arguments[1];
+        boolean isCopy = Boolean.parseBoolean(command.arguments[2]);
+        boolean hasNewUids = Boolean.parseBoolean(command.arguments[3]);
+
+        final Map<String, String> localUidMap;
+        final List<String> uids;
+        if (hasNewUids) {
+            int size = (command.arguments.length - 4) / 2;
+            localUidMap = new HashMap<String, String>(size);
+            uids = new ArrayList<String>(size);
+
+            for (int i = 4, end = 4 + size; i < end; i++) {
+                String oldUid = command.arguments[i];
+                String newUid = command.arguments[i + size];
+                localUidMap.put(oldUid, newUid);
+                uids.add(oldUid);
+            }
+        } else {
+            int size = command.arguments.length - 4;
+            localUidMap = null;
+            uids = new ArrayList<String>(size);
+
+            for (int i = 4, end = command.arguments.length; i < end; i++) {
+                String uid = command.arguments[i];
+                uids.add(uid);
+            }
+        }
+
+        if (backendManager.isBackendSupported(account)) {
+            if (isCopy) {
+                throw new UnsupportedOperationException("Not implemented");
+            } else {
+                processPendingMoveViaBackend(account, srcFolder, destFolder, uids, localUidMap);
+            }
+        } else {
+            processPendingMoveOrCopyViaStore(account, srcFolder, destFolder, isCopy, uids, localUidMap);
+        }
+    }
+
+    private void processPendingMoveViaBackend(Account account, String srcFolder, String destFolder,
+            List<String> uids, Map<String, String> tempServerIdMap) throws MessagingException {
+        Backend backend = backendManager.getBackend(account);
+
+        MoveStatus moveStatus = backend.moveMessages(srcFolder, destFolder, uids);
+        Map<String, String> remoteServerIdMap = moveStatus.getServerIdMappingForSuccessfulMoves();
+
+        updateMailStoreWithNewServerIds(account, destFolder, tempServerIdMap, remoteServerIdMap);
+
+        List<String> serverIdsForReverts = moveStatus.getServerIdsForReverts();
+        if (!serverIdsForReverts.isEmpty()) {
+            revertMoves(account, srcFolder, destFolder, serverIdsForReverts, tempServerIdMap);
+        }
+
+        //TODO: rewrite pending command to only contain messages that still need to be moved
+        if (!moveStatus.getServerIdsForRetries().isEmpty()) {
+            throw new MessagingException("Command should be retried");
+        }
+    }
+
+    private void revertMoves(Account account, String srcFolder, String destFolder, List<String> serverIdsForReverts,
+            Map<String, String> tempServerIdMap) throws MessagingException {
+        LocalStore localStore = account.getLocalStore();
+        LocalFolder folder = localStore.getFolder(destFolder);
+
+        for (String serverId : serverIdsForReverts) {
+            String tempUid = tempServerIdMap.get(serverId);
+            folder.undoMoveMessage(tempUid, srcFolder, serverId);
+        }
+    }
+
+    private void updateMailStoreWithNewServerIds(Account account, String destFolder,
+            Map<String, String> tempServerIdMap, Map<String, String> remoteServerIdMap) throws MessagingException {
+        if (tempServerIdMap == null || remoteServerIdMap == null || tempServerIdMap.isEmpty() ||
+                remoteServerIdMap.isEmpty()) {
+            return;
+        }
+
+        Store localStore = account.getLocalStore();
+        LocalFolder localDestFolder = (LocalFolder) localStore.getFolder(destFolder);
+
+        for (Entry<String, String> entry : remoteServerIdMap.entrySet()) {
+            String oldServerId = entry.getKey();
+            String newServerId = entry.getValue();
+            String tempServerId = tempServerIdMap.get(oldServerId);
+
+            LocalMessage localDestMessage = localDestFolder.getMessage(tempServerId);
+            if (localDestMessage != null) {
+                localDestMessage.setUid(newServerId);
+                localDestFolder.changeUid(localDestMessage);
+
+                for (MessagingListener l : getListeners()) {
+                    l.messageUidChanged(account, destFolder, tempServerId, newServerId);
+                }
+            }
+        }
+    }
+
+    private void processPendingMoveOrCopyViaStore(Account account, String srcFolder, String destFolder, boolean isCopy,
+            List<String> uids, Map<String, String> localUidMap) throws MessagingException {
+        Folder<?> remoteSrcFolder = null;
+        Folder<?> remoteDestFolder = null;
         try {
-            String srcFolder = command.arguments[0];
-            if (account.getErrorFolderName().equals(srcFolder)) {
-                return;
-            }
-            String destFolder = command.arguments[1];
-            String isCopyS = command.arguments[2];
-            String hasNewUidsS = command.arguments[3];
-
-            boolean hasNewUids = false;
-            if (hasNewUidsS != null) {
-                hasNewUids = Boolean.parseBoolean(hasNewUidsS);
-            }
-
             Store remoteStore = account.getRemoteStore();
             remoteSrcFolder = remoteStore.getFolder(srcFolder);
 
-            Store localStore = account.getLocalStore();
-            localDestFolder = (LocalFolder) localStore.getFolder(destFolder);
-            List<Message> messages = new ArrayList<Message>();
-
-            /*
-             * We split up the localUidMap into two parts while sending the command, here we assemble it back.
-             */
-            Map<String, String> localUidMap = new HashMap<String, String>();
-            if (hasNewUids) {
-                int offset = (command.arguments.length - 4) / 2;
-
-                for (int i = 4; i < 4 + offset; i++) {
-                    localUidMap.put(command.arguments[i], command.arguments[i + offset]);
-
-                    String uid = command.arguments[i];
-                    if (!uid.startsWith(K9.LOCAL_UID_PREFIX)) {
-                        messages.add(remoteSrcFolder.getMessage(uid));
-                    }
-                }
-
-            } else {
-                for (int i = 4; i < command.arguments.length; i++) {
-                    String uid = command.arguments[i];
-                    if (!uid.startsWith(K9.LOCAL_UID_PREFIX)) {
-                        messages.add(remoteSrcFolder.getMessage(uid));
-                    }
-                }
-            }
-
-            boolean isCopy = false;
-            if (isCopyS != null) {
-                isCopy = Boolean.parseBoolean(isCopyS);
-            }
-
             if (!remoteSrcFolder.exists()) {
-                throw new MessagingException("processingPendingMoveOrCopy: remoteFolder " + srcFolder + " does not exist", true);
+                throw new MessagingException("processingPendingMoveOrCopy: remoteFolder " + srcFolder +
+                        " does not exist", true);
             }
+
+            List<Message> messages = new ArrayList<Message>(uids.size());
+            for (String uid : uids) {
+                messages.add(remoteSrcFolder.getMessage(uid));
+            }
+
             remoteSrcFolder.open(Folder.OPEN_MODE_RW);
             if (remoteSrcFolder.getMode() != Folder.OPEN_MODE_RW) {
-                throw new MessagingException("processingPendingMoveOrCopy: could not open remoteSrcFolder " + srcFolder + " read/write", true);
+                throw new MessagingException("processingPendingMoveOrCopy: could not open remoteSrcFolder " +
+                        srcFolder + " read/write", true);
             }
 
-            if (K9.DEBUG)
+            if (K9.DEBUG) {
                 Log.d(K9.LOG_TAG, "processingPendingMoveOrCopy: source folder = " + srcFolder
-                      + ", " + messages.size() + " messages, destination folder = " + destFolder + ", isCopy = " + isCopy);
+                        + ", " + messages.size() + " messages, destination folder = " + destFolder + ", isCopy = " +
+                        isCopy);
+            }
 
             Map <String, String> remoteUidMap = null;
 
@@ -2208,33 +2267,17 @@ public class MessagingController implements Runnable {
                     remoteUidMap = remoteSrcFolder.moveMessages(messages, remoteDestFolder);
                 }
             }
-            if (!isCopy && Expunge.EXPUNGE_IMMEDIATELY == account.getExpungePolicy()) {
-                if (K9.DEBUG)
-                    Log.i(K9.LOG_TAG, "processingPendingMoveOrCopy expunging folder " + account.getDescription() + ":" + srcFolder);
+
+            if (!isCopy && account.getExpungePolicy() == Expunge.EXPUNGE_IMMEDIATELY) {
+                if (K9.DEBUG) {
+                    Log.i(K9.LOG_TAG, "processingPendingMoveOrCopy expunging folder " + account.getDescription() +
+                            ":" + srcFolder);
+                }
 
                 remoteSrcFolder.expunge();
             }
 
-            /*
-             * This next part is used to bring the local UIDs of the local destination folder
-             * upto speed with the remote UIDs of remote destination folder.
-             */
-            if (!localUidMap.isEmpty() && remoteUidMap != null && !remoteUidMap.isEmpty()) {
-                for (Map.Entry<String, String> entry : remoteUidMap.entrySet()) {
-                    String remoteSrcUid = entry.getKey();
-                    String localDestUid = localUidMap.get(remoteSrcUid);
-                    String newUid = entry.getValue();
-
-                    Message localDestMessage = localDestFolder.getMessage(localDestUid);
-                    if (localDestMessage != null) {
-                        localDestMessage.setUid(newUid);
-                        localDestFolder.changeUid((LocalMessage)localDestMessage);
-                        for (MessagingListener l : getListeners()) {
-                            l.messageUidChanged(account, destFolder, localDestUid, newUid);
-                        }
-                    }
-                }
-            }
+            updateMailStoreWithNewServerIds(account, destFolder, localUidMap, remoteUidMap);
         } finally {
             closeFolder(remoteSrcFolder);
             closeFolder(remoteDestFolder);

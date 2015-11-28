@@ -15,4 +15,7 @@ public interface Backend {
     boolean sendMessage(Message message);
 
     boolean setFlag(String folderServerId, List<String> messageServerIds, Flag flag, boolean newState);
+
+    MoveStatus moveMessages(String sourceFolderServerId, String destinationFolderServerId,
+            List<String> messageServerIds);
 }

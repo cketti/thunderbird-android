@@ -13,12 +13,14 @@ import com.fsck.k9.mail.data.Message;
 import com.fsck.k9.mail.store.eas.HostAuth;
 import com.fsck.k9.remote.BackendStorage;
 import com.fsck.k9.remote.Backend;
+import com.fsck.k9.remote.MoveStatus;
 
 
 public class EasBackend implements Backend {
     private final FolderSync folderSync;
     private final EmailSync emailSync;
     private final EmailSend emailSend;
+    private final EmailMove emailMove;
     private final EasAccount easAccount;
 
 
@@ -28,6 +30,7 @@ public class EasBackend implements Backend {
         folderSync = new FolderSync(context, easAccount, backendStorage);
         emailSync = new EmailSync(context, easAccount, backendStorage);
         emailSend = new EmailSend(context, easAccount);
+        emailMove = new EmailMove(context, easAccount);
     }
 
     public static String createEasStoreUri(String hostname, String username, String password) {
@@ -58,6 +61,12 @@ public class EasBackend implements Backend {
     @Override
     public boolean setFlag(String folderServerId, List<String> messageServerIds, Flag flag, boolean newState) {
         return emailSync.setFlag(folderServerId, messageServerIds, flag, newState);
+    }
+
+    @Override
+    public MoveStatus moveMessages(String sourceFolderServerId, String destinationFolderServerId,
+            List<String> messageServerIds) {
+        return emailMove.moveMessages(sourceFolderServerId, destinationFolderServerId, messageServerIds);
     }
 
     private EasAccount createEasAccount(Account account, BackendStorage backendStorage) {

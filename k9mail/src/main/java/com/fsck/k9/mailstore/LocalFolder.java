@@ -1058,6 +1058,60 @@ public class LocalFolder extends Folder<LocalMessage> implements Serializable {
 
     }
 
+    public void undoMoveMessage(final String currentUid, final String oldFolder, final String oldUid)
+            throws MessagingException {
+        try {
+            this.localStore.database.execute(false, new DbCallback<Void>() {
+                @Override
+                public Void doDbWork(final SQLiteDatabase db) throws WrappedException, UnavailableStorageException {
+                    try {
+                        undoMoveMessage(db, currentUid, oldFolder, oldUid);
+                    } catch (MessagingException e) {
+                        throw new WrappedException(e);
+                    }
+
+                    return null;
+                }
+            });
+        } catch (WrappedException e) {
+            throw (MessagingException) e.getCause();
+        }
+    }
+
+    private void undoMoveMessage(SQLiteDatabase db, String currentUid, String oldFolderName, String oldUid)
+            throws MessagingException {
+        open(OPEN_MODE_RW);
+        LocalMessage message = getMessage(currentUid);
+
+        LocalFolder oldFolder = localStore.getFolder(oldFolderName);
+        oldFolder.open(OPEN_MODE_RW);
+        LocalMessage placeHolderForOldMessage = oldFolder.getMessage(oldUid);
+
+        ContentValues cv = new ContentValues();
+        cv.put("message_id", message.getId());
+        db.update("threads", cv, "id = ?", new String[] { Long.toString(placeHolderForOldMessage.getThreadId()) });
+
+        cv.clear();
+        cv.put("message_id", placeHolderForOldMessage.getId());
+        db.update("threads", cv, "id = ?", new String[] { Long.toString(message.getThreadId()) });
+
+        cv.clear();
+        cv.put("folder_id", oldFolder.getId());
+        db.update("messages", cv, "id = ?", new String[] { Long.toString(message.getId()) });
+
+        cv.clear();
+        cv.put("folder_id", getId());
+        db.update("messages", cv, "id = ?", new String[] { Long.toString(placeHolderForOldMessage.getId()) });
+
+        // Remove contents of place holder and clean up thread structure
+        LocalMessage movedPlaceholderMessage = getMessage(oldUid);
+        destroyMessages(Collections.singletonList(movedPlaceholderMessage));
+
+        cv.clear();
+        cv.put("uid", oldUid);
+        db.update("messages", cv, "id = ?", new String[] { Long.toString(message.getId()) });
+    }
+
     /**
      * Convenience transaction wrapper for storing a message and set it as fully downloaded. Implemented mainly to speed up DB transaction commit.
      *
