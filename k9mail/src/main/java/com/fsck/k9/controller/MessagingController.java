@@ -822,6 +822,13 @@ public class MessagingController implements Runnable {
             l.synchronizeMailboxStarted(account, folderServerId, folderDisplayName);
         }
 
+        try {
+            processPendingCommandsSynchronous(account);
+        } catch (Exception e) {
+            addErrorMessage(account, null, e);
+            Log.e(K9.LOG_TAG, "Failure processing command, but allow message sync attempt", e);
+        }
+
         //TODO: Use MessagingListener for progress updates
         if (!backend.syncFolder(folderServerId)) {
             for (MessagingListener l : getListeners(listener)) {
