@@ -104,7 +104,7 @@ public class MoveItemsParser extends Parser {
                 LogUtils.d(TAG, "Moved message id is now: %s", newServerId);
             } else if (tag == Tags.MOVE_SRCMSGID) {
                 sourceServerId = getValue();
-                LogUtils.d(TAG, "Source message id is: %s", newServerId);
+                LogUtils.d(TAG, "Source message id is: %s", sourceServerId);
             } else {
                 skipTag();
             }
