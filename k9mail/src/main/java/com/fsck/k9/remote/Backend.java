@@ -18,4 +18,6 @@ public interface Backend {
 
     MoveStatus moveMessages(String sourceFolderServerId, String destinationFolderServerId,
             List<String> messageServerIds);
+
+    DeleteStatus deleteMessages(String folderServerId, List<String> messageServerIds);
 }

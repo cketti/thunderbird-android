@@ -2,7 +2,10 @@ package com.fsck.k9.remote.eas;
 
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 import android.content.Context;
 
@@ -14,8 +17,10 @@ import com.fsck.k9.mail.store.eas.EasSyncBase;
 import com.fsck.k9.mail.store.eas.EasSyncMail;
 import com.fsck.k9.mail.store.eas.Mailbox;
 import com.fsck.k9.mail.store.eas.MessageStateChange;
+import com.fsck.k9.mail.store.eas.adapter.MoveItemsParser;
 import com.fsck.k9.mail.store.eas.callback.EmailSyncCallback;
 import com.fsck.k9.remote.BackendStorage;
+import com.fsck.k9.remote.DeleteStatus;
 
 
 class EmailSync {
@@ -65,6 +70,17 @@ class EmailSync {
         }
 
         return changes;
+    }
+
+    public DeleteStatus deleteMessages(String folderServerId, List<String> messageServerIds) {
+        Mailbox mailbox = createMailbox(folderServerId);
+        BackendEmailSyncCallback callback = new BackendEmailSyncCallback(mailbox);
+
+        EasSyncMail syncMail = new EasSyncMail(callback, messageServerIds);
+        EasSyncBase syncBase = new EasSyncBase(context, account, mailbox, syncMail);
+        syncBase.performOperation();
+
+        return new EasDeleteStatus(syncMail.getMessageDeleteStatus());
     }
 
     private Mailbox createMailbox(String serverId) {
@@ -156,6 +172,50 @@ class EmailSync {
         @Override
         public void wipe() {
             //TODO: implement
+        }
+    }
+
+    private static class EasDeleteStatus implements DeleteStatus {
+        private List<String> retries = new ArrayList<String>();
+        private List<String> reverts = new ArrayList<String>();
+
+
+        public EasDeleteStatus(Map<String, Integer> deleteStatus) {
+            init(deleteStatus);
+        }
+
+        private void init(Map<String, Integer> moveStatus) {
+            for (Entry<String, Integer> entry : moveStatus.entrySet()) {
+                String serverId = entry.getKey();
+                int status = entry.getValue();
+
+                switch (status) {
+                    case MoveItemsParser.STATUS_CODE_SUCCESS: {
+                        break;
+                    }
+                    case MoveItemsParser.STATUS_CODE_RETRY: {
+                        retries.add(serverId);
+                        break;
+                    }
+                    case MoveItemsParser.STATUS_CODE_REVERT: {
+                        reverts.add(serverId);
+                        break;
+                    }
+                    default: {
+                        throw new IllegalStateException("Unknown EAS delete status: " + status);
+                    }
+                }
+            }
+        }
+
+        @Override
+        public List<String> getServerIdsForRetries() {
+            return Collections.unmodifiableList(retries);
+        }
+
+        @Override
+        public List<String> getServerIdsForReverts() {
+            return Collections.unmodifiableList(reverts);
         }
     }
 }

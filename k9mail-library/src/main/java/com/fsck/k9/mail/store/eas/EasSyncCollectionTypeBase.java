@@ -64,4 +64,6 @@ public abstract class EasSyncCollectionTypeBase {
      * @param account
      */
     public void cleanup(final Context context, final Account account) {}
+
+    public abstract void onParsingComplete();
 }

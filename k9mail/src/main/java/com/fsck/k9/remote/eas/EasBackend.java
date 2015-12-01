@@ -13,6 +13,7 @@ import com.fsck.k9.mail.data.Message;
 import com.fsck.k9.mail.store.eas.HostAuth;
 import com.fsck.k9.remote.BackendStorage;
 import com.fsck.k9.remote.Backend;
+import com.fsck.k9.remote.DeleteStatus;
 import com.fsck.k9.remote.MoveStatus;
 
 
@@ -67,6 +68,11 @@ public class EasBackend implements Backend {
     public MoveStatus moveMessages(String sourceFolderServerId, String destinationFolderServerId,
             List<String> messageServerIds) {
         return emailMove.moveMessages(sourceFolderServerId, destinationFolderServerId, messageServerIds);
+    }
+
+    @Override
+    public DeleteStatus deleteMessages(String folderServerId, List<String> messageServerIds) {
+        return emailSync.deleteMessages(folderServerId, messageServerIds);
     }
 
     private EasAccount createEasAccount(Account account, BackendStorage backendStorage) {

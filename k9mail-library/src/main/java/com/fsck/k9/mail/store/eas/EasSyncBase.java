@@ -97,6 +97,9 @@ public class EasSyncBase extends EasOperation {
             final AbstractSyncParser parser = mCollectionTypeHandler.getParser(mContext, mAccount,
                     mMailbox, response.getInputStream());
             final boolean moreAvailable = parser.parse();
+
+            mCollectionTypeHandler.onParsingComplete();
+
             if (moreAvailable) {
                 return RESULT_MORE_AVAILABLE;
             }

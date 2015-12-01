@@ -5,6 +5,10 @@ import android.content.Context;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import com.fsck.k9.mail.store.eas.adapter.AbstractSyncParser;
 import com.fsck.k9.mail.store.eas.adapter.EmailSyncParser;
@@ -21,10 +25,21 @@ public class EasSyncMail extends EasSyncCollectionTypeBase {
 
 
     private final EmailSyncCallback callback;
+    private final List<String> messageServerIdsToDelete;
+    private final Map<String, Integer> messageDeleteStatus;
+    private EmailSyncParser parser;
 
 
     public EasSyncMail(EmailSyncCallback callback) {
         this.callback = callback;
+        messageServerIdsToDelete = Collections.emptyList();
+        messageDeleteStatus = new HashMap<String, Integer>();
+    }
+
+    public EasSyncMail(EmailSyncCallback callback, List<String> messageServerIdsToDelete) {
+        this.callback = callback;
+        this.messageServerIdsToDelete = messageServerIdsToDelete;
+        messageDeleteStatus = new HashMap<String, Integer>(messageServerIdsToDelete.size());
     }
 
 //    @Override
@@ -53,7 +68,7 @@ public class EasSyncMail extends EasSyncCollectionTypeBase {
             // Permanently delete if in trash mailbox
             // In Exchange 2003, deletes-as-moves tag = true; no tag = false
             // In Exchange 2007 and up, deletes-as-moves tag is "0" (false) or "1" (true)
-            final boolean isTrashMailbox = mailbox.mType == Mailbox.TYPE_TRASH;
+            final boolean isTrashMailbox = !messageServerIdsToDelete.isEmpty();
             if (protocolVersion < Eas.SUPPORTED_PROTOCOL_EX2007_DOUBLE) {
                 if (!isTrashMailbox) {
                     s.tag(Tags.SYNC_DELETES_AS_MOVES);
@@ -84,6 +99,16 @@ public class EasSyncMail extends EasSyncCollectionTypeBase {
                 s.data(Tags.SYNC_MIME_TRUNCATION, Eas.EAS2_5_TRUNCATION_SIZE);
             }
             s.end();
+
+            if (!messageServerIdsToDelete.isEmpty()) {
+                s.start(Tags.SYNC_COMMANDS);
+                for (String serverId : messageServerIdsToDelete) {
+                    s.start(Tags.SYNC_DELETE);
+                    s.data(Tags.SYNC_SERVER_ID, serverId);
+                    s.end();
+                }
+                s.end();
+            }
         } else {
             // If we have any messages that are not fully loaded, ask for plain text rather than
             // MIME, to guarantee we'll get usable text body. This also means we should NOT ask for
@@ -108,7 +133,18 @@ public class EasSyncMail extends EasSyncCollectionTypeBase {
     public AbstractSyncParser getParser(final Context context, final Account account,
             final Mailbox mailbox, final InputStream is) throws IOException {
         String folderServerId = mailbox.mServerId;
-        return new EmailSyncParser(is, folderServerId, callback);
+        parser = new EmailSyncParser(is, folderServerId, callback);
+        return parser;
+    }
+
+    @Override
+    public void onParsingComplete() {
+        messageDeleteStatus.putAll(parser.getMessageStatuses());
+        parser = null;
+    }
+
+    public Map<String, Integer> getMessageDeleteStatus() {
+        return Collections.unmodifiableMap(messageDeleteStatus);
     }
 
     /**

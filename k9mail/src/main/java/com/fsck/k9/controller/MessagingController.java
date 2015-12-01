@@ -79,6 +79,7 @@ import com.fsck.k9.notification.NotificationController;
 import com.fsck.k9.provider.EmailProvider;
 import com.fsck.k9.provider.EmailProvider.StatsColumns;
 import com.fsck.k9.remote.Backend;
+import com.fsck.k9.remote.DeleteStatus;
 import com.fsck.k9.remote.MoveStatus;
 import com.fsck.k9.search.ConditionsTreeNode;
 import com.fsck.k9.search.LocalSearch;
@@ -135,6 +136,7 @@ public class MessagingController implements Runnable {
     private static final String PENDING_COMMAND_APPEND = "com.fsck.k9.MessagingController.append";
     private static final String PENDING_COMMAND_MARK_ALL_AS_READ = "com.fsck.k9.MessagingController.markAllAsRead";
     private static final String PENDING_COMMAND_EXPUNGE = "com.fsck.k9.MessagingController.expunge";
+    private static final String PENDING_COMMAND_DELETE = "com.fsck.k9.MessagingController.delete";
 
     public static class UidReverseComparator implements Comparator<Message> {
         @Override
@@ -1863,6 +1865,8 @@ public class MessagingController implements Runnable {
                         processPendingEmptyTrash(command, account);
                     } else if (PENDING_COMMAND_EXPUNGE.equals(command.command)) {
                         processPendingExpunge(command, account);
+                    } else if (PENDING_COMMAND_DELETE.equals(command.command)) {
+                        processPendingDelete(command, account);
                     }
                     localStore.removePendingCommand(command);
                     if (K9.DEBUG)
@@ -2068,6 +2072,17 @@ public class MessagingController implements Runnable {
             System.arraycopy(uidMap.values().toArray(), 0, command.arguments, 4 + uidMap.keySet().size(), uidMap.values().size());
             queuePendingCommand(account, command);
         }
+    }
+
+    private void queueDelete(Account account, String folder, String uids[]) {
+        PendingCommand command = new PendingCommand();
+        command.command = PENDING_COMMAND_DELETE;
+
+        int length = 1 + uids.length;
+        command.arguments = new String[length];
+        command.arguments[0] = folder;
+        System.arraycopy(uids, 0, command.arguments, 1, uids.length);
+        queuePendingCommand(account, command);
     }
 
     public void uploadMessage(Account account, long messageStorageId) {
@@ -2462,6 +2477,32 @@ public class MessagingController implements Runnable {
         }
     }
 
+    private void processPendingDelete(PendingCommand command, Account account) throws MessagingException {
+        String[] arguments = command.arguments;
+        String folder = arguments[0];
+        List<String> uids = new ArrayList<String>(arguments.length - 1);
+        for (int i = 1, end = arguments.length; i < end; i++) {
+            uids.add(arguments[i]);
+        }
+
+        if (backendManager.isBackendSupported(account)) {
+            processPendingDeleteViaBackend(account, folder, uids);
+        } else {
+            processPendingSetFlagViaStore(account, folder, uids, Flag.DELETED, true);
+        }
+    }
+
+    private void processPendingDeleteViaBackend(Account account, String folderServerId, List<String> messageServerIds)
+            throws MessagingException {
+        Backend backend = backendManager.getBackend(account);
+        DeleteStatus deleteStatus = backend.deleteMessages(folderServerId, messageServerIds);
+
+        //TODO: revert on errors
+
+        if (!deleteStatus.getServerIdsForRetries().isEmpty()) {
+            throw new MessagingException("Need to retry some delete operations");
+        }
+    }
 
     // TODO: This method is obsolete and is only for transition from K-9 2.0 to K-9 2.1
     // Eventually, it should be removed
@@ -3893,7 +3934,7 @@ public class MessagingController implements Runnable {
                 processPendingCommands(account);
             } else if (account.getDeletePolicy() == DeletePolicy.ON_DELETE) {
                 if (folder.equals(account.getTrashFolderName())) {
-                    queueSetFlag(account, folder, Boolean.toString(true), Flag.DELETED.toString(), uids);
+                    queueDelete(account, folder, uids);
                 } else {
                     queueMoveOrCopy(account, folder, account.getTrashFolderName(), false, uids, uidMap);
                 }
