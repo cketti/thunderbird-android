@@ -74,13 +74,12 @@ public class EasSyncMail extends EasSyncCollectionTypeBase {
             s.data(Tags.SYNC_FILTER_TYPE, getEmailFilter(account, mailbox));
             // Set the truncation amount for all classes
             if (protocolVersion >= Eas.SUPPORTED_PROTOCOL_EX2007_DOUBLE) {
+                s.data(Tags.SYNC_MIME_SUPPORT, Eas.MIME_BODY_PREFERENCE_MIME);
                 s.start(Tags.BASE_BODY_PREFERENCE);
-                // HTML for email
                 s.data(Tags.BASE_TYPE, Eas.BODY_PREFERENCE_MIME);
                 s.data(Tags.BASE_TRUNCATION_SIZE, Eas.EAS12_TRUNCATION_SIZE);
                 s.end();
             } else {
-                // Use MIME data for EAS 2.5
                 s.data(Tags.SYNC_MIME_SUPPORT, Eas.MIME_BODY_PREFERENCE_MIME);
                 s.data(Tags.SYNC_MIME_TRUNCATION, Eas.EAS2_5_TRUNCATION_SIZE);
             }
