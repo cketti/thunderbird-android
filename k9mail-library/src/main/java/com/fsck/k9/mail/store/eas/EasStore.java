@@ -30,7 +30,7 @@ public class EasStore extends Store {
 
     @Override
     public boolean isCopyCapable() {
-        return true;
+        return false;
     }
 
     @Override
