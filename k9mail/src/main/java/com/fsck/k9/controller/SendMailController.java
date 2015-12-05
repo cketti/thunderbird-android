@@ -78,28 +78,32 @@ class SendMailController {
             return FAILURE;
         }
 
-        if (!account.hasSentFolder()) {
-            if (K9.DEBUG) {
-                Log.i(K9.LOG_TAG, "Account does not have a sent mail folder; deleting sent message");
-            }
-
-            mailStore.removeMessage(messageStorageId);
+        if (needToUploadSentMessage(account)) {
+            uploadSentMessage(account, mailStore, messageStorageId);
         } else {
-            String sentFolder = account.getSentFolderName();
-            if (K9.DEBUG) {
-                Log.i(K9.LOG_TAG, "Moving sent message to folder '" + sentFolder);
-            }
-
-            mailStore.moveMessage(messageStorageId, sentFolder);
-
-            if (K9.DEBUG) {
-                Log.i(K9.LOG_TAG, "Moved sent message to folder '" + sentFolder);
-            }
-
-            messagingController.uploadMessage(account, messageStorageId);
+            mailStore.removeMessage(messageStorageId);
         }
 
         return SUCCESS;
+    }
+
+    private boolean needToUploadSentMessage(Account account) {
+        return account.hasSentFolder();
+    }
+
+    private void uploadSentMessage(Account account, MailStore mailStore, long messageStorageId) {
+        String sentFolder = account.getSentFolderName();
+        if (K9.DEBUG) {
+            Log.i(K9.LOG_TAG, "Moving sent message to folder '" + sentFolder);
+        }
+
+        mailStore.moveMessage(messageStorageId, sentFolder);
+
+        if (K9.DEBUG) {
+            Log.i(K9.LOG_TAG, "Moved sent message to folder '" + sentFolder);
+        }
+
+        messagingController.uploadMessage(account, messageStorageId);
     }
 
     private boolean isMaxSendAttemptsExceeded(Account account, long messageStorageId, Message message) {
