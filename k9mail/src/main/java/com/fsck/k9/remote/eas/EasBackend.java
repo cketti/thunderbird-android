@@ -29,7 +29,7 @@ public class EasBackend implements Backend {
     public EasBackend(Context context, Account account, BackendStorage backendStorage) {
         easAccount = createEasAccount(account, backendStorage);
         folderSync = new FolderSync(context, easAccount, backendStorage);
-        emailSync = new EmailSync(context, easAccount, backendStorage);
+        emailSync = new EmailSync(context, easAccount, backendStorage, folderSync);
         emailSend = new EmailSend(context, easAccount);
         emailMove = new EmailMove(context, easAccount);
     }

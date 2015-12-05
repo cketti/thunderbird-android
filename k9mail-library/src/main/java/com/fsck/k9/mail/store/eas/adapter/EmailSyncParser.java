@@ -20,6 +20,8 @@ import com.fsck.k9.mail.data.Message;
 import com.fsck.k9.mail.message.MessageParser;
 import com.fsck.k9.mail.store.eas.CommandStatusException;
 import com.fsck.k9.mail.store.eas.Eas;
+import com.fsck.k9.mail.store.eas.EasException;
+import com.fsck.k9.mail.store.eas.FolderSyncRequiredException;
 import com.fsck.k9.mail.store.eas.LogUtils;
 import com.fsck.k9.mail.store.eas.Utility;
 import com.fsck.k9.mail.store.eas.callback.EmailSyncCallback;
@@ -518,7 +520,7 @@ public class EmailSyncParser extends AbstractSyncParser {
     }
 
     @Override
-    public boolean parse() throws IOException, CommandStatusException {
+    public boolean parse() throws IOException, CommandStatusException, FolderSyncRequiredException {
         final boolean result = super.parse();
         return result || fetchNeeded();
     }

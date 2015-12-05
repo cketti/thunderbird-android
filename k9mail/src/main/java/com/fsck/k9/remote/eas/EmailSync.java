@@ -12,6 +12,7 @@ import android.content.Context;
 import com.fsck.k9.mail.Flag;
 import com.fsck.k9.mail.data.MessageServerData;
 import com.fsck.k9.mail.store.eas.Account;
+import com.fsck.k9.mail.store.eas.EasOperation;
 import com.fsck.k9.mail.store.eas.EasSync;
 import com.fsck.k9.mail.store.eas.EasSyncBase;
 import com.fsck.k9.mail.store.eas.EasSyncMail;
@@ -27,21 +28,23 @@ class EmailSync {
     private final Context context;
     private final Account account;
     private final BackendStorage backendStorage;
+    private final FolderSync folderSync;
 
 
-    EmailSync(Context context, Account account, BackendStorage backendStorage) {
+    EmailSync(Context context, Account account, BackendStorage backendStorage, FolderSync folderSync) {
         this.context = context;
         this.account = account;
         this.backendStorage = backendStorage;
+        this.folderSync = folderSync;
     }
 
     public boolean syncFolder(String serverId) {
         Mailbox mailbox = createMailbox(serverId);
 
         EasSyncMail syncMail = new EasSyncMail(new BackendEmailSyncCallback(mailbox));
-
         EasSyncBase syncBase = new EasSyncBase(context, account, mailbox, syncMail);
-        int result = syncBase.performOperation();
+
+        int result = performSyncOperation(syncBase);
 
         return result >= EasSyncBase.RESULT_MIN_OK_RESULT;
     }
@@ -52,7 +55,7 @@ class EmailSync {
         BackendEmailSyncCallback callback = new BackendEmailSyncCallback(mailbox);
 
         EasSync easSync = new EasSync(context, account, mailbox, changes, callback);
-        int result = easSync.upsync();
+        int result = performSyncOperation(easSync);
 
         return result == EasSync.RESULT_OK;
     }
@@ -78,7 +81,7 @@ class EmailSync {
 
         EasSyncMail syncMail = new EasSyncMail(callback, messageServerIds);
         EasSyncBase syncBase = new EasSyncBase(context, account, mailbox, syncMail);
-        syncBase.performOperation();
+        performSyncOperation(syncBase);
 
         return new EasDeleteStatus(syncMail.getMessageDeleteStatus());
     }
@@ -89,6 +92,20 @@ class EmailSync {
         mailbox.mSyncKey = backendStorage.getSyncKeyForFolder(serverId);
         return mailbox;
     }
+
+    private int performSyncOperation(EasOperation operation) {
+        int result = operation.performOperation();
+        if (result != EasSyncBase.RESULT_FOLDER_SYNC_REQUIRED) {
+            return result;
+        }
+
+        if (!folderSync.syncFolders()) {
+            return EasOperation.RESULT_OTHER_FAILURE;
+        }
+
+        return operation.performOperation();
+    }
+
 
     class BackendEmailSyncCallback implements EmailSyncCallback {
         private final Mailbox mailbox;
@@ -164,14 +181,9 @@ class EmailSync {
         }
 
         @Override
-        public void restartSync() {
+        public void prepareSyncRestart() {
             String folderServerId = mailbox.mServerId;
             backendStorage.removeAllMessages(folderServerId);
-        }
-
-        @Override
-        public void wipe() {
-            //TODO: implement
         }
     }
 

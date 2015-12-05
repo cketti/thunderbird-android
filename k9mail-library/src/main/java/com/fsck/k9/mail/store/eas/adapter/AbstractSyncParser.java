@@ -27,6 +27,7 @@ import android.os.RemoteException;
 import com.fsck.k9.mail.store.eas.CommandStatusException;
 import com.fsck.k9.mail.store.eas.CommandStatusException.CommandStatus;
 import com.fsck.k9.mail.store.eas.Eas;
+import com.fsck.k9.mail.store.eas.FolderSyncRequiredException;
 import com.fsck.k9.mail.store.eas.LogUtils;
 import com.fsck.k9.mail.store.eas.callback.BaseSyncCallback;
 
@@ -90,7 +91,7 @@ public abstract class AbstractSyncParser extends Parser {
      * @throws CommandStatusException
      */
     @Override
-    public boolean parse() throws IOException, CommandStatusException {
+    public boolean parse() throws IOException, CommandStatusException, FolderSyncRequiredException {
         int status;
         boolean moreAvailable = false;
         boolean newSyncKey = false;
@@ -112,7 +113,7 @@ public abstract class AbstractSyncParser extends Parser {
                         // Must delete all of the data and start over with syncKey of "0"
                         callback.setSyncKey("0");
                         newSyncKey = true;
-                        wipe();
+                        callback.prepareSyncRestart();
                         // Indicate there's more so that we'll start syncing again
                         moreAvailable = true;
                     } else if (status == 16 || status == 5) {
@@ -124,12 +125,7 @@ public abstract class AbstractSyncParser extends Parser {
                         // Status 8 is Bad; it means the server doesn't recognize the serverId it
                         // sent us.  12 means that we're being asked to refresh the folder list.
                         // We'll do that with 8 also...
-                        // TODO: Improve this -- probably best to do this synchronously and then
-                        // immediately retry the current sync.
-                        callback.restartSync();
-                        // We don't have any provision for telling the user "wait a minute while
-                        // we sync folders"...
-                        throw new IOException();
+                        throw new FolderSyncRequiredException();
                     } else if (status == 7) {
                         // TODO: Fix this. The handling here used to be pretty bogus, and it's not
                         // obvious that simply forcing another resync makes sense here.
@@ -179,10 +175,6 @@ public abstract class AbstractSyncParser extends Parser {
             userLog("MoreAvailable");
         }
         return moreAvailable;
-    }
-
-    protected void wipe() {
-        callback.wipe();
     }
 
     void userLog(String ...strings) {

@@ -12,7 +12,5 @@ public interface BaseSyncCallback {
      */
     boolean setSyncKey(String syncKey);
 
-    void restartSync();
-
-    void wipe();
+    void prepareSyncRestart();
 }

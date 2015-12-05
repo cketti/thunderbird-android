@@ -47,14 +47,15 @@ public class EasSync extends EasOperation {
         this.callback = callback;
     }
 
-    public int upsync() {
+    @Override
+    public int performOperation() {
         String mailboxSyncKey = mailbox.mSyncKey;
         if (TextUtils.isEmpty(mailboxSyncKey) || mailboxSyncKey.equals("0")) {
             throw new IllegalStateException("Tried to sync mailbox " + mailbox.mServerId + " with invalid " +
                     "mailbox sync key");
         }
 
-        return performOperation();
+        return super.performOperation();
     }
 
     @Override
@@ -149,6 +150,8 @@ public class EasSync extends EasOperation {
             messageUpdateStatus = parser.getMessageStatuses();
         } catch (EmptyStreamException e) {
             // This indicates a compressed response which was empty, which is OK.
+        } catch (FolderSyncRequiredException e) {
+            return EasSyncBase.RESULT_FOLDER_SYNC_REQUIRED;
         }
 
         return RESULT_OK;

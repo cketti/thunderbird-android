@@ -23,6 +23,7 @@ public class EasSyncBase extends EasOperation {
 
     public static final int RESULT_DONE = 0;
     public static final int RESULT_MORE_AVAILABLE = 1;
+    public static final int RESULT_FOLDER_SYNC_REQUIRED = RESULT_OP_SPECIFIC_ERROR_RESULT;
 
     private boolean mInitialSync;
     private final Mailbox mMailbox;
@@ -105,6 +106,8 @@ public class EasSyncBase extends EasOperation {
             }
         } catch (final Parser.EmptyStreamException e) {
             // This indicates a compressed response which was empty, which is OK.
+        } catch (FolderSyncRequiredException e) {
+            return RESULT_FOLDER_SYNC_REQUIRED;
         }
         return RESULT_DONE;
     }
