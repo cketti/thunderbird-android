@@ -78,7 +78,7 @@ class SendMailController {
             return FAILURE;
         }
 
-        if (needToUploadSentMessage(account)) {
+        if (needToUploadSentMessage(account, backend)) {
             uploadSentMessage(account, mailStore, messageStorageId);
         } else {
             mailStore.removeMessage(messageStorageId);
@@ -87,8 +87,8 @@ class SendMailController {
         return SUCCESS;
     }
 
-    private boolean needToUploadSentMessage(Account account) {
-        return account.hasSentFolder();
+    private boolean needToUploadSentMessage(Account account, Backend backend) {
+        return backend.supportsUpload() && account.hasSentFolder();
     }
 
     private void uploadSentMessage(Account account, MailStore mailStore, long messageStorageId) {

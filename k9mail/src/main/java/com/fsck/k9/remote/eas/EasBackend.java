@@ -60,6 +60,10 @@ public class EasBackend implements Backend {
     }
 
     @Override
+    public boolean supportsUpload() {
+        return false;
+    }
+
     public boolean setFlag(String folderServerId, List<String> messageServerIds, Flag flag, boolean newState) {
         return emailSync.setFlag(folderServerId, messageServerIds, flag, newState);
     }

@@ -8,6 +8,8 @@ import com.fsck.k9.mail.data.Message;
 
 
 public interface Backend {
+    boolean supportsUpload();
+
     boolean syncFolders();
 
     boolean syncFolder(String serverId);
