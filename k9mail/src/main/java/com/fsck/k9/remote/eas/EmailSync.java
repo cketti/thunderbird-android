@@ -13,7 +13,7 @@ import com.fsck.k9.mail.Flag;
 import com.fsck.k9.mail.data.MessageServerData;
 import com.fsck.k9.mail.store.eas.Account;
 import com.fsck.k9.mail.store.eas.EasOperation;
-import com.fsck.k9.mail.store.eas.EasSync;
+import com.fsck.k9.mail.store.eas.EasChangeFlag;
 import com.fsck.k9.mail.store.eas.EasSyncBase;
 import com.fsck.k9.mail.store.eas.EasSyncMail;
 import com.fsck.k9.mail.store.eas.Mailbox;
@@ -54,10 +54,10 @@ class EmailSync {
         List<MessageStateChange> changes = createMessageStateChangeList(messageServerIds, flag, newState);
         BackendEmailSyncCallback callback = new BackendEmailSyncCallback(mailbox);
 
-        EasSync easSync = new EasSync(context, account, mailbox, changes, callback);
-        int result = performSyncOperation(easSync);
+        EasChangeFlag easChangeFlag = new EasChangeFlag(context, account, mailbox, changes, callback);
+        int result = performSyncOperation(easChangeFlag);
 
-        return result == EasSync.RESULT_OK;
+        return result == EasChangeFlag.RESULT_OK;
     }
 
     private List<MessageStateChange> createMessageStateChangeList(List<String> messageServerIds, Flag flag,

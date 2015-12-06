@@ -28,7 +28,7 @@ import com.squareup.okhttp.RequestBody;
  * TODO: For now, only handles upsync.
  * TODO: Handle multiple folders in one request. Not sure if parser can handle it yet.
  */
-public class EasSync extends EasOperation {
+public class EasChangeFlag extends EasOperation {
     public final static int RESULT_OK = 1;
 
 
@@ -38,7 +38,7 @@ public class EasSync extends EasOperation {
     private Map<String, Integer> messageUpdateStatus = new HashMap<String, Integer>();
 
 
-    public EasSync(Context context, Account account, Mailbox mailbox, List<MessageStateChange> changes,
+    public EasChangeFlag(Context context, Account account, Mailbox mailbox, List<MessageStateChange> changes,
             EmailSyncCallback callback) {
         super(context, account);
 

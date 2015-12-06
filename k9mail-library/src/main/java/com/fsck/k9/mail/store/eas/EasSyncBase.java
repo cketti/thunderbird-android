@@ -15,7 +15,7 @@ import com.squareup.okhttp.RequestBody;
 
 /**
  * Performs an EAS sync operation for one folder (excluding mail upsync).
- * TODO: Merge with EasSync, which currently handles mail upsync.
+ * TODO: Merge with EasChangeFlag
  */
 public class EasSyncBase extends EasOperation {
 
