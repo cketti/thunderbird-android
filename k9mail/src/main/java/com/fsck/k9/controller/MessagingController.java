@@ -2922,7 +2922,6 @@ public class MessagingController implements Runnable {
     public boolean loadMessageForViewRemoteSynchronous(final Account account, final String folder,
             final String uid, final MessagingListener listener, final boolean force,
             final boolean loadPartialFromSearch) {
-        Folder remoteFolder = null;
         LocalFolder localFolder = null;
         try {
             LocalStore localStore = account.getLocalStore();
@@ -2968,19 +2967,9 @@ public class MessagingController implements Runnable {
                  * fully if possible.
                  */
 
-                Store remoteStore = account.getRemoteStore();
-                remoteFolder = remoteStore.getFolder(folder);
-                remoteFolder.open(Folder.OPEN_MODE_RW);
+                downloadMessage(account, folder, uid, localFolder);
 
-                // Get the remote message and fully download it
-                Message remoteMessage = remoteFolder.getMessage(uid);
                 FetchProfile fp = new FetchProfile();
-                fp.add(FetchProfile.Item.BODY);
-
-                remoteFolder.fetch(Collections.singletonList(remoteMessage), fp, null);
-
-                // Store the message locally and load the stored message into memory
-                localFolder.appendMessages(Collections.singletonList(remoteMessage));
                 if (loadPartialFromSearch) {
                     fp.add(FetchProfile.Item.BODY);
                 }
@@ -3015,8 +3004,46 @@ public class MessagingController implements Runnable {
             addErrorMessage(account, null, e);
             return false;
         } finally {
-            closeFolder(remoteFolder);
             closeFolder(localFolder);
+        }
+    }
+
+    private void downloadMessage(Account account, String folder, String uid, LocalFolder localFolder)
+            throws MessagingException {
+        if (backendManager.isBackendSupported(account)) {
+            downloadMessageViaBackend(account, folder, uid);
+        } else {
+            downloadMessageViaStore(account, folder, uid, localFolder);
+        }
+    }
+
+    private void downloadMessageViaBackend(Account account, String folderServerId, String messageServerId)
+            throws MessagingException {
+        Backend backend = backendManager.getBackend(account);
+        boolean success = backend.fullyDownloadMessage(folderServerId, messageServerId);
+        if (!success) {
+            throw new MessagingException("Error downloading message contents");
+        }
+    }
+
+    private void downloadMessageViaStore(Account account, String folder, String uid, LocalFolder localFolder)
+            throws MessagingException {
+        Store remoteStore = account.getRemoteStore();
+        Folder remoteFolder = remoteStore.getFolder(folder);
+        try {
+            remoteFolder.open(Folder.OPEN_MODE_RW);
+
+            // Get the remote message and fully download it
+            Message remoteMessage = remoteFolder.getMessage(uid);
+            FetchProfile fp = new FetchProfile();
+            fp.add(FetchProfile.Item.BODY);
+
+            remoteFolder.fetch(Collections.singletonList(remoteMessage), fp, null);
+
+            // Store the message locally and load the stored message into memory
+            localFolder.appendMessages(Collections.singletonList(remoteMessage));
+        } finally {
+            closeFolder(remoteFolder);
         }
     }
 

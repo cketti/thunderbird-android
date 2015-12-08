@@ -79,6 +79,11 @@ public class EasBackend implements Backend {
         return emailSync.deleteMessages(folderServerId, messageServerIds);
     }
 
+    @Override
+    public boolean fullyDownloadMessage(String folderServerId, String messageServerId) {
+        return emailSync.fullyDownloadMessage(folderServerId, messageServerId);
+    }
+
     private EasAccount createEasAccount(Account account, BackendStorage backendStorage) {
         Uri storeUri = Uri.parse(account.getStoreUri());
 

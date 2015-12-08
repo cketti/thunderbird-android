@@ -12,6 +12,7 @@ import android.content.Context;
 import com.fsck.k9.mail.Flag;
 import com.fsck.k9.mail.data.MessageServerData;
 import com.fsck.k9.mail.store.eas.Account;
+import com.fsck.k9.mail.store.eas.EasFetchMail;
 import com.fsck.k9.mail.store.eas.EasOperation;
 import com.fsck.k9.mail.store.eas.EasChangeFlag;
 import com.fsck.k9.mail.store.eas.EasSyncBase;
@@ -104,6 +105,17 @@ class EmailSync {
         }
 
         return operation.performOperation();
+    }
+
+    public boolean fullyDownloadMessage(String folderServerId, String messageServerId) {
+        Mailbox mailbox = createMailbox(folderServerId);
+        List<String> messageServerIds = Collections.singletonList(messageServerId);
+
+        BackendEmailSyncCallback callback = new BackendEmailSyncCallback(mailbox);
+        EasFetchMail fetchMail = new EasFetchMail(context, account, mailbox, messageServerIds, callback);
+        int result = performSyncOperation(fetchMail);
+
+        return result >= EasSyncBase.RESULT_MIN_OK_RESULT;
     }
 
 

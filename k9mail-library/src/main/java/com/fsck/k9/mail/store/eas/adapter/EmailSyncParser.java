@@ -20,7 +20,6 @@ import com.fsck.k9.mail.data.Message;
 import com.fsck.k9.mail.message.MessageParser;
 import com.fsck.k9.mail.store.eas.CommandStatusException;
 import com.fsck.k9.mail.store.eas.Eas;
-import com.fsck.k9.mail.store.eas.EasException;
 import com.fsck.k9.mail.store.eas.FolderSyncRequiredException;
 import com.fsck.k9.mail.store.eas.LogUtils;
 import com.fsck.k9.mail.store.eas.Utility;
@@ -132,6 +131,7 @@ public class EmailSyncParser extends AbstractSyncParser {
                 }
                 case Tags.EMAIL_MIME_TRUNCATED: {
                     truncated = getValueBoolean();
+                    messageData.setMessageTruncated(truncated);
                     break;
                 }
                 case Tags.EMAIL_MIME_DATA: {
@@ -204,8 +204,6 @@ public class EmailSyncParser extends AbstractSyncParser {
             }
         }
 
-        messageData.setMessageTruncated(truncated);
-
         if (attachmentDataList.size() > 0) {
             messageData.setAttachments(attachmentDataList);
         }
@@ -276,6 +274,11 @@ public class EmailSyncParser extends AbstractSyncParser {
                 }
                 case Tags.BASE_DATA: {
                     body = getValue();
+                    break;
+                }
+                case Tags.BASE_TRUNCATED: {
+                    boolean truncated = getValueBoolean();
+                    messageData.setMessageTruncated(truncated);
                     break;
                 }
                 default: {

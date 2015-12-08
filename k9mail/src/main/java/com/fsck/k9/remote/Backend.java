@@ -22,4 +22,6 @@ public interface Backend {
             List<String> messageServerIds);
 
     DeleteStatus deleteMessages(String folderServerId, List<String> messageServerIds);
+
+    boolean fullyDownloadMessage(String folderServerId, String messageServerId);
 }
