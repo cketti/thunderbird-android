@@ -63,7 +63,7 @@ class SyncNotifications {
 
     public void showFetchingMailNotification(Account account, Folder folder) {
         String accountName = account.getDescription();
-        String folderName = folder.getName();
+        String folderName = folder.getDisplayName();
 
         Context context = controller.getContext();
         String tickerText = context.getString(R.string.notification_bg_sync_ticker, accountName, folderName);
