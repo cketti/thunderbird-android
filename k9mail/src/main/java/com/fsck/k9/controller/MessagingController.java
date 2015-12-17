@@ -218,6 +218,7 @@ public class MessagingController implements Runnable {
     }
 
     private final Map<String, Integer> unreadBeforeStart = new HashMap<String, Integer>();
+    private final Set<String> loadingMoreMessages = new HashSet<String>();
 
     private void removeFlagFromCache(final Account account, final List<Long> messageIds,
             final Flag flag) {
@@ -785,7 +786,7 @@ public class MessagingController implements Runnable {
         boolean success = backend.increaseSyncWindow(folderServerId);
 
         if (success) {
-            synchronizeMailbox(account, folderServerId, listener, null);
+            synchronizeMailbox(account, folderServerId, listener, null, true);
         }
     }
 
@@ -796,7 +797,7 @@ public class MessagingController implements Runnable {
             if (localFolder.getVisibleLimit() > 0) {
                 localFolder.setVisibleLimit(localFolder.getVisibleLimit() + account.getDisplayCount());
             }
-            synchronizeMailbox(account, folder, listener, null);
+            synchronizeMailbox(account, folder, listener, null, true);
         } catch (MessagingException me) {
             addErrorMessage(account, null, me);
 
@@ -812,33 +813,39 @@ public class MessagingController implements Runnable {
 
     /**
      * Start background synchronization of the specified folder.
-     * @param account
-     * @param folder
-     * @param listener
-     * @param providedRemoteFolder TODO
      */
-    public void synchronizeMailbox(final Account account, final String folder, final MessagingListener listener, final Folder providedRemoteFolder) {
+    public void synchronizeMailbox(final Account account, final String folder, final MessagingListener listener,
+            final Folder providedRemoteFolder, final boolean loadMoreMessages) {
         putBackground("synchronizeMailbox", listener, new Runnable() {
             @Override
             public void run() {
-                synchronizeMailboxSynchronous(account, folder, listener, providedRemoteFolder);
+                synchronizeMailboxSynchronous(account, folder, listener, providedRemoteFolder, loadMoreMessages);
             }
         });
     }
 
-    private void synchronizeMailboxSynchronous(Account account, String folder, MessagingListener listener,
+    public void synchronizeMailbox(Account account, String folder, MessagingListener listener,
             Folder providedRemoteFolder) {
+        synchronizeMailbox(account, folder, listener, providedRemoteFolder, false);
+    }
+
+    private void synchronizeMailboxSynchronous(Account account, String folder, MessagingListener listener,
+            Folder providedRemoteFolder, boolean loadMoreMessages) {
         if (backendManager.isBackendSupported(account)) {
-            syncFolder(account, folder, listener);
+            syncFolder(account, folder, listener, loadMoreMessages);
         } else {
             synchronizeMailboxViaStore(account, folder, listener, providedRemoteFolder);
         }
     }
 
-    private void syncFolder(Account account, String folderServerId, MessagingListener listener) {
+    private void syncFolder(Account account, String folderServerId, MessagingListener listener,
+            boolean loadMoreMessages) {
         Backend backend = getBackend(account);
 
         saveUnreadMessageCount(account);
+        if (loadMoreMessages) {
+            saveLoadingMoreMessages(account, folderServerId);
+        }
 
         String folderDisplayName = getFolderDisplayName(account, folderServerId);
         for (MessagingListener l : getListeners(listener)) {
@@ -867,6 +874,22 @@ public class MessagingController implements Runnable {
         }
 
         removeSavedUnreadMessageCount(account);
+        removeLoadingMoreMessages(account, folderServerId);
+    }
+
+    private void saveLoadingMoreMessages(Account account, String folderServerId) {
+        String key = account.getUuid() + ":" + folderServerId;
+        loadingMoreMessages.add(key);
+    }
+
+    private void removeLoadingMoreMessages(Account account, String folderServerId) {
+        String key = account.getUuid() + ":" + folderServerId;
+        loadingMoreMessages.remove(key);
+    }
+
+    private boolean isLoadingMoreMessages(Account account, String folderServerId) {
+        String key = account.getUuid() + ":" + folderServerId;
+        return loadingMoreMessages.contains(key);
     }
 
     private String getFolderDisplayName(Account account, String folderServerId) {
@@ -4366,7 +4389,7 @@ public class MessagingController implements Runnable {
                     }
                     showFetchingMailNotificationIfNecessary(account, folder);
                     try {
-                        synchronizeMailboxSynchronous(account, folder.getName(), listener, null);
+                        synchronizeMailboxSynchronous(account, folder.getName(), listener, null, false);
                     } finally {
                         clearFetchingMailNotificationIfNecessary(account);
                     }
@@ -4488,6 +4511,10 @@ public class MessagingController implements Runnable {
         // If we don't even have an account name, don't show the notification.
         // (This happens during initial account setup)
         if (account.getName() == null) {
+            return false;
+        }
+
+        if (isLoadingMoreMessages(account, localFolder.getName())) {
             return false;
         }
 
