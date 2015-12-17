@@ -21,8 +21,8 @@ class BackendStorageFactory {
         return new BackendStorageFactory(mailStoreFactory);
     }
 
-    public BackendStorage createBackendStorage(Account account) {
+    public BackendStorage createBackendStorage(Account account, MessagingController controller) {
         MailStore mailStore = mailStoreFactory.createMailStore(account);
-        return new BackendStorage(account, mailStore);
+        return new BackendStorage(account, mailStore, controller);
     }
 }

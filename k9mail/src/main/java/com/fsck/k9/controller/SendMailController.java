@@ -37,7 +37,7 @@ class SendMailController {
 
     //TODO: improve error reporting
     public void sendPendingMessages(Account account) {
-        Backend backend = backendManager.getBackend(account);
+        Backend backend = backendManager.getBackend(account, messagingController);
         MailStore mailStore = getMailStore(account);
 
         notifySendPendingMessagesStarted(account);

@@ -14,11 +14,13 @@ import com.fsck.k9.remote.BackendFolderType;
 class BackendStorage implements com.fsck.k9.remote.BackendStorage {
     private final Account account;
     private final MailStore mailStore;
+    private final MessagingController controller;
 
 
-    BackendStorage(Account account, MailStore mailStore) {
+    BackendStorage(Account account, MailStore mailStore, MessagingController controller) {
         this.account = account;
         this.mailStore = mailStore;
+        this.controller = controller;
     }
 
     public MailStore getMailStore() {
@@ -125,6 +127,10 @@ class BackendStorage implements com.fsck.k9.remote.BackendStorage {
     @Override
     public void createMessage(MessageServerData messageServerData) {
         mailStore.createMessage(messageServerData);
+
+        String folderServerId = messageServerData.folderServerId();
+        String messageServerId = messageServerData.serverId();
+        controller.notifyForMessageIfNecessary(account, folderServerId, messageServerId);
     }
 
     @Override

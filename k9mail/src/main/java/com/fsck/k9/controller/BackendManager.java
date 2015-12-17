@@ -28,7 +28,7 @@ class BackendManager {
         return new BackendManager(context, backendStorageFactory);
     }
 
-    public synchronized Backend getBackend(Account account) {
+    public synchronized Backend getBackend(Account account, MessagingController controller) {
         if (!isBackendSupported(account)) {
             throw new IllegalStateException("This account doesn't support the Backend interface: " + account);
         }
@@ -36,7 +36,7 @@ class BackendManager {
         String accountUuid = account.getUuid();
         Backend backend = instances.get(accountUuid);
         if (backend == null) {
-            backend = createBackend(account);
+            backend = createBackend(account, controller);
             instances.put(accountUuid, backend);
         }
 
@@ -47,13 +47,13 @@ class BackendManager {
         return account.getStoreUri().startsWith("eas");
     }
 
-    private Backend createBackend(Account account) {
-        BackendStorage backendStorage = createAndSaveBackendStorage(account);
+    private Backend createBackend(Account account, MessagingController controller) {
+        BackendStorage backendStorage = createAndSaveBackendStorage(account, controller);
         return new EasBackend(context, account, backendStorage);
     }
 
-    private BackendStorage createAndSaveBackendStorage(Account account) {
-        BackendStorage backendStorage = backendStorageFactory.createBackendStorage(account);
+    private BackendStorage createAndSaveBackendStorage(Account account, MessagingController controller) {
+        BackendStorage backendStorage = backendStorageFactory.createBackendStorage(account, controller);
 
         String accountUuid = account.getUuid();
         storages.put(accountUuid, backendStorage);

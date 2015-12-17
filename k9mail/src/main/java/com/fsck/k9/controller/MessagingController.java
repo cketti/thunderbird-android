@@ -217,6 +217,8 @@ public class MessagingController implements Runnable {
         cache.setValueForMessages(messageIds, columnName, value);
     }
 
+    private final Map<String, Integer> unreadBeforeStart = new HashMap<String, Integer>();
+
     private void removeFlagFromCache(final Account account, final List<Long> messageIds,
             final Flag flag) {
 
@@ -498,7 +500,7 @@ public class MessagingController implements Runnable {
     }
 
     private void syncFolders(Account account) throws MessagingException {
-        Backend backend = backendManager.getBackend(account);
+        Backend backend = getBackend(account);
         if (!backend.syncFolders()) {
             throw new MessagingException("FolderSync failed");
         }
@@ -779,7 +781,7 @@ public class MessagingController implements Runnable {
     }
 
     private void loadMoreMessagesViaBackend(Account account, String folderServerId, MessagingListener listener) {
-        Backend backend = backendManager.getBackend(account);
+        Backend backend = getBackend(account);
         boolean success = backend.increaseSyncWindow(folderServerId);
 
         if (success) {
@@ -834,7 +836,9 @@ public class MessagingController implements Runnable {
     }
 
     private void syncFolder(Account account, String folderServerId, MessagingListener listener) {
-        Backend backend = backendManager.getBackend(account);
+        Backend backend = getBackend(account);
+
+        saveUnreadMessageCount(account);
 
         String folderDisplayName = getFolderDisplayName(account, folderServerId);
         for (MessagingListener l : getListeners(listener)) {
@@ -854,12 +858,15 @@ public class MessagingController implements Runnable {
                 l.synchronizeMailboxFailed(account, folderServerId, "");
             }
 
+            removeSavedUnreadMessageCount(account);
             return;
         }
 
         for (MessagingListener l : getListeners(listener)) {
             l.synchronizeMailboxFinished(account, folderServerId, 0, 0);
         }
+
+        removeSavedUnreadMessageCount(account);
     }
 
     private String getFolderDisplayName(Account account, String folderServerId) {
@@ -2200,7 +2207,7 @@ public class MessagingController implements Runnable {
 
     private void processPendingMoveViaBackend(Account account, String srcFolder, String destFolder,
             List<String> uids, Map<String, String> tempServerIdMap) throws MessagingException {
-        Backend backend = backendManager.getBackend(account);
+        Backend backend = getBackend(account);
 
         MoveStatus moveStatus = backend.moveMessages(srcFolder, destFolder, uids);
         Map<String, String> remoteServerIdMap = moveStatus.getServerIdMappingForSuccessfulMoves();
@@ -2379,7 +2386,7 @@ public class MessagingController implements Runnable {
 
     private void processPendingSetFlagViaBackend(Account account, String folderServerId, List<String> messageServerIds,
             Flag flag, boolean newState) throws MessagingException {
-        Backend backend = backendManager.getBackend(account);
+        Backend backend = getBackend(account);
         boolean success = backend.setFlag(folderServerId, messageServerIds, flag, newState);
 
         if (!success) {
@@ -2511,7 +2518,7 @@ public class MessagingController implements Runnable {
 
     private void processPendingDeleteViaBackend(Account account, String folderServerId, List<String> messageServerIds)
             throws MessagingException {
-        Backend backend = backendManager.getBackend(account);
+        Backend backend = getBackend(account);
         DeleteStatus deleteStatus = backend.deleteMessages(folderServerId, messageServerIds);
 
         //TODO: revert on errors
@@ -3036,7 +3043,7 @@ public class MessagingController implements Runnable {
 
     private void downloadMessageViaBackend(Account account, String folderServerId, String messageServerId)
             throws MessagingException {
-        Backend backend = backendManager.getBackend(account);
+        Backend backend = getBackend(account);
         boolean success = backend.fullyDownloadMessage(folderServerId, messageServerId);
         if (!success) {
             throw new MessagingException("Error downloading message contents");
@@ -4872,6 +4879,61 @@ public class MessagingController implements Runnable {
         }
 
         notificationController.showCertificateErrorNotification(account, incoming);
+    }
+
+    private Backend getBackend(Account account) {
+        return backendManager.getBackend(account, this);
+    }
+
+    private void saveUnreadMessageCount(Account account) {
+        int unreadMessageCount = getUnreadMessageCount(account);
+        String accountUuid = account.getUuid();
+        unreadBeforeStart.put(accountUuid, unreadMessageCount);
+    }
+
+    private int getSavedUnreadMessageCount(Account account) {
+        String accountUuid = account.getUuid();
+        Integer unreadMessageCount = unreadBeforeStart.get(accountUuid);
+        if (unreadMessageCount == null) {
+            return 0;
+        }
+
+        return unreadMessageCount;
+    }
+
+    private void removeSavedUnreadMessageCount(Account account) {
+        String accountUuid = account.getUuid();
+        unreadBeforeStart.remove(accountUuid);
+    }
+
+    private int getUnreadMessageCount(Account account) {
+        int unreadMessageCount = 0;
+        try {
+            AccountStats stats = account.getStats(context);
+            unreadMessageCount = stats.unreadMessageCount;
+        } catch (MessagingException e) {
+            Log.e(K9.LOG_TAG, "Unable to getUnreadMessageCount for account: " + account, e);
+        }
+
+        return unreadMessageCount;
+    }
+
+    void notifyForMessageIfNecessary(Account account, String folderServerId, String messageServerId) {
+        try {
+            int previousUnreadMessageCount = getSavedUnreadMessageCount(account);
+
+            LocalStore localStore = account.getLocalStore();
+
+            LocalFolder folder = localStore.getFolder(folderServerId);
+            LocalMessage message = folder.getMessage(messageServerId);
+
+            if (shouldNotifyForMessage(account, folder, message)) {
+                notificationController.addNewMailNotification(account, message, previousUnreadMessageCount);
+            }
+        } catch (UnavailableStorageException ignored) {
+        } catch (MessagingException e) {
+            Log.e(K9.LOG_TAG, e.getMessage(), e);
+        }
     }
 
     enum MemorizingState { STARTED, FINISHED, FAILED }
