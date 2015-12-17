@@ -13,6 +13,7 @@ import com.fsck.k9.mail.Flag;
 import com.fsck.k9.mail.MessagingException;
 import com.fsck.k9.mail.data.Message;
 import com.fsck.k9.mail.data.MessageServerData;
+import com.fsck.k9.mailstore.LocalFolder.MoreMessages;
 import com.fsck.k9.mailstore.LockableDatabase.DbCallback;
 import com.fsck.k9.mailstore.LockableDatabase.WrappedException;
 import com.fsck.k9.mailstore.data.Folder;
@@ -22,6 +23,7 @@ import com.fsck.k9.mailstore.legacy.LegacyMailStore;
 public class MailStore {
     private static final String[] FOLDERS_ID_COLUMN = new String[] { FolderColumns.ID };
     private static final String[] FOLDERS_SYNC_KEY_COLUMN = new String[] { FolderColumns.SYNC_KEY };
+    private static final String[] FOLDERS_VISIBLE_LIMIT_COLUMN = new String[] { FolderColumns.VISIBLE_LIMIT };
 
 
     private final LocalStore localStore;
@@ -186,6 +188,52 @@ public class MailStore {
 
     public void moveMessage(long messageStorageId, String folderServerId) {
         legacyMailStore.moveMessage(messageStorageId, folderServerId);
+    }
+
+    public int getSyncWindowForFolder(final String serverId) {
+        return dbOperation(new DbCallback<Integer>() {
+            @Override
+            public Integer doDbWork(SQLiteDatabase db) throws WrappedException, UnavailableStorageException {
+                Cursor cursor = db.query(Tables.FOLDERS, FOLDERS_VISIBLE_LIMIT_COLUMN, FolderColumns.SERVER_ID + " = ?",
+                        new String[] { serverId }, null, null, null);
+                try {
+                    if (cursor.moveToFirst()) {
+                        return cursor.getInt(0);
+                    }
+                } finally {
+                    cursor.close();
+                }
+
+                return 0;
+            }
+        });
+    }
+
+    public void setSyncWindowForFolder(final String serverId, int syncWindow) {
+        final ContentValues values = new ContentValues(1);
+        values.put(FolderColumns.VISIBLE_LIMIT, syncWindow);
+
+        dbOperation(new DbCallback<Void>() {
+            @Override
+            public Void doDbWork(SQLiteDatabase db) throws WrappedException, UnavailableStorageException {
+                db.update(Tables.FOLDERS, values, FolderColumns.SERVER_ID + " = ?", new String[] { serverId });
+                return null;
+            }
+        });
+    }
+
+    public void setMoreMessagesForFolder(final String serverId, boolean moreMessages) {
+        final ContentValues values = new ContentValues(1);
+        MoreMessages value = moreMessages ? MoreMessages.TRUE : MoreMessages.FALSE;
+        values.put(FolderColumns.MORE_MESSAGES, value.getDatabaseName());
+
+        dbOperation(new DbCallback<Void>() {
+            @Override
+            public Void doDbWork(SQLiteDatabase db) throws WrappedException, UnavailableStorageException {
+                db.update(Tables.FOLDERS, values, FolderColumns.SERVER_ID + " = ?", new String[] { serverId });
+                return null;
+            }
+        });
     }
 
     private long getFolderIdByServerId(SQLiteDatabase db, String serverId) {

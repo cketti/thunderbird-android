@@ -84,6 +84,11 @@ public class EasBackend implements Backend {
         return emailSync.fullyDownloadMessage(folderServerId, messageServerId);
     }
 
+    @Override
+    public boolean increaseSyncWindow(String serverId) {
+        return emailSync.increaseSyncWindow(serverId);
+    }
+
     private EasAccount createEasAccount(Account account, BackendStorage backendStorage) {
         Uri storeUri = Uri.parse(account.getStoreUri());
 

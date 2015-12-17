@@ -15,6 +15,9 @@ public interface BackendStorage {
 
     String getSyncKeyForFolder(String serverId);
     void setSyncKeyForFolder(String serverId, String syncKey);
+    int getSyncWindowForFolder(String serverId);
+    void setSyncWindowForFolder(String serverId, int syncWindow);
+    void setMoreMessagesForFolder(String serverId, boolean moreMessages);
 
     void createFolder(String name, BackendFolderType backendFolderType, String serverId, String parentServerId);
     void changeFolder(String serverId, String name, String parentServerId);

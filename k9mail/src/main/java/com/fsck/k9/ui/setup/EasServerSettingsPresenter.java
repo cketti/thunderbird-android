@@ -4,7 +4,10 @@ package com.fsck.k9.ui.setup;
 import android.content.Context;
 
 import com.fsck.k9.Account;
+import com.fsck.k9.Account.DeletePolicy;
+import com.fsck.k9.Account.FolderMode;
 import com.fsck.k9.helper.EmailHelper;
+import com.fsck.k9.mail.store.eas.Eas;
 import com.fsck.k9.remote.eas.EasBackend;
 import com.fsck.k9.ui.AccountLoaderAsyncTask;
 import com.fsck.k9.ui.AccountLoaderAsyncTask.AccountLoaderCallback;
@@ -111,5 +114,9 @@ class EasServerSettingsPresenter implements AccountLoaderCallback {
         String easStoreUri = EasBackend.createEasStoreUri(hostname, username, password);
         account.setStoreUri(easStoreUri);
         account.setTransportUri(easStoreUri);
+
+        account.setDeletePolicy(DeletePolicy.ON_DELETE);
+        account.setFolderPushMode(FolderMode.NONE);
+        account.setDisplayCount(Eas.FILTER_2_WEEKS);
     }
 }

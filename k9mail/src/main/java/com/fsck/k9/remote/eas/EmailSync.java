@@ -12,6 +12,7 @@ import android.content.Context;
 import com.fsck.k9.mail.Flag;
 import com.fsck.k9.mail.data.MessageServerData;
 import com.fsck.k9.mail.store.eas.Account;
+import com.fsck.k9.mail.store.eas.Eas;
 import com.fsck.k9.mail.store.eas.EasFetchMail;
 import com.fsck.k9.mail.store.eas.EasOperation;
 import com.fsck.k9.mail.store.eas.EasChangeFlag;
@@ -91,6 +92,8 @@ class EmailSync {
         Mailbox mailbox = new Mailbox();
         mailbox.mServerId = serverId;
         mailbox.mSyncKey = backendStorage.getSyncKeyForFolder(serverId);
+        int syncWindow = backendStorage.getSyncWindowForFolder(serverId);
+        mailbox.syncWindow = Integer.toString(syncWindow);
         return mailbox;
     }
 
@@ -116,6 +119,25 @@ class EmailSync {
         int result = performSyncOperation(fetchMail);
 
         return result >= EasSyncBase.RESULT_MIN_OK_RESULT;
+    }
+
+    public boolean increaseSyncWindow(String serverId) {
+        int currentSyncWindow = backendStorage.getSyncWindowForFolder(serverId);
+        if (currentSyncWindow == Eas.FILTER_ALL) {
+            return false;
+        }
+
+        int newSyncWindow;
+        if (currentSyncWindow < Eas.FILTER_6_MONTHS) {
+            newSyncWindow = currentSyncWindow + 1;
+        } else {
+            newSyncWindow = Eas.FILTER_ALL;
+            backendStorage.setMoreMessagesForFolder(serverId, false);
+        }
+
+        backendStorage.setSyncWindowForFolder(serverId, newSyncWindow);
+
+        return true;
     }
 
 

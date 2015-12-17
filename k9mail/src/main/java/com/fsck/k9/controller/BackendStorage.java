@@ -142,6 +142,21 @@ class BackendStorage implements com.fsck.k9.remote.BackendStorage {
         mailStore.removeAllMessages(folderServerId);
     }
 
+    @Override
+    public int getSyncWindowForFolder(String serverId) {
+        return mailStore.getSyncWindowForFolder(serverId);
+    }
+
+    @Override
+    public void setSyncWindowForFolder(String serverId, int syncWindow) {
+        mailStore.setSyncWindowForFolder(serverId, syncWindow);
+    }
+
+    @Override
+    public void setMoreMessagesForFolder(String serverId, boolean moreMessages) {
+        mailStore.setMoreMessagesForFolder(serverId, moreMessages);
+    }
+
     private FolderType convertFromBackendFolderType(BackendFolderType backendFolderType) {
         switch (backendFolderType) {
             case REGULAR:

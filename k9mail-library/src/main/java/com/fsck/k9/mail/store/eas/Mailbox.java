@@ -46,7 +46,7 @@ public class Mailbox {
     public int mType = TYPE_MAIL;
     public long mId = -1;
     public String mServerId;
-    public String syncWindow = Eas.FILTER_ALL;
+    public String syncWindow;
 
 
     public static boolean isInitialSyncKey(final String syncKey) {

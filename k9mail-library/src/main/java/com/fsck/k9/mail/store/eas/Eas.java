@@ -70,14 +70,14 @@ public class Eas {
     // 7 6 months ago No   Yes
 
     // TODO Rationalize this with SYNC_WINDOW_ALL
-    public static final String FILTER_ALL = "0";
-    public static final String FILTER_1_DAY = "1";
-    public static final String FILTER_3_DAYS =  "2";
-    public static final String FILTER_1_WEEK =  "3";
-    public static final String FILTER_2_WEEKS =  "4";
-    public static final String FILTER_1_MONTH =  "5";
-    public static final String FILTER_3_MONTHS = "6";
-    public static final String FILTER_6_MONTHS = "7";
+    public static final int FILTER_ALL = 0;
+    public static final int FILTER_1_DAY = 1;
+    public static final int FILTER_3_DAYS = 2;
+    public static final int FILTER_1_WEEK = 3;
+    public static final int FILTER_2_WEEKS = 4;
+    public static final int FILTER_1_MONTH = 5;
+    public static final int FILTER_3_MONTHS = 6;
+    public static final int FILTER_6_MONTHS = 7;
 
     public static final String BODY_PREFERENCE_TEXT = "1";
     public static final String BODY_PREFERENCE_HTML = "2";

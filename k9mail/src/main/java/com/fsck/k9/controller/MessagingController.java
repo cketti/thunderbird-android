@@ -771,6 +771,23 @@ public class MessagingController implements Runnable {
 
 
     public void loadMoreMessages(Account account, String folder, MessagingListener listener) {
+        if (backendManager.isBackendSupported(account)) {
+            loadMoreMessagesViaBackend(account, folder, listener);
+        } else {
+            loadMoreMessagesViaStore(account, folder, listener);
+        }
+    }
+
+    private void loadMoreMessagesViaBackend(Account account, String folderServerId, MessagingListener listener) {
+        Backend backend = backendManager.getBackend(account);
+        boolean success = backend.increaseSyncWindow(folderServerId);
+
+        if (success) {
+            synchronizeMailbox(account, folderServerId, listener, null);
+        }
+    }
+
+    private void loadMoreMessagesViaStore(Account account, String folder, MessagingListener listener) {
         try {
             LocalStore localStore = account.getLocalStore();
             LocalFolder localFolder = localStore.getFolder(folder);
