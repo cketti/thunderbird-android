@@ -1,5 +1,6 @@
 package com.fsck.k9
 
+import com.fsck.k9.appconfig.appConfigModule
 import com.fsck.k9.external.BroadcastSenderListener
 import com.fsck.k9.external.externalModule
 import com.fsck.k9.notification.notificationModule
@@ -21,6 +22,7 @@ private val mainAppModule = applicationContext {
 }
 
 val appModules = listOf(
+        appConfigModule,
         mainAppModule,
         externalModule,
         messageListWidgetModule,
