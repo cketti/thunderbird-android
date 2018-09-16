@@ -411,6 +411,21 @@
                 android:resource="@xml/message_list_widget_info" />
         </receiver>
 
+        <receiver
+            android:name=".deviceadmin.PolicyAdmin"
+            android:description="@string/device_admin_description"
+            android:label="@string/device_admin_label"
+            android:permission="android.permission.BIND_DEVICE_ADMIN">
+
+            <meta-data
+                android:name="android.app.device_admin"
+                android:resource="@xml/device_admin" />
+
+            <intent-filter>
+                <action android:name="android.app.action.DEVICE_ADMIN_ENABLED" />
+            </intent-filter>
+        </receiver>
+
         <service
             android:name=".widget.list.MessageListWidgetService"
             android:enabled="true"

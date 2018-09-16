@@ -1,0 +1,165 @@
+package com.fsck.k9.protocol.eas.adapter;
+
+
+import java.io.IOException;
+import java.io.InputStream;
+
+import com.fsck.k9.mail.Address;
+import com.fsck.k9.mail.message.basic.InMemoryMessageBuilderFactory;
+import com.fsck.k9.protocol.eas.Eas;
+import com.fsck.k9.protocol.eas.Mailbox;
+import com.fsck.k9.protocol.eas.RobolectricTest;
+import com.fsck.k9.protocol.eas.callback.EmailSyncCallback;
+import okio.Buffer;
+import okio.Okio;
+import org.junit.Before;
+import org.junit.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mock;
+
+import static com.fsck.k9.protocol.eas.adapter.ParserTestHelper.inputStreamFromSerializer;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.verify;
+import static org.mockito.MockitoAnnotations.initMocks;
+
+
+public class EmailSyncParserTest extends RobolectricTest {
+    private static final String CRLF = "\r\n";
+    private static final String SIMPLE_MESSAGE = "" +
+            "From: alice@example.org" + CRLF +
+            "To: bob@example.org" + CRLF +
+            "Date: Mon, 12 Oct 2015 12:34:56 +0200" + CRLF +
+            "Mime-Version: 1.0" + CRLF +
+            "Content-Type: text/plain; charset=UTF-8" + CRLF +
+            "Subject: Test" + CRLF +
+            CRLF +
+            "This is a test" + CRLF;
+
+
+    @Mock
+    private EmailSyncCallback callback;
+
+
+    @Before
+    public void setUp() throws Exception {
+        initMocks(this);
+    }
+
+    @Test
+    public void parseEas2_5ResponseContainingSingleSimpleMessage() throws Exception {
+        Serializer serializer = new Serializer();
+        serializer.start(Tags.SYNC_SYNC)
+                /**/.start(Tags.SYNC_COLLECTIONS)
+                /*....*/.start(Tags.SYNC_COLLECTION)
+                /*........*/.start(Tags.SYNC_CLASS).text(Eas.getFolderClass(Mailbox.TYPE_MAIL)).end()
+                /*........*/.start(Tags.SYNC_SYNC_KEY).text("23").end()
+                /*........*/.start(Tags.SYNC_COLLECTION_ID).text("INBOX").end()
+                /*........*/.start(Tags.SYNC_STATUS).text("1").end()
+                /*........*/.start(Tags.SYNC_COMMANDS)
+                /*............*/.start(Tags.SYNC_ADD)
+                /*................*/.start(Tags.SYNC_SERVER_ID).text("Msg1").end()
+                /*................*/.start(Tags.SYNC_APPLICATION_DATA)
+                /*....................*/.start(Tags.EMAIL_TO).text("bob@example.org").end()
+                /*....................*/.start(Tags.EMAIL_FROM).text("alice@example.org").end()
+                /*....................*/.start(Tags.EMAIL_REPLY_TO).text("alice@example.org").end()
+                /*....................*/.start(Tags.EMAIL_SUBJECT).text("Test").end()
+                /*....................*/.start(Tags.EMAIL_DATE_RECEIVED).text("2015-10-12T20:00:00.000Z").end()
+                /*....................*/.start(Tags.EMAIL_DISPLAY_TO).text("alice@example.org").end()
+                /*....................*/.start(Tags.EMAIL_IMPORTANCE).text("1").end()
+                /*....................*/.start(Tags.EMAIL_READ).text("1").end()
+                /*....................*/.start(Tags.EMAIL_MESSAGE_CLASS).text("IPM.Note").end()
+                /*....................*/.start(Tags.EMAIL_MIME_DATA).text(SIMPLE_MESSAGE).end()
+                /*................*/.end()
+                /*............*/.end()
+                /*........*/.end()
+                /*....*/.end()
+                /**/.end()
+                .end().done();
+        InputStream inputStream = inputStreamFromSerializer(serializer);
+        TestEmailSyncParser parser = new TestEmailSyncParser(inputStream, callback);
+
+        parser.parse();
+
+        verifyParserResultForSimpleMessageResponse(parser);
+    }
+
+    @Test
+    public void parseEas12_0ResponseContainingSingleSimpleMessage() throws Exception {
+        Serializer serializer = new Serializer();
+        serializer.start(Tags.SYNC_SYNC)
+                /**/.start(Tags.SYNC_COLLECTIONS)
+                /*....*/.start(Tags.SYNC_COLLECTION)
+                /*........*/.start(Tags.SYNC_CLASS).text(Eas.getFolderClass(Mailbox.TYPE_MAIL)).end()
+                /*........*/.start(Tags.SYNC_SYNC_KEY).text("23").end()
+                /*........*/.start(Tags.SYNC_COLLECTION_ID).text("INBOX").end()
+                /*........*/.start(Tags.SYNC_STATUS).text("1").end()
+                /*........*/.start(Tags.SYNC_COMMANDS)
+                /*............*/.start(Tags.SYNC_ADD)
+                /*................*/.start(Tags.SYNC_SERVER_ID).text("Msg1").end()
+                /*................*/.start(Tags.SYNC_APPLICATION_DATA)
+                /*....................*/.start(Tags.BASE_BODY)
+                /*........................*/.start(Tags.BASE_TYPE).text(Eas.BODY_PREFERENCE_MIME).end()
+                /*........................*/.start(Tags.BASE_DATA).text(SIMPLE_MESSAGE).end()
+                /*....................*/.end()
+                /*....................*/.start(Tags.EMAIL_TO).text("bob@example.org").end()
+                /*....................*/.start(Tags.EMAIL_FROM).text("alice@example.org").end()
+                /*....................*/.start(Tags.EMAIL_REPLY_TO).text("alice@example.org").end()
+                /*....................*/.start(Tags.EMAIL_SUBJECT).text("Test").end()
+                /*....................*/.start(Tags.EMAIL_DATE_RECEIVED).text("2015-10-12T20:00:00.000Z").end()
+                /*....................*/.start(Tags.EMAIL_DISPLAY_TO).text("alice@example.org").end()
+                /*....................*/.start(Tags.EMAIL_IMPORTANCE).text("1").end()
+                /*....................*/.start(Tags.EMAIL_READ).text("1").end()
+                /*....................*/.start(Tags.EMAIL_MESSAGE_CLASS).text("IPM.Note").end()
+                /*................*/.end()
+                /*............*/.end()
+                /*........*/.end()
+                /*....*/.end()
+                /**/.end()
+                .end().done();
+        InputStream inputStream = inputStreamFromSerializer(serializer);
+        TestEmailSyncParser parser = new TestEmailSyncParser(inputStream, callback);
+
+        parser.parse();
+
+        verifyParserResultForSimpleMessageResponse(parser);
+    }
+
+    private void verifyParserResultForSimpleMessageResponse(TestEmailSyncParser parser) throws IOException {
+        ArgumentCaptor<MessageData> argumentCaptor = ArgumentCaptor.forClass(MessageData.class);
+        verify(callback).addMessage(argumentCaptor.capture());
+        MessageData messageData = argumentCaptor.getValue();
+        assertEquals("Msg1", messageData.getServerId());
+        assertArrayEquals(Address.parse("bob@example.org"), messageData.getTo());
+        assertArrayEquals(Address.parse("alice@example.org"), messageData.getFrom());
+        assertArrayEquals(Address.parse("alice@example.org"), messageData.getReplyTo());
+        assertEquals("Test", messageData.getSubject());
+        assertEquals(1444680000000L, messageData.getTimeStamp());
+        assertEquals(true, messageData.isFlagRead());
+        assertEquals(SIMPLE_MESSAGE, parser.getMimeData());
+        verify(callback).commitMessageChanges();
+    }
+
+
+    static class TestEmailSyncParser extends EmailSyncParser {
+        private String mimeData;
+
+        public TestEmailSyncParser(InputStream in, EmailSyncCallback callback) throws IOException {
+            super(in, null, callback, new InMemoryMessageBuilderFactory());
+        }
+
+        @Override
+        void mimeBodyParser(MessageData messageData, InputStream inputStream) throws IOException {
+            Buffer buffer = new Buffer();
+            Okio.buffer(Okio.source(inputStream)).readAll(buffer);
+
+            mimeData = buffer.clone().readUtf8();
+
+            super.mimeBodyParser(messageData, buffer.inputStream());
+        }
+
+        public String getMimeData() {
+            return mimeData;
+        }
+    }
+}

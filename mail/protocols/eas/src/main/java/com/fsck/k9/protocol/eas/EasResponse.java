@@ -1,0 +1,177 @@
+/*
+ * Copyright (C) 2008-2009 Marc Blank
+ * Licensed to The Android Open Source Project.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.fsck.k9.protocol.eas;
+
+
+import java.io.IOException;
+import java.io.InputStream;
+
+import android.net.Uri;
+
+import okhttp3.Call;
+import okhttp3.Response;
+import okhttp3.ResponseBody;
+
+import static com.fsck.k9.protocol.eas.EasOperation.LOG_TAG;
+
+
+/**
+ * Encapsulate a response to an HTTP POST
+ */
+public class EasResponse {
+    // MSFT's custom HTTP result code indicating the need to provision
+    static private final int HTTP_NEED_PROVISIONING = 449;
+
+    // Microsoft-defined HTTP response indicating a redirect to a "better" server.
+    // Why is this a 4xx instead of 3xx? Because EAS considers this a "Device misconfigured" error.
+    static private final int HTTP_REDIRECT = 451;
+
+    private final Response mResponse;
+    private final ResponseBody mEntity;
+    private final long mLength;
+    private InputStream mInputStream;
+    private boolean mClosed;
+
+    private final int mStatus;
+
+    /**
+     * Whether or not a certificate was requested by the server and missing.
+     * If this is set, it is essentially a 403 whereby the failure was due
+     */
+    private final boolean mClientCertRequested;
+
+    private EasResponse(final Response response, final long reqTime) throws IOException {
+        mResponse = response;
+        mEntity = (response == null) ? null : mResponse.body();
+        if (mEntity !=  null) {
+            mLength = mEntity.contentLength();
+        } else {
+            mLength = 0;
+        }
+        int status = response.code();
+        LogUtils.d(LOG_TAG, "Response code: %s", Integer.toString(status));
+        mClientCertRequested = isAuthError(status) && false;/*&& connManager.hasDetectedUnsatisfiedCertReq(reqTime)*/;
+        if (mClientCertRequested) {
+            status = HttpStatus.SC_UNAUTHORIZED;
+            mClosed = true;
+        }
+        mStatus = status;
+    }
+
+    public static EasResponse fromHttpCall(Call call)
+            throws IOException {
+        final long reqTime = System.currentTimeMillis();
+        final Response response = call.execute();
+        return new EasResponse(response, reqTime);
+    }
+
+    public boolean isSuccess() {
+        return mStatus == HttpStatus.SC_OK;
+    }
+
+    public boolean isForbidden() {
+        return mStatus == HttpStatus.SC_FORBIDDEN;
+    }
+
+    /**
+     * @return Whether this response indicates an authentication error.
+     */
+    public boolean isAuthError() {
+        return mStatus == HttpStatus.SC_UNAUTHORIZED;
+    }
+
+    /**
+     * @return Whether this response indicates a provisioning error.
+     */
+    public boolean isProvisionError() {
+        return (mStatus == HTTP_NEED_PROVISIONING) || isForbidden();
+    }
+
+    /**
+     * @return Whether this response indicates a redirect error.
+     */
+    public boolean isRedirectError() {
+        return mStatus == HTTP_REDIRECT;
+    }
+
+    /**
+     * Determine whether an HTTP code represents an authentication error
+     * @param code the HTTP code returned by the server
+     * @return whether or not the code represents an authentication error
+     */
+    private static boolean isAuthError(int code) {
+        return (code == HttpStatus.SC_UNAUTHORIZED) || (code == HttpStatus.SC_FORBIDDEN);
+    }
+
+    /**
+     * Read the redirect address from this response, if it's present.
+     * @return The new host address, or null if it's not there.
+     */
+    public String getRedirectAddress() {
+        final String locHeader = getHeader("X-MS-Location");
+        if (locHeader != null) {
+            return Uri.parse(locHeader).getHost();
+        }
+        return null;
+    }
+
+    public InputStream getInputStream() {
+        if (mInputStream != null || mClosed) {
+            throw new IllegalStateException("Can't reuse stream or get closed stream");
+        } else if (mEntity == null) {
+            throw new IllegalStateException("Can't get input stream without entity");
+        }
+        InputStream is = null;
+        try {
+            // Get the default input stream for the entity
+            is = mEntity.byteStream();
+        } catch (IllegalStateException e1) {
+        }
+        mInputStream = is;
+        return is;
+    }
+
+    public boolean isEmpty() {
+        return mLength == 0;
+    }
+
+    public int getStatus() {
+        return mStatus;
+    }
+
+    public boolean isMissingCertificate() {
+        return mClientCertRequested;
+    }
+
+    public String getHeader(String name) {
+        return (mResponse == null) ? null : mResponse.header(name);
+    }
+
+    public long getLength() {
+        return mLength;
+    }
+
+    public void close() {
+        if (!mClosed) {
+            if (mEntity != null) {
+                mEntity.close();
+            }
+            mClosed = true;
+        }
+    }
+}
