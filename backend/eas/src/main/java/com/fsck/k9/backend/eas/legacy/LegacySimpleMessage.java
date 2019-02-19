@@ -10,6 +10,7 @@ import java.util.Set;
 import com.fsck.k9.mail.Address;
 import com.fsck.k9.mail.Body;
 import com.fsck.k9.mail.data.Message;
+import com.fsck.k9.mail.internet.MimeMessage;
 import org.apache.james.mime4j.MimeException;
 import org.apache.james.mime4j.dom.field.DateTimeField;
 import org.apache.james.mime4j.field.DefaultFieldParser;
@@ -17,7 +18,7 @@ import org.apache.james.mime4j.util.MimeUtil;
 import org.jetbrains.annotations.NotNull;
 
 
-class LegacySimpleMessage extends com.fsck.k9.mail.Message {
+class LegacySimpleMessage extends MimeMessage {
     private final LegacyPart legacyPart;
     private String subject;
     private Address[] from;

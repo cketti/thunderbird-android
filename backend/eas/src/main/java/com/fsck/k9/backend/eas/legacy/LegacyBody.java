@@ -10,6 +10,7 @@ import com.fsck.k9.mail.data.ContentBody;
 import com.fsck.k9.mail.data.Message;
 import com.fsck.k9.mail.data.Multipart;
 import com.fsck.k9.mail.data.Part;
+import com.fsck.k9.mail.internet.SizeAware;
 import com.fsck.k9.mail.message.FileBackedBody;
 import com.fsck.k9.mail.message.TransferEncoding;
 import okio.BufferedSink;
@@ -17,7 +18,7 @@ import okio.Okio;
 import okio.Source;
 
 
-class LegacyBody implements com.fsck.k9.mail.Body {
+class LegacyBody implements com.fsck.k9.mail.Body, SizeAware {
     Part part;
     ContentBody contentBody;
 
@@ -61,5 +62,10 @@ class LegacyBody implements com.fsck.k9.mail.Body {
         BufferedSink bufferedSink = Okio.buffer(Okio.sink(out));
         bufferedSink.writeAll(source);
         bufferedSink.flush();
+    }
+
+    @Override
+    public long getSize() {
+        return contentBody.length();
     }
 }
