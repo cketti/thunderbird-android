@@ -11,11 +11,11 @@ import java.util.Map;
 
 import android.content.OperationApplicationException;
 import android.os.RemoteException;
-import android.support.annotation.VisibleForTesting;
 import android.text.TextUtils;
 import android.util.Base64;
 import android.webkit.MimeTypeMap;
 
+import androidx.annotation.VisibleForTesting;
 import com.fsck.k9.mail.Address;
 import com.fsck.k9.mail.data.Message;
 import com.fsck.k9.mail.message.MessageBuilderFactory;

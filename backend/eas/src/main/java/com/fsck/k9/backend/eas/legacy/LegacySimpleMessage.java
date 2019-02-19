@@ -92,11 +92,6 @@ class LegacySimpleMessage extends com.fsck.k9.mail.Message {
     }
 
     @Override
-    public void setRecipients(RecipientType type, Address[] addresses) {
-        throw new UnsupportedOperationException("Not implemented");
-    }
-
-    @Override
     public Address[] getFrom() {
         if (from == null) {
             from = Address.parse(unfold(legacyPart.header("From")));

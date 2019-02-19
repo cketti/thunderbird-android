@@ -98,7 +98,7 @@ public class EasSettingsChecker {
         }
 
         @Override
-        public void changeFolder(String serverId, String name, String parentServerId) {
+        public void changeFolder(String serverId, String name, int type, String parentServerId) {
             // Do nothing
         }
 

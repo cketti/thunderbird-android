@@ -4,6 +4,7 @@ package com.fsck.k9.backend.eas
 import android.content.Context
 import com.fsck.k9.backend.api.BackendStorage
 import com.fsck.k9.backend.api.FolderInfo
+import com.fsck.k9.mail.Folder.FolderType
 import com.fsck.k9.protocol.eas.Account
 import com.fsck.k9.protocol.eas.Eas
 import com.fsck.k9.protocol.eas.EasFolderSync
@@ -30,10 +31,10 @@ internal class FolderSync(
     }
 
     override fun addFolder(serverId: String, name: String, type: Int, parentServerId: String) {
-        //TODO: use parentServerId and folderType
+        //TODO: use parentServerId
         val folderType = convertFolderType(type)
         if (folderType != null) {
-            backendStorage.createFolders(listOf(FolderInfo(name, serverId)))
+            backendStorage.createFolders(listOf(FolderInfo(name, serverId, folderType)))
         }
     }
 
@@ -41,9 +42,10 @@ internal class FolderSync(
         backendStorage.deleteFolders(listOf(serverId))
     }
 
-    override fun changeFolder(serverId: String, name: String, parentServerId: String) {
+    override fun changeFolder(serverId: String, name: String, type: Int, parentServerId: String) {
         //TODO: use parentServerId
-        backendStorage.changeFolder(serverId, name)
+        val folderType = convertFolderType(type) ?: return
+        backendStorage.changeFolder(serverId, name, folderType)
     }
 
     override fun clearFolders() {
@@ -62,13 +64,14 @@ internal class FolderSync(
         }
     }
 
-    private fun convertFolderType(type: Int): BackendFolderType? = when (type) {
-        Eas.MAILBOX_TYPE_USER_MAIL -> BackendFolderType.REGULAR
-        Eas.MAILBOX_TYPE_DRAFTS -> BackendFolderType.DRAFTS
-        Eas.MAILBOX_TYPE_INBOX -> BackendFolderType.INBOX
-        Eas.MAILBOX_TYPE_OUTBOX -> BackendFolderType.OUTBOX
-        Eas.MAILBOX_TYPE_SENT -> BackendFolderType.SENT
-        Eas.MAILBOX_TYPE_DELETED -> BackendFolderType.TRASH
+    private fun convertFolderType(type: Int): FolderType? = when (type) {
+        Eas.MAILBOX_TYPE_USER_GENERIC -> FolderType.REGULAR
+        Eas.MAILBOX_TYPE_USER_MAIL -> FolderType.REGULAR
+        Eas.MAILBOX_TYPE_DRAFTS -> FolderType.DRAFTS
+        Eas.MAILBOX_TYPE_INBOX -> FolderType.INBOX
+        Eas.MAILBOX_TYPE_OUTBOX -> FolderType.OUTBOX
+        Eas.MAILBOX_TYPE_SENT -> FolderType.SENT
+        Eas.MAILBOX_TYPE_DELETED -> FolderType.TRASH
         else -> null
     }
 }

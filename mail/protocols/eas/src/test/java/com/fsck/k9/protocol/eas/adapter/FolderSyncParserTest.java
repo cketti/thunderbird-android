@@ -9,12 +9,12 @@ import com.fsck.k9.protocol.eas.adapter.Parser.EasParserException;
 import com.fsck.k9.protocol.eas.callback.FolderSyncCallback;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.ArgumentMatchers;
 import org.mockito.Mock;
 
 import static com.fsck.k9.protocol.eas.adapter.ParserTestHelper.inputStreamFromSerializer;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -50,11 +50,9 @@ public class FolderSyncParserTest extends RobolectricTest {
         verify(controller).folderStatus(1);
         verify(controller).updateSyncKey("1");
         verify(callback, never()).clearFolders();
-        verify(callback, never()).addFolder(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers
-                .anyInt(), ArgumentMatchers.anyString());
-        verify(callback, never()).changeFolder(ArgumentMatchers.anyString(), ArgumentMatchers.anyString(), ArgumentMatchers
-                .anyString());
-        verify(callback, never()).removeFolder(ArgumentMatchers.anyString());
+        verify(callback, never()).addFolder(anyString(), anyString(), anyInt(), anyString());
+        verify(callback, never()).changeFolder(anyString(), anyString(), anyInt(), anyString());
+        verify(callback, never()).removeFolder(anyString());
         verify(callback).commitFolderChanges();
     }
 
@@ -131,7 +129,7 @@ public class FolderSyncParserTest extends RobolectricTest {
 
         parser.parse();
 
-        verify(callback).changeFolder("Folder1", "Folder #2", "0");
+        verify(callback).changeFolder("Folder1", "Folder #2", Eas.MAILBOX_TYPE_USER_MAIL, "0");
         verify(callback).commitFolderChanges();
     }
 
@@ -174,7 +172,7 @@ public class FolderSyncParserTest extends RobolectricTest {
         verify(controller).folderStatus(1);
         verify(callback).removeFolder("FolderServerId1");
         verify(callback).addFolder("Folder1", "Folder #1", Eas.MAILBOX_TYPE_INBOX, "0");
-        verify(callback).changeFolder("Folder1", "Folder #2", "0");
+        verify(callback).changeFolder("Folder1", "Folder #2", Eas.MAILBOX_TYPE_USER_MAIL, "0");
         verify(callback).commitFolderChanges();
         verifyNoMoreInteractions(controller, callback);
     }

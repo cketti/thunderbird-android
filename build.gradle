@@ -8,6 +8,7 @@ buildscript {
 
         versions = [
                 'kotlin': '1.2.71',
+                'androidxCore': '1.0.1',
                 'androidxAppCompat': '1.0.2',
                 'androidxRecyclerView': '1.0.0',
                 'androidxLifecycleExtensions': '2.0.0',

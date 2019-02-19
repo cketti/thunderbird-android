@@ -23,11 +23,11 @@ import java.security.cert.CertificateException;
 import android.content.Context;
 import android.content.SyncResult;
 import android.os.Build;
-import android.support.annotation.NonNull;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 import android.text.format.DateUtils;
 
+import androidx.annotation.NonNull;
 import com.fsck.k9.mail.MessagingException;
 import com.fsck.k9.protocol.eas.adapter.Serializer;
 import com.fsck.k9.protocol.eas.adapter.Tags;

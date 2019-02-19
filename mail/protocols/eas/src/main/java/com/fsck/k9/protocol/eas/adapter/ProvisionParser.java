@@ -24,8 +24,8 @@ import java.io.InputStream;
 import android.app.admin.DevicePolicyManager;
 import android.content.Context;
 import android.os.Environment;
-import android.support.v4.content.ContextCompat;
 
+import androidx.core.content.ContextCompat;
 import com.fsck.k9.protocol.eas.Eas;
 import com.fsck.k9.protocol.eas.EasProvision;
 import com.fsck.k9.protocol.eas.LogUtils;

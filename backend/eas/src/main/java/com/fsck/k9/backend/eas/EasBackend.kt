@@ -48,6 +48,7 @@ class EasBackend(
     override val supportsTrashFolder = true
     override val supportsSearchByDate = false
     override val isPushCapable = false
+    override val isDeleteMoveToTrash = true
 
 
     override fun refreshFolderList() {

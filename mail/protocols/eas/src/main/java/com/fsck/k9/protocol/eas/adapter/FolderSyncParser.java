@@ -121,6 +121,7 @@ public class FolderSyncParser extends Parser {
         String serverId = null;
         String displayName = null;
         String parentId = null;
+        int type = 0;
 
         while (nextTag(Tags.FOLDER_UPDATE) != END) {
             switch (tag) {
@@ -136,6 +137,10 @@ public class FolderSyncParser extends Parser {
                     parentId = getValue();
                     break;
                 }
+                case Tags.FOLDER_TYPE: {
+                    type = getValueInt();
+                    break;
+                }
                 default: {
                     skipTag();
                     break;
@@ -146,7 +151,7 @@ public class FolderSyncParser extends Parser {
         // We'll make a change if one of parentId or displayName are specified
         // serverId is required, but let's be careful just the same
         if (serverId != null && (displayName != null || parentId != null)) {
-            callback.changeFolder(serverId, displayName, parentId);
+            callback.changeFolder(serverId, displayName, type, parentId);
         }
     }
 
