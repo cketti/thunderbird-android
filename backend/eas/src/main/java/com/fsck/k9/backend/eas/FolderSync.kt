@@ -34,7 +34,7 @@ internal class FolderSync(
         //TODO: use parentServerId
         val folderType = convertFolderType(type)
         if (folderType != null) {
-            backendStorage.createFolders(listOf(FolderInfo(name, serverId, folderType)))
+            backendStorage.createFolders(listOf(FolderInfo(serverId, name, folderType)))
         }
     }
 
