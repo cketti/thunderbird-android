@@ -63,11 +63,17 @@ class EasBackend(
     ) {
         //TODO: more SyncListener callbacks
 
-        emailSync.syncFolder(folder, object : SyncFolderCallback {
+        val success = emailSync.syncFolder(folder, object : SyncFolderCallback {
             override fun onMessageFullyDownloaded(folderServerId: String, messageServerId: String) {
                 listener.syncNewMessage(folderServerId, messageServerId, false)
             }
         })
+
+        if (success) {
+            listener.syncFinished(folder, 0, 0)
+        } else {
+            listener.syncFailed(folder, "Sync failed", null)
+        }
     }
 
     override fun downloadMessage(syncConfig: SyncConfig, folderServerId: String, messageServerId: String) {
