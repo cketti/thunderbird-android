@@ -5,6 +5,8 @@ import java.util.Map;
 
 import android.content.res.Resources;
 import android.os.Bundle;
+
+import com.fsck.k9.DI;
 import timber.log.Timber;
 
 import com.fsck.k9.Account;
@@ -39,7 +41,7 @@ public class QuotedMessagePresenter {
 
     private static final int UNKNOWN_LENGTH = 0;
 
-
+    private final TextQuoteCreator textQuoteCreator = DI.get(TextQuoteCreator.class);
     private final QuotedMessageMvpView view;
     private final MessageCompose messageCompose;
     private final Resources resources;
@@ -119,7 +121,7 @@ public class QuotedMessagePresenter {
                     AttachmentResolver.createFromPart(messageViewInfo.rootPart));
 
             // TODO: Also strip the signature from the text/plain part
-            view.setQuotedText(TextQuoteCreator.quoteOriginalTextMessage(resources, messageViewInfo.message,
+            view.setQuotedText(textQuoteCreator.quoteOriginalTextMessage(messageViewInfo.message,
                     BodyTextExtractor.getBodyTextFromMessage(messageViewInfo.rootPart, SimpleMessageFormat.TEXT),
                     quoteStyle, account.getQuotePrefix()));
 
@@ -128,8 +130,8 @@ public class QuotedMessagePresenter {
                 content = TextSignatureRemover.stripSignature(content);
             }
 
-            view.setQuotedText(TextQuoteCreator.quoteOriginalTextMessage(
-                    resources, messageViewInfo.message, content, quoteStyle, account.getQuotePrefix()));
+            view.setQuotedText(textQuoteCreator.quoteOriginalTextMessage(
+                    messageViewInfo.message, content, quoteStyle, account.getQuotePrefix()));
         }
 
         if (showQuotedText) {
@@ -237,7 +239,7 @@ public class QuotedMessagePresenter {
             // composition window. If that's the case, try and convert it to text to
             // match the behavior in text mode.
             view.setMessageContentCharacters(
-                    BodyTextExtractor.getBodyTextFromMessage(messageViewInfo.message, SimpleMessageFormat.TEXT));
+                    BodyTextExtractor.getBodyTextFromMessage(messageViewInfo.rootPart, SimpleMessageFormat.TEXT));
             forcePlainText = true;
 
             showOrHideQuotedText(quotedMode);
@@ -246,7 +248,7 @@ public class QuotedMessagePresenter {
 
         if (messageFormat == MessageFormat.HTML) {
             String bodyText; // defaults to null
-            Part part = MimeUtility.findFirstPartByMimeType(messageViewInfo.message, "text/html");
+            Part part = MimeUtility.findFirstPartByMimeType(messageViewInfo.rootPart, "text/html");
             if (part != null) { // Shouldn't happen if we were the one who saved it.
                 quotedTextFormat = SimpleMessageFormat.HTML;
                 String text = MessageExtractor.getTextFromPart(part);

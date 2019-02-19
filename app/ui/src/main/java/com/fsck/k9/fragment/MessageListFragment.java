@@ -23,16 +23,17 @@ import android.graphics.Rect;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Parcelable;
-import android.support.v4.app.DialogFragment;
-import android.support.v4.app.Fragment;
-import android.support.v4.app.LoaderManager;
-import android.support.v4.app.LoaderManager.LoaderCallbacks;
-import android.support.v4.content.CursorLoader;
-import android.support.v4.content.Loader;
-import android.support.v4.content.LocalBroadcastManager;
-import android.support.v4.widget.SwipeRefreshLayout;
+import androidx.fragment.app.DialogFragment;
+import androidx.fragment.app.Fragment;
+import androidx.loader.app.LoaderManager;
+import androidx.loader.app.LoaderManager.LoaderCallbacks;
+import androidx.loader.content.CursorLoader;
+import androidx.loader.content.Loader;
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.view.ActionMode;
 import android.text.TextUtils;
-import android.view.ActionMode;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
 import android.view.LayoutInflater;
@@ -182,7 +183,6 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
      * Stores the server ID of the folder that we want to open as soon as possible after load.
      */
     private String folderServerId;
-    private String folderName;
 
     private boolean remoteSearchPerformed = false;
     private Future<?> remoteSearchFuture = null;
@@ -318,17 +318,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
     private void setWindowTitle() {
         // regular folder content display
         if (!isManualSearch() && singleFolderMode) {
-            Activity activity = getActivity();
-            String displayName = FolderInfoHolder.getDisplayName(activity, account, folderServerId, folderName);
-
-            fragmentListener.setMessageListTitle(displayName);
-
-            String operation = activityListener.getOperation(activity);
-            if (operation.length() < 1) {
-                fragmentListener.setMessageListSubTitle(account.getEmail());
-            } else {
-                fragmentListener.setMessageListSubTitle(operation);
-            }
+            fragmentListener.setMessageListTitle(currentFolder.displayName);
         } else {
             // query result display.  This may be for a search folder as opposed to a user-initiated search.
             if (title != null) {
@@ -338,8 +328,6 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
                 // This is a search result; set it to the default search result line.
                 fragmentListener.setMessageListTitle(getString(R.string.search_results));
             }
-
-            fragmentListener.setMessageListSubTitle(null);
         }
     }
 
@@ -582,7 +570,6 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
             singleFolderMode = true;
             folderServerId = search.getFolderServerIds().get(0);
             currentFolder = getFolderInfoHolder(folderServerId, account);
-            folderName = currentFolder.displayName;
         }
 
         allAccounts = false;
@@ -641,7 +628,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
     private FolderInfoHolder getFolderInfoHolder(String folderServerId, Account account) {
         try {
             LocalFolder localFolder = MlfUtils.getOpenFolder(folderServerId, account);
-            return new FolderInfoHolder(context, localFolder, account);
+            return new FolderInfoHolder(localFolder, account);
         } catch (MessagingException e) {
             throw new RuntimeException(e);
         }
@@ -838,7 +825,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
             account.setSortAscending(this.sortType, this.sortAscending);
             sortDateAscending = account.isSortAscending(SortType.SORT_DATE);
 
-            account.save(preferences);
+            Preferences.getPreferences(getContext()).saveAccount(account);
         } else {
             K9.setSortType(this.sortType);
 
@@ -850,7 +837,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
             K9.setSortAscending(this.sortType, this.sortAscending);
             sortDateAscending = K9.isSortAscending(SortType.SORT_DATE);
 
-            StorageEditor editor = preferences.getStorage().edit();
+            StorageEditor editor = preferences.createStorageEditor();
             K9.save(editor);
             editor.commit();
         }
@@ -959,6 +946,16 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
 
     private void onExpunge(final Account account, String folderServerId) {
         messagingController.expunge(account, folderServerId);
+    }
+
+    public void onEmptyTrash() {
+        if (isShowingTrashFolder()) {
+            messagingController.emptyTrash(account, null);
+        }
+    }
+
+    public boolean isShowingTrashFolder() {
+        return singleFolderMode && currentFolder != null && currentFolder.serverId.equals(account.getTrashFolder());
     }
 
     private void showDialog(int dialogId) {
@@ -1712,7 +1709,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
             Account account = entry.getKey();
             String archiveFolder = account.getArchiveFolder();
 
-            if (!K9.FOLDER_NONE.equals(archiveFolder)) {
+            if (archiveFolder != null) {
                 move(entry.getValue(), archiveFolder);
             }
         }
@@ -1761,7 +1758,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
             Account account = entry.getKey();
             String spamFolder = account.getSpamFolder();
 
-            if (!K9.FOLDER_NONE.equals(spamFolder)) {
+            if (spamFolder != null) {
                 move(entry.getValue(), spamFolder);
             }
         }
@@ -1842,7 +1839,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
      * @param messages
      *         The list of messages to copy or move. Never {@code null}.
      * @param destination
-     *         The name of the destination folder. Never {@code null} or {@link K9#FOLDER_NONE}.
+     *         The name of the destination folder. Never {@code null}.
      * @param operation
      *         Specifies what operation to perform. Never {@code null}.
      */
@@ -2278,7 +2275,6 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
         void onReplyAll(MessageReference message);
         void openMessage(MessageReference messageReference);
         void setMessageListTitle(String title);
-        void setMessageListSubTitle(String subTitle);
         void onCompose(Account account);
         boolean startSearch(Account account, String folderServerId);
         void remoteSearchStarted();
@@ -2442,7 +2438,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
         boolean allowRemoteSearch = false;
         final Account searchAccount = account;
         if (searchAccount != null) {
-            allowRemoteSearch = searchAccount.allowRemoteSearch();
+            allowRemoteSearch = searchAccount.isAllowRemoteSearch();
         }
 
         return allowRemoteSearch;
@@ -2698,8 +2694,12 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
     }
 
     private void startAndPrepareActionMode() {
-        actionMode = getActivity().startActionMode(actionModeCallback);
-        actionMode.invalidate();
+        AppCompatActivity activity = (AppCompatActivity) requireActivity();
+        ActionMode actionMode = activity.startSupportActionMode(actionModeCallback);
+        this.actionMode = actionMode;
+        if (actionMode != null) {
+            actionMode.invalidate();
+        }
     }
 
     /**

@@ -17,8 +17,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Stack;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 
 import android.content.ContentResolver;
 import android.content.ContentValues;
@@ -26,11 +24,12 @@ import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 import android.text.TextUtils;
 
 import com.fsck.k9.Account;
 import com.fsck.k9.AccountStats;
+import com.fsck.k9.Clock;
 import com.fsck.k9.DI;
 import com.fsck.k9.K9;
 import com.fsck.k9.Preferences;
@@ -43,6 +42,7 @@ import com.fsck.k9.mail.FetchProfile;
 import com.fsck.k9.mail.FetchProfile.Item;
 import com.fsck.k9.mail.Flag;
 import com.fsck.k9.mail.Folder;
+import com.fsck.k9.mail.Folder.FolderType;
 import com.fsck.k9.mail.MessageRetrievalListener;
 import com.fsck.k9.mail.MessagingException;
 import com.fsck.k9.mail.Multipart;
@@ -79,18 +79,6 @@ import timber.log.Timber;
 public class LocalStore {
     static final String[] EMPTY_STRING_ARRAY = new String[0];
     static final byte[] EMPTY_BYTE_ARRAY = new byte[0];
-
-    /**
-     * Lock objects indexed by account UUID.
-     *
-     * @see #getInstance(Account, Context)
-     */
-    private static ConcurrentMap<String, Object> sAccountLocks = new ConcurrentHashMap<>();
-
-    /**
-     * Local stores indexed by UUID because the Uri may change due to migration to/from SD-card.
-     */
-    private static ConcurrentMap<String, LocalStore> sLocalStores = new ConcurrentHashMap<>();
 
     /*
      * a String containing the columns getMessages expects to work with
@@ -132,7 +120,7 @@ public class LocalStore {
     static final String GET_FOLDER_COLS =
         "folders.id, name, visible_limit, last_updated, status, push_state, last_pushed, " +
         "integrate, top_group, poll_class, push_class, display_class, notify_class, more_messages, server_id, " +
-        "local_only";
+        "local_only, type";
 
     static final int FOLDER_ID_INDEX = 0;
     static final int FOLDER_NAME_INDEX = 1;
@@ -150,6 +138,7 @@ public class LocalStore {
     static final int MORE_MESSAGES_INDEX = 13;
     static final int FOLDER_SERVER_ID_INDEX = 14;
     static final int LOCAL_ONLY_INDEX = 15;
+    static final int TYPE_INDEX = 16;
 
     static final String[] UID_CHECK_PROJECTION = { "uid" };
 
@@ -192,10 +181,15 @@ public class LocalStore {
 
     private final Account account;
     private final LockableDatabase database;
+    private final OutboxStateRepository outboxStateRepository;
+
+    static LocalStore createInstance(Account account, Context context) throws MessagingException {
+        return new LocalStore(account, context);
+    }
 
     /**
      * local://localhost/path/to/database/uuid.db
-     * This constructor is only used by {@link LocalStore#getInstance(Account, Context)}
+     * This constructor is only used by {@link LocalStoreProvider#getInstance(Account)}
      * @throws UnavailableStorageException if not {@link StorageProvider#isReady(Context)}
      */
     private LocalStore(final Account account, final Context context) throws MessagingException {
@@ -217,37 +211,9 @@ public class LocalStore {
         database = new LockableDatabase(context, account.getUuid(), schemaDefinition);
         database.setStorageProviderId(account.getLocalStorageProviderId());
         database.open();
-    }
 
-    /**
-     * Get an instance of a local mail store.
-     *
-     * @throws UnavailableStorageException
-     *          if not {@link StorageProvider#isReady(Context)}
-     */
-    public static LocalStore getInstance(Account account, Context context)
-            throws MessagingException {
-
-        String accountUuid = account.getUuid();
-
-        // Create new per-account lock object if necessary
-        sAccountLocks.putIfAbsent(accountUuid, new Object());
-
-        // Use per-account locks so DatabaseUpgradeService always knows which account database is
-        // currently upgraded.
-        synchronized (sAccountLocks.get(accountUuid)) {
-            LocalStore store = sLocalStores.get(accountUuid);
-
-            if (store == null) {
-                // Creating a LocalStore instance will create or upgrade the database if
-                // necessary. This could take some time.
-                store = new LocalStore(account, context);
-
-                sLocalStores.put(accountUuid, store);
-            }
-
-            return store;
-        }
+        Clock clock = DI.get(Clock.class);
+        outboxStateRepository = new OutboxStateRepository(database, clock);
     }
 
     public static int getDbVersion() {
@@ -264,8 +230,7 @@ public class LocalStore {
     }
 
     private static void removeInstance(Account account) {
-        String accountUuid = account.getUuid();
-        sLocalStores.remove(accountUuid);
+        DI.get(LocalStoreProvider.class).removeInstance(account);
     }
 
     public void switchLocalStorage(final String newStorageProviderId) throws MessagingException {
@@ -282,6 +247,14 @@ public class LocalStore {
 
     protected Storage getStorage() {
         return Preferences.getPreferences(context).getStorage();
+    }
+
+    protected Preferences getPreferences() {
+        return Preferences.getPreferences(context);
+    }
+
+    public OutboxStateRepository getOutboxStateRepository() {
+        return outboxStateRepository;
     }
 
     public long getSize() throws MessagingException {
@@ -404,8 +377,8 @@ public class LocalStore {
         return new LocalFolder(this, serverId);
     }
 
-    public LocalFolder getFolder(String serverId, String name) {
-        return new LocalFolder(this, serverId, name);
+    public LocalFolder getFolder(String serverId, String name, FolderType type) {
+        return new LocalFolder(this, serverId, name, type);
     }
 
     // TODO this takes about 260-300ms, seems slow.
@@ -911,6 +884,7 @@ public class LocalStore {
                     String serverId = folder.getServerId();
                     String name = folder.getName();
                     boolean localOnly = folder.isLocalOnly();
+                    String databaseFolderType = FolderTypeConverter.toDatabaseFolderType(folder.getType());
 
                     if (K9.DEVELOPER_MODE) {
                         Cursor cursor = db.query("folders", new String[] { "id", "server_id" },
@@ -953,7 +927,7 @@ public class LocalStore {
                     }
                     folder.refresh(serverId, prefHolder);   // Recover settings from Preferences
 
-                    db.execSQL("INSERT INTO folders (name, visible_limit, top_group, display_class, poll_class, notify_class, push_class, integrate, server_id, local_only) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", new Object[] {
+                    db.execSQL("INSERT INTO folders (name, visible_limit, top_group, display_class, poll_class, notify_class, push_class, integrate, server_id, local_only, type) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", new Object[] {
                                    name,
                                    visibleLimit,
                                    prefHolder.inTopGroup ? 1 : 0,
@@ -963,7 +937,8 @@ public class LocalStore {
                                    prefHolder.pushClass.name(),
                                    prefHolder.integrate ? 1 : 0,
                                    serverId,
-                                   localOnly ? 1 : 0
+                                   localOnly ? 1 : 0,
+                                   databaseFolderType
                                });
 
                 }
@@ -972,6 +947,15 @@ public class LocalStore {
         });
     }
 
+    public void createLocalFolder(String internalId, String folderName)
+            throws MessagingException {
+        LocalFolder folder = getFolder(internalId);
+        if (!folder.exists()) {
+            folder.create();
+        }
+        folder.setName(folderName);
+        folder.setSyncClass(Folder.FolderClass.NONE);
+    }
 
     static String serializeFlags(Iterable<Flag> flags) {
         List<Flag> extraFlags = new ArrayList<>();
@@ -1372,6 +1356,11 @@ public class LocalStore {
         @Override
         public Storage getStorage() {
             return LocalStore.this.getStorage();
+        }
+
+        @Override
+        public Preferences getPreferences() {
+            return LocalStore.this.getPreferences();
         }
 
         @Override

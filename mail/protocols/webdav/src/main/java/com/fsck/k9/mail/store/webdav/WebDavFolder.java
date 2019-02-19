@@ -217,13 +217,8 @@ public class WebDavFolder extends Folder<WebDavMessage> {
     }
 
     @Override
-    public boolean create(FolderType type) throws MessagingException {
+    public boolean create() throws MessagingException {
         return true;
-    }
-
-    @Override
-    public void delete(boolean recursive) throws MessagingException {
-        throw new Error("WebDavFolder.delete() not implemeneted");
     }
 
     @Override

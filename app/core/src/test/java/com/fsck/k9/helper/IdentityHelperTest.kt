@@ -7,11 +7,11 @@ import com.fsck.k9.RobolectricTest
 import com.fsck.k9.mail.Address
 import com.fsck.k9.mail.Message
 import com.fsck.k9.mail.Message.RecipientType
+import com.fsck.k9.mail.internet.AddressHeaderBuilder
 import com.fsck.k9.mail.internet.MimeMessage
 import com.google.common.truth.Truth.assertThat
-import com.nhaarman.mockito_kotlin.mock
 import org.junit.Test
-import org.robolectric.RuntimeEnvironment
+import java.util.*
 
 class IdentityHelperTest : RobolectricTest() {
     private val account = createDummyAccount()
@@ -110,7 +110,7 @@ class IdentityHelperTest : RobolectricTest() {
     }
 
 
-    private fun createDummyAccount() = DummyAccount().apply {
+    private fun createDummyAccount() = Account(UUID.randomUUID().toString()).apply {
         identities = listOf(
                 newIdentity("Default", DEFAULT_ADDRESS),
                 newIdentity("Identity 1", IDENTITY_1_ADDRESS),
@@ -129,9 +129,19 @@ class IdentityHelperTest : RobolectricTest() {
     private fun messageWithRecipients(vararg recipients: Pair<RecipientType, String>): Message {
         return MimeMessage().apply {
             for ((recipientType, email) in recipients) {
-                setRecipients(recipientType, arrayOf(Address(email)))
+                val headerName = recipientType.toHeaderName()
+                addHeader(headerName, AddressHeaderBuilder.createHeaderValue(arrayOf(Address(email))))
             }
         }
+    }
+
+    private fun RecipientType.toHeaderName() = when (this) {
+        RecipientType.TO -> "To"
+        RecipientType.CC -> "Cc"
+        RecipientType.BCC -> "Bcc"
+        RecipientType.X_ORIGINAL_TO -> "X-Original-To"
+        RecipientType.DELIVERED_TO -> "Delivered-To"
+        RecipientType.X_ENVELOPE_TO -> "X-Envelope-To"
     }
 
     companion object {
@@ -142,7 +152,4 @@ class IdentityHelperTest : RobolectricTest() {
         const val IDENTITY_4_ADDRESS = "identity4@example.org"
         const val IDENTITY_5_ADDRESS = "identity5@example.org"
     }
-
-
-    class DummyAccount : Account(RuntimeEnvironment.application, mock())
 }

@@ -30,8 +30,11 @@
 
 
 # Project specific rules
--dontnote com.fsck.k9.PRNGFixes
 -dontnote com.fsck.k9.ui.messageview.**
 -dontnote com.fsck.k9.view.**
 
 -keep public class org.openintents.openpgp.**
+
+-keepclassmembers class * extends androidx.appcompat.widget.SearchView {
+    public <init>(android.content.Context);
+}

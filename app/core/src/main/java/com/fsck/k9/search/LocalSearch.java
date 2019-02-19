@@ -23,6 +23,7 @@ import android.os.Parcelable;
 
 public class LocalSearch implements SearchSpecification {
 
+    private String id;
     private String mName;
     private boolean mPredefined;
     private boolean mManualSearch = false;
@@ -104,6 +105,16 @@ public class LocalSearch implements SearchSpecification {
     }
 
     /**
+     * Set the ID of the search. This is used to identify a unified inbox
+     * search
+     *
+     * @param id ID to set
+     */
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    /**
      * Add a new account to the search. When no accounts are
      * added manually we search all accounts on the device.
      *
@@ -159,13 +170,8 @@ public class LocalSearch implements SearchSpecification {
      * @return New top AND node, new root.
      */
     public ConditionsTreeNode and(SearchCondition condition) {
-        try {
-            ConditionsTreeNode tmp = new ConditionsTreeNode(condition);
-            return and(tmp);
-        } catch (Exception e) {
-            // impossible
-            return null;
-        }
+        ConditionsTreeNode tmp = new ConditionsTreeNode(condition);
+        return and(tmp);
     }
 
     /**
@@ -174,9 +180,8 @@ public class LocalSearch implements SearchSpecification {
      *
      * @param node Node to 'AND' with.
      * @return New top AND node, new root.
-     * @throws Exception
      */
-    public ConditionsTreeNode and(ConditionsTreeNode node) throws Exception {
+    public ConditionsTreeNode and(ConditionsTreeNode node) {
         mLeafSet.addAll(node.getLeafSet());
 
         if (mConditions == null) {
@@ -196,13 +201,8 @@ public class LocalSearch implements SearchSpecification {
      * @return New top OR node, new root.
      */
     public ConditionsTreeNode or(SearchCondition condition) {
-        try {
-            ConditionsTreeNode tmp = new ConditionsTreeNode(condition);
-            return or(tmp);
-        } catch (Exception e) {
-            // impossible
-            return null;
-        }
+        ConditionsTreeNode tmp = new ConditionsTreeNode(condition);
+        return or(tmp);
     }
 
     /**
@@ -211,9 +211,8 @@ public class LocalSearch implements SearchSpecification {
      *
      * @param node Node to 'OR' with.
      * @return New top OR node, new root.
-     * @throws Exception
      */
-    public ConditionsTreeNode or(ConditionsTreeNode node) throws Exception {
+    public ConditionsTreeNode or(ConditionsTreeNode node) {
         mLeafSet.addAll(node.getLeafSet());
 
         if (mConditions == null) {
@@ -302,6 +301,15 @@ public class LocalSearch implements SearchSpecification {
     }
 
     /**
+     * Returns the ID of the search
+     *
+     * @return The ID of the search
+     */
+    public String getId() {
+        return (id == null) ? "" : id;
+    }
+
+    /**
      * Checks if this search was hard coded and shipped with K-9
      *
      * @return True is search was shipped with K-9
@@ -364,6 +372,7 @@ public class LocalSearch implements SearchSpecification {
 
     @Override
     public void writeToParcel(Parcel dest, int flags) {
+        dest.writeString(id);
         dest.writeString(mName);
         dest.writeByte((byte) (mPredefined ? 1 : 0));
         dest.writeByte((byte) (mManualSearch ? 1 : 0));
@@ -386,6 +395,7 @@ public class LocalSearch implements SearchSpecification {
     };
 
     public LocalSearch(Parcel in) {
+        id = in.readString();
         mName = in.readString();
         mPredefined = (in.readByte() == 1);
         mManualSearch = (in.readByte() == 1);

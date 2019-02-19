@@ -11,21 +11,6 @@
     MessageList.configureMenu() if you make any changes to this file.
     -->
 
-    <!-- MessageView -->
-    <item
-        android:id="@+id/previous_message"
-        android:title="@string/previous_action"
-        android:icon="?attr/iconActionPreviousMessage"
-        app:showAsAction="always" />
-
-    <!-- MessageView -->
-    <item
-        android:id="@+id/next_message"
-        android:title="@string/next_action"
-        android:icon="?attr/iconActionNextMessage"
-        app:showAsAction="always"
-    />
-
     <!-- MessageList -->
     <item
         android:id="@+id/search"
@@ -51,29 +36,56 @@
 
     <!-- MessageView -->
     <item
+        android:id="@+id/archive"
+        android:icon="?attr/iconActionArchive"
+        app:showAsAction="always"
+        android:title="@string/archive_action"/>
+
+    <!-- MessageView -->
+    <item
         android:id="@+id/delete"
         android:alphabeticShortcut="q"
         android:icon="?attr/iconActionDelete"
         app:showAsAction="always"
         android:title="@string/delete_action"/>
+
     <!-- MessageView -->
     <item
-        android:id="@+id/archive"
-        android:icon="?attr/iconActionArchive"
-        app:showAsAction="ifRoom"
-        android:title="@string/archive_action"/>
+        android:id="@+id/toggle_unread"
+        android:icon="?attr/iconActionMarkAsUnread"
+        android:alphabeticShortcut="u"
+        app:showAsAction="always"
+        android:title="@string/mark_as_unread_action"/>
+
+    <!-- MessageView -->
+    <item
+        android:id="@+id/previous_message"
+        android:title="@string/previous_action"
+        android:icon="?attr/iconActionPreviousMessage"
+        app:showAsAction="always" />
+
+    <!-- MessageView -->
+    <item
+        android:id="@+id/next_message"
+        android:title="@string/next_action"
+        android:icon="?attr/iconActionNextMessage"
+        app:showAsAction="always"
+        />
+
     <!-- MessageView -->
     <item
         android:id="@+id/spam"
         android:icon="?attr/iconActionSpam"
         app:showAsAction="ifRoom"
         android:title="@string/spam_action"/>
+
     <!-- MessageView -->
     <item
         android:id="@+id/move"
         android:icon="?attr/iconActionMove"
         app:showAsAction="ifRoom"
         android:title="@string/move_action"/>
+
     <!-- MessageView -->
     <item
         android:id="@+id/copy"
@@ -133,12 +145,6 @@
                 android:title="@string/copy_action"/>
         </menu>
     </item>
-    <!-- MessageView -->
-    <item
-        android:id="@+id/toggle_unread"
-        android:alphabeticShortcut="u"
-        app:showAsAction="never"
-        android:title="@string/mark_as_unread_action"/>
 
     <item android:id="@+id/show_headers"
           app:showAsAction="never"
@@ -147,6 +153,14 @@
     <item android:id="@+id/hide_headers"
           app:showAsAction="never"
           android:title="@string/hide_headers_action"/>
+
+    <!-- always -->
+    <item
+        android:id="@+id/compose"
+        android:alphabeticShortcut="c"
+        android:icon="?attr/iconActionCompose"
+        app:showAsAction="ifRoom"
+        android:title="@string/compose_action"/>
 
     <!-- MessageList -->
     <item
@@ -179,14 +193,6 @@
         </menu>
     </item>
 
-    <!-- always -->
-    <item
-        android:id="@+id/compose"
-        android:alphabeticShortcut="c"
-        android:icon="?attr/iconActionCompose"
-        app:showAsAction="ifRoom"
-        android:title="@string/compose_action"/>
-
     <!-- MessageList -->
     <item
         android:id="@+id/select_all"
@@ -210,25 +216,22 @@
 
     <!-- MessageList -->
     <item
+        android:id="@+id/empty_trash"
+        android:alphabeticShortcut="e"
+        android:title="@string/empty_trash_action"
+        app:showAsAction="never" />
+
+    <!-- MessageList -->
+    <item
         android:id="@+id/expunge"
         app:showAsAction="never"
         android:title="@string/expunge_action"/>
 
     <!-- MessageView -->
     <item
-        android:id="@+id/select_text"
-        app:showAsAction="never"
-        android:title="@string/select_text_action"/>
-
-    <!-- MessageView -->
-    <item
         android:id="@+id/toggle_message_view_theme"
         app:showAsAction="never"
         android:title="@string/message_view_theme_action_dark"/>
-    <item
-        android:id="@+id/show_folder_list"
-        app:showAsAction="never"
-        android:title="@string/folders_title" />
     <!-- always -->
     <item
         android:id="@+id/settings"

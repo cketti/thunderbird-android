@@ -51,7 +51,7 @@ public class AccountSetupComposition extends K9Activity {
         String accountUuid = getIntent().getStringExtra(EXTRA_ACCOUNT);
         mAccount = Preferences.getPreferences(this).getAccount(accountUuid);
 
-        setContentView(R.layout.account_setup_composition);
+        setLayout(R.layout.account_setup_composition);
 
         /*
          * If we're being reloaded we override the original account with the one
@@ -117,7 +117,7 @@ public class AccountSetupComposition extends K9Activity {
             mAccount.setSignatureBeforeQuotedText(isSignatureBeforeQuotedText);
         }
 
-        mAccount.save(Preferences.getPreferences(this));
+        Preferences.getPreferences(getApplicationContext()).saveAccount(mAccount);
     }
 
     @Override
@@ -134,7 +134,7 @@ public class AccountSetupComposition extends K9Activity {
 
     @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
-        mAccount.save(Preferences.getPreferences(this));
+        Preferences.getPreferences(getApplicationContext()).saveAccount(mAccount);
         finish();
     }
 }

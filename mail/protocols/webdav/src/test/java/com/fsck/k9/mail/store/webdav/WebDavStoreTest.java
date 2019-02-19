@@ -4,15 +4,19 @@ package com.fsck.k9.mail.store.webdav;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import com.fsck.k9.mail.AuthType;
 import com.fsck.k9.mail.CertificateValidationException;
 import com.fsck.k9.mail.ConnectionSecurity;
 import com.fsck.k9.mail.Folder;
+import com.fsck.k9.mail.Folder.FolderType;
 import com.fsck.k9.mail.K9LibRobolectricTestRunner;
 import com.fsck.k9.mail.MessagingException;
 import com.fsck.k9.mail.filter.Base64;
+import com.fsck.k9.mail.ssl.TrustManagerFactory;
 import com.fsck.k9.mail.store.StoreConfig;
 import javax.net.ssl.SSLException;
 import org.apache.http.HttpEntity;
@@ -65,6 +69,8 @@ public class WebDavStoreTest {
     private ClientConnectionManager mockClientConnectionManager;
     @Mock
     private SchemeRegistry mockSchemeRegistry;
+    @Mock
+    private TrustManagerFactory trustManagerFactory;
 
     private ArgumentCaptor<HttpGeneric> requestCaptor;
 
@@ -223,9 +229,15 @@ public class WebDavStoreTest {
         configureHttpResponses(UNAUTHORIZED_401_RESPONSE, OK_200_RESPONSE, createOkPropfindResponse(),
                 createOkSearchResponse());
 
-        webDavStore.getPersonalNamespaces();
+        List<? extends Folder> folders = webDavStore.getPersonalNamespaces();
 
-        verify(storeConfig).setInboxFolder("Inbox");
+        Map<String, FolderType> folderNameToTypeMap = new HashMap<>();
+        for (Folder folder : folders) {
+            folderNameToTypeMap.put(folder.getName(), folder.getType());
+        }
+        assertEquals(FolderType.INBOX, folderNameToTypeMap.get("Inbox"));
+        assertEquals(FolderType.REGULAR, folderNameToTypeMap.get("Drafts"));
+        assertEquals(FolderType.REGULAR, folderNameToTypeMap.get("Folder2"));
     }
 
     @Test
@@ -349,12 +361,12 @@ public class WebDavStoreTest {
     }
 
     private WebDavStore createWebDavStore() {
-        return new WebDavStore(serverSettings, storeConfig, mockHttpClientFactory);
+        return new WebDavStore(trustManagerFactory, serverSettings, storeConfig, mockHttpClientFactory);
     }
 
     private WebDavStore createWebDavStore(ConnectionSecurity connectionSecurity) {
         WebDavStoreSettings serverSettings = createWebDavStoreSettings(connectionSecurity);
-        return new WebDavStore(serverSettings, storeConfig, mockHttpClientFactory);
+        return new WebDavStore(trustManagerFactory, serverSettings, storeConfig, mockHttpClientFactory);
     }
 
     private void configureHttpResponses(HttpResponse... responses) throws IOException {

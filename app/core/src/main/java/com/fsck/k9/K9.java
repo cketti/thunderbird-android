@@ -10,7 +10,6 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.os.AsyncTask;
-import android.os.Environment;
 
 import com.fsck.k9.Account.SortType;
 import com.fsck.k9.core.BuildConfig;
@@ -174,11 +173,9 @@ public class K9 {
     private static boolean notificationDuringQuietTimeEnabled = true;
     private static String quietTimeStarts = null;
     private static String quietTimeEnds = null;
-    private static String attachmentDefaultPath = "";
     private static boolean wrapFolderNames = false;
     private static boolean hideUserAgent = false;
     private static boolean hideTimeZone = false;
-    private static boolean hideHostnameWhenConnecting = false;
 
     private static SortType sortType;
     private static Map<SortType, Boolean> sortAscending = new HashMap<>();
@@ -202,11 +199,6 @@ public class K9 {
      * @see #areDatabasesUpToDate()
      */
     private static boolean databasesUpToDate = false;
-
-    /**
-     * For use when displaying that no folder is selected
-     */
-    public static final String FOLDER_NONE = "-NONE-";
 
     public static final String LOCAL_UID_PREFIX = "K9LOCAL:";
 
@@ -292,7 +284,6 @@ public class K9 {
         editor.putBoolean("wrapFolderNames", wrapFolderNames);
         editor.putBoolean("hideUserAgent", hideUserAgent);
         editor.putBoolean("hideTimeZone", hideTimeZone);
-        editor.putBoolean("hideHostnameWhenConnecting", hideHostnameWhenConnecting);
 
         editor.putString("language", language);
         editor.putInt("theme", theme.ordinal());
@@ -314,7 +305,6 @@ public class K9 {
         editor.putString("notificationQuickDelete", notificationQuickDelete.toString());
         editor.putString("lockScreenNotificationVisibility", sLockScreenNotificationVisibility.toString());
 
-        editor.putString("attachmentdefaultpath", attachmentDefaultPath);
         editor.putBoolean("useBackgroundAsUnreadIndicator", useBackgroundAsUnreadIndicator);
         editor.putBoolean("threadedView", threadedViewEnabled);
         editor.putString("splitViewMode", splitViewMode.name());
@@ -387,10 +377,10 @@ public class K9 {
         for (Account account : preferences.getAccounts()) {
             account.setOpenPgpProvider(openPgpProvider);
             account.setOpenPgpHideSignOnly(!openPgpSupportSignOnly);
-            account.save(preferences);
+            preferences.saveAccount(account);
         }
 
-        storage.edit()
+        preferences.createStorageEditor()
                 .remove("openPgpProvider")
                 .remove("openPgpSupportSignOnly")
                 .commit();
@@ -439,7 +429,6 @@ public class K9 {
         wrapFolderNames = storage.getBoolean("wrapFolderNames", false);
         hideUserAgent = storage.getBoolean("hideUserAgent", false);
         hideTimeZone = storage.getBoolean("hideTimeZone", false);
-        hideHostnameWhenConnecting = storage.getBoolean("hideHostnameWhenConnecting", false);
 
         confirmDelete = storage.getBoolean("confirmDelete", false);
         confirmDiscardMessage = storage.getBoolean("confirmDiscardMessage", true);
@@ -483,8 +472,6 @@ public class K9 {
             K9.splitViewMode = SplitViewMode.valueOf(splitViewMode);
         }
 
-        attachmentDefaultPath = storage.getString("attachmentdefaultpath",
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS).toString());
         useBackgroundAsUnreadIndicator = storage.getBoolean("useBackgroundAsUnreadIndicator", true);
         threadedViewEnabled = storage.getBoolean("threadedView", true);
         fontSizes.load(storage);
@@ -913,22 +900,6 @@ public class K9 {
         hideTimeZone = state;
     }
 
-    public static boolean hideHostnameWhenConnecting() {
-        return hideHostnameWhenConnecting;
-    }
-
-    public static void setHideHostnameWhenConnecting(final boolean state) {
-        hideHostnameWhenConnecting = state;
-    }
-
-    public static String getAttachmentDefaultPath() {
-        return attachmentDefaultPath;
-    }
-
-    public static void setAttachmentDefaultPath(String attachmentDefaultPath) {
-        K9.attachmentDefaultPath = attachmentDefaultPath;
-    }
-
     public static synchronized SortType getSortType() {
         return sortType;
     }
@@ -1091,7 +1062,7 @@ public class K9 {
             @Override
             protected Void doInBackground(Void... voids) {
                 Preferences prefs = DI.get(Preferences.class);
-                StorageEditor editor = prefs.getStorage().edit();
+                StorageEditor editor = prefs.createStorageEditor();
                 save(editor);
                 editor.commit();
 

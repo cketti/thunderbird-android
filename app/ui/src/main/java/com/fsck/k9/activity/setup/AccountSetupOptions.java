@@ -48,7 +48,7 @@ public class AccountSetupOptions extends K9Activity implements OnClickListener {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.account_setup_options);
+        setLayout(R.layout.account_setup_options);
 
         mCheckFrequencyView = findViewById(R.id.account_check_frequency);
         mDisplayCountView = findViewById(R.id.account_display_count);
@@ -61,12 +61,6 @@ public class AccountSetupOptions extends K9Activity implements OnClickListener {
         SpinnerOption checkFrequencies[] = {
             new SpinnerOption(-1,
             getString(R.string.account_setup_options_mail_check_frequency_never)),
-            new SpinnerOption(1,
-            getString(R.string.account_setup_options_mail_check_frequency_1min)),
-            new SpinnerOption(5,
-            getString(R.string.account_setup_options_mail_check_frequency_5min)),
-            new SpinnerOption(10,
-            getString(R.string.account_setup_options_mail_check_frequency_10min)),
             new SpinnerOption(15,
             getString(R.string.account_setup_options_mail_check_frequency_15min)),
             new SpinnerOption(30,
@@ -111,7 +105,7 @@ public class AccountSetupOptions extends K9Activity implements OnClickListener {
         mAccount = Preferences.getPreferences(this).getAccount(accountUuid);
 
         mNotifyView.setChecked(mAccount.isNotifyNewMail());
-        mNotifySyncView.setChecked(mAccount.isShowOngoing());
+        mNotifySyncView.setChecked(mAccount.isNotifySync());
         SpinnerOption.setSpinnerOptionValue(mCheckFrequencyView, mAccount
                                             .getAutomaticCheckIntervalMinutes());
         SpinnerOption.setSpinnerOptionValue(mDisplayCountView, mAccount
@@ -131,7 +125,7 @@ public class AccountSetupOptions extends K9Activity implements OnClickListener {
     private void onDone() {
         mAccount.setDescription(mAccount.getEmail());
         mAccount.setNotifyNewMail(mNotifyView.isChecked());
-        mAccount.setShowOngoing(mNotifySyncView.isChecked());
+        mAccount.setNotifySync(mNotifySyncView.isChecked());
         mAccount.setAutomaticCheckIntervalMinutes((Integer)((SpinnerOption)mCheckFrequencyView
                 .getSelectedItem()).value);
         mAccount.setDisplayCount((Integer)((SpinnerOption)mDisplayCountView
@@ -143,7 +137,7 @@ public class AccountSetupOptions extends K9Activity implements OnClickListener {
             mAccount.setFolderPushMode(Account.FolderMode.NONE);
         }
 
-        mAccount.save(Preferences.getPreferences(this));
+        Preferences.getPreferences(getApplicationContext()).saveAccount(mAccount);
         if (mAccount.equals(Preferences.getPreferences(this).getDefaultAccount()) ||
                 getIntent().getBooleanExtra(EXTRA_MAKE_DEFAULT, false)) {
             Preferences.getPreferences(this).setDefaultAccount(mAccount);

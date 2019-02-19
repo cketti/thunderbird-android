@@ -20,13 +20,14 @@ public class WelcomeMessage extends K9Activity implements OnClickListener{
 
     public static void showWelcomeMessage(Context context) {
         Intent intent = new Intent(context, WelcomeMessage.class);
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
         context.startActivity(intent);
     }
 
     @Override
     public void onCreate(Bundle icicle) {
         super.onCreate(icicle);
-        setContentView(R.layout.welcome_message);
+        setLayout(R.layout.welcome_message);
 
         TextView welcome = findViewById(R.id.welcome_message);
         welcome.setText(HtmlConverter.htmlToSpanned(getString(R.string.accounts_welcome)));

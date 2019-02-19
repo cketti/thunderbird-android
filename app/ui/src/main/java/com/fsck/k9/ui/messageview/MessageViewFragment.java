@@ -10,18 +10,19 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.IntentSender.SendIntentException;
-import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Parcelable;
 import android.os.SystemClock;
-import android.support.v4.app.DialogFragment;
-import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentManager;
+import androidx.fragment.app.DialogFragment;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+import androidx.appcompat.widget.PopupMenu.OnMenuItemClickListener;
 import android.text.TextUtils;
 import android.view.ContextThemeWrapper;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
@@ -31,9 +32,8 @@ import android.widget.Toast;
 import com.fsck.k9.Account;
 import com.fsck.k9.K9;
 import com.fsck.k9.Preferences;
-import com.fsck.k9.activity.K9ActivityCommon;
-import com.fsck.k9.ui.R;
 import com.fsck.k9.activity.ChooseFolder;
+import com.fsck.k9.activity.K9ActivityCommon;
 import com.fsck.k9.activity.MessageLoaderHelper;
 import com.fsck.k9.activity.MessageLoaderHelper.MessageLoaderCallbacks;
 import com.fsck.k9.controller.MessageReference;
@@ -41,17 +41,15 @@ import com.fsck.k9.controller.MessagingController;
 import com.fsck.k9.fragment.AttachmentDownloadDialogFragment;
 import com.fsck.k9.fragment.ConfirmationDialogFragment;
 import com.fsck.k9.fragment.ConfirmationDialogFragment.ConfirmationDialogFragmentListener;
-import com.fsck.k9.ui.helper.FileBrowserHelper;
-import com.fsck.k9.ui.helper.FileBrowserHelper.FileBrowserFailOverCallback;
 import com.fsck.k9.mail.Flag;
 import com.fsck.k9.mailstore.AttachmentViewInfo;
 import com.fsck.k9.mailstore.LocalMessage;
 import com.fsck.k9.mailstore.MessageViewInfo;
+import com.fsck.k9.ui.R;
 import com.fsck.k9.ui.messageview.CryptoInfoDialog.OnClickShowCryptoKeyListener;
 import com.fsck.k9.ui.messageview.MessageCryptoPresenter.MessageCryptoMvpView;
 import com.fsck.k9.ui.settings.account.AccountSettingsActivity;
 import com.fsck.k9.view.MessageCryptoDisplayStatus;
-import com.fsck.k9.view.MessageHeader;
 import timber.log.Timber;
 
 
@@ -62,7 +60,7 @@ public class MessageViewFragment extends Fragment implements ConfirmationDialogF
 
     private static final int ACTIVITY_CHOOSE_FOLDER_MOVE = 1;
     private static final int ACTIVITY_CHOOSE_FOLDER_COPY = 2;
-    private static final int ACTIVITY_CHOOSE_DIRECTORY = 3;
+    private static final int REQUEST_CODE_CREATE_DOCUMENT = 3;
 
     public static final int REQUEST_MASK_LOADER_HELPER = (1 << 8);
     public static final int REQUEST_MASK_CRYPTO_PRESENTER = (1 << 9);
@@ -179,6 +177,30 @@ public class MessageViewFragment extends Fragment implements ConfirmationDialogF
             }
         });
 
+        mMessageView.setOnMenuItemClickListener(new OnMenuItemClickListener() {
+            @Override
+            public boolean onMenuItemClick(MenuItem item) {
+                int id = item.getItemId();
+                if (id == R.id.reply) {
+                    onReply();
+                    return true;
+                } else if (id == R.id.reply_all) {
+                    onReplyAll();
+                    return true;
+                } else if (id == R.id.forward) {
+                    onForward();
+                    return true;
+                } else if (id == R.id.forward_as_attachment) {
+                    onForwardAsAttachment();
+                    return true;
+                } else if (id == R.id.share) {
+                    onSendAlternate();
+                    return true;
+                }
+                return false;
+            }
+        });
+
         mMessageView.setOnDownloadButtonClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -186,8 +208,6 @@ public class MessageViewFragment extends Fragment implements ConfirmationDialogF
                 messageLoaderHelper.downloadCompleteMessage();
             }
         });
-
-        mFragmentListener.messageHeaderViewAvailable(mMessageView.getMessageHeaderView());
 
         return view;
     }
@@ -264,7 +284,6 @@ public class MessageViewFragment extends Fragment implements ConfirmationDialogF
         }
 
         mMessageView.setSubject(subject);
-        displayMessageSubject(subject);
     }
 
     /**
@@ -307,11 +326,11 @@ public class MessageViewFragment extends Fragment implements ConfirmationDialogF
             return;
         }
 
-        if (K9.FOLDER_NONE.equals(dstFolder)) {
+        if (dstFolder == null) {
             return;
         }
 
-        if (mAccount.getSpamFolder().equals(dstFolder) && K9.confirmSpam()) {
+        if (dstFolder.equals(mAccount.getSpamFolder()) && K9.confirmSpam()) {
             mDstFolder = dstFolder;
             showDialog(R.id.dialog_confirm_spam);
         } else {
@@ -396,11 +415,6 @@ public class MessageViewFragment extends Fragment implements ConfirmationDialogF
         onRefile(mAccount.getSpamFolder());
     }
 
-    public void onSelectText() {
-        // FIXME
-        // mMessageView.beginSelectingText();
-    }
-
     private void startRefileActivity(int activity) {
         Intent intent = new Intent(getActivity(), ChooseFolder.class);
         intent.putExtra(ChooseFolder.EXTRA_ACCOUNT, mAccount.getUuid());
@@ -433,16 +447,9 @@ public class MessageViewFragment extends Fragment implements ConfirmationDialogF
         // launched through the MessageList activity, and delivered back via onPendingIntentResult()
 
         switch (requestCode) {
-            case ACTIVITY_CHOOSE_DIRECTORY: {
-                if (data != null) {
-                    // obtain the filename
-                    Uri fileUri = data.getData();
-                    if (fileUri != null) {
-                        String filePath = fileUri.getPath();
-                        if (filePath != null) {
-                            getAttachmentController(currentAttachmentViewInfo).saveAttachmentTo(filePath);
-                        }
-                    }
+            case REQUEST_CODE_CREATE_DOCUMENT: {
+                if (data != null && data.getData() != null) {
+                    getAttachmentController(currentAttachmentViewInfo).saveAttachmentTo(data.getData());
                 }
                 break;
             }
@@ -492,12 +499,6 @@ public class MessageViewFragment extends Fragment implements ConfirmationDialogF
     private void setProgress(boolean enable) {
         if (mFragmentListener != null) {
             mFragmentListener.setProgress(enable);
-        }
-    }
-
-    private void displayMessageSubject(String subject) {
-        if (mFragmentListener != null) {
-            mFragmentListener.displayMessageSubject(subject);
         }
     }
 
@@ -615,12 +616,6 @@ public class MessageViewFragment extends Fragment implements ConfirmationDialogF
                 && mAccount.hasSpamFolder());
     }
 
-    public void updateTitle() {
-        if (mMessage != null) {
-            displayMessageSubject(mMessage.getSubject());
-        }
-    }
-
     public Context getApplicationContext() {
         return mContext;
     }
@@ -715,10 +710,8 @@ public class MessageViewFragment extends Fragment implements ConfirmationDialogF
         void disableDeleteAction();
         void onReplyAll(MessageReference messageReference, Parcelable decryptionResultForReply);
         void onReply(MessageReference messageReference, Parcelable decryptionResultForReply);
-        void displayMessageSubject(String title);
         void setProgress(boolean b);
         void showNextMessageOrReturn();
-        void messageHeaderViewAvailable(MessageHeader messageHeaderView);
         void updateMenu();
     }
 
@@ -809,29 +802,18 @@ public class MessageViewFragment extends Fragment implements ConfirmationDialogF
     }
 
     @Override
-    public void onSaveAttachment(AttachmentViewInfo attachment) {
+    public void onSaveAttachment(final AttachmentViewInfo attachment) {
         currentAttachmentViewInfo = attachment;
-        getAttachmentController(attachment).saveAttachment();
-    }
 
-    @Override
-    public void onSaveAttachmentToUserProvidedDirectory(final AttachmentViewInfo attachment) {
-        currentAttachmentViewInfo = attachment;
-        FileBrowserHelper.getInstance().showFileBrowserActivity(MessageViewFragment.this, null,
-                ACTIVITY_CHOOSE_DIRECTORY, new FileBrowserFailOverCallback() {
-                    @Override
-                    public void onPathEntered(String path) {
-                        getAttachmentController(attachment).saveAttachmentTo(path);
-                    }
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.setType(attachment.mimeType);
+        intent.putExtra(Intent.EXTRA_TITLE, attachment.displayName);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
 
-                    @Override
-                    public void onCancel() {
-                        // Do nothing
-                    }
-                });
+        startActivityForResult(intent, REQUEST_CODE_CREATE_DOCUMENT);
     }
 
     private AttachmentController getAttachmentController(AttachmentViewInfo attachment) {
-        return new AttachmentController(mController, downloadManager, this, attachment);
+        return new AttachmentController(mController, this, attachment);
     }
 }

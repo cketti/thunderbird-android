@@ -5,23 +5,21 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.ClipData;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
-import android.support.v4.app.LoaderManager;
-import android.support.v4.content.Loader;
+import androidx.loader.app.LoaderManager;
+import androidx.loader.content.Loader;
 
-import com.fsck.k9.controller.MessageReference;
 import com.fsck.k9.activity.compose.ComposeCryptoStatus.AttachErrorState;
 import com.fsck.k9.activity.loader.AttachmentContentLoader;
 import com.fsck.k9.activity.loader.AttachmentInfoLoader;
 import com.fsck.k9.activity.misc.Attachment;
+import com.fsck.k9.controller.MessageReference;
 import com.fsck.k9.mail.MessagingException;
 import com.fsck.k9.mailstore.AttachmentViewInfo;
 import com.fsck.k9.mailstore.LocalMessage;
@@ -338,20 +336,17 @@ public class AttachmentPresenter {
         }
     }
 
-    @TargetApi(Build.VERSION_CODES.JELLY_BEAN)
     private void addAttachmentsFromResultIntent(Intent data) {
         // TODO draftNeedsSaving = true
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            ClipData clipData = data.getClipData();
-            if (clipData != null) {
-                for (int i = 0, end = clipData.getItemCount(); i < end; i++) {
-                    Uri uri = clipData.getItemAt(i).getUri();
-                    if (uri != null) {
-                        addAttachment(uri);
-                    }
+        ClipData clipData = data.getClipData();
+        if (clipData != null) {
+            for (int i = 0, end = clipData.getItemCount(); i < end; i++) {
+                Uri uri = clipData.getItemAt(i).getUri();
+                if (uri != null) {
+                    addAttachment(uri);
                 }
-                return;
             }
+            return;
         }
 
         Uri uri = data.getData();

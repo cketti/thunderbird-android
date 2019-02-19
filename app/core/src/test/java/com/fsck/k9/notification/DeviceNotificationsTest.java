@@ -6,10 +6,10 @@ import java.util.List;
 
 import android.app.Application;
 import android.app.Notification;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.app.NotificationCompat.BigTextStyle;
-import android.support.v4.app.NotificationCompat.Builder;
-import android.support.v4.app.NotificationCompat.InboxStyle;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationCompat.BigTextStyle;
+import androidx.core.app.NotificationCompat.Builder;
+import androidx.core.app.NotificationCompat.InboxStyle;
 
 import com.fsck.k9.Account;
 import com.fsck.k9.K9;
@@ -23,7 +23,7 @@ import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.robolectric.RuntimeEnvironment;
 
-import static com.fsck.k9.MockHelper.mockBuilder;
+import static com.fsck.k9.testing.MockHelper.mockBuilder;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.mock;
@@ -224,7 +224,8 @@ public class DeviceNotificationsTest extends RobolectricTest {
         NotificationHelper notificationHelper = mock(NotificationHelper.class);
         when(notificationHelper.getContext()).thenReturn(context);
         when(notificationHelper.getAccountName(any(Account.class))).thenReturn(ACCOUNT_NAME);
-        when(notificationHelper.createNotificationBuilder()).thenAnswer(new Answer<Builder>() {
+        when(notificationHelper.createNotificationBuilder(any(Account.class), any(NotificationChannelManager
+                .ChannelType.class))).thenAnswer(new Answer<Builder>() {
             private int invocationCount = 0;
 
             @Override

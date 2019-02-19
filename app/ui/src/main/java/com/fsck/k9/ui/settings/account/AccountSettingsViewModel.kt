@@ -1,12 +1,13 @@
 package com.fsck.k9.ui.settings.account
 
-import android.arch.lifecycle.LiveData
-import android.arch.lifecycle.MutableLiveData
-import android.arch.lifecycle.ViewModel
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
 import com.fsck.k9.Account
 import com.fsck.k9.Preferences
-import com.fsck.k9.mailstore.Folder
 import com.fsck.k9.mailstore.FolderRepositoryManager
+import com.fsck.k9.mailstore.RemoteFolderInfo
+import com.fsck.k9.ui.account.AccountsLiveData
 import kotlinx.coroutines.experimental.android.UI
 import kotlinx.coroutines.experimental.launch
 import org.jetbrains.anko.coroutines.experimental.bg
@@ -15,8 +16,9 @@ class AccountSettingsViewModel(
         private val preferences: Preferences,
         private val folderRepositoryManager: FolderRepositoryManager
 ) : ViewModel() {
+    public val accounts = AccountsLiveData(preferences)
     private val accountLiveData = MutableLiveData<Account>()
-    private val foldersLiveData = MutableLiveData<List<Folder>>()
+    private val foldersLiveData = MutableLiveData<RemoteFolderInfo>()
 
     fun getAccount(accountUuid: String): LiveData<Account> {
         if (accountLiveData.value == null) {
@@ -44,7 +46,7 @@ class AccountSettingsViewModel(
 
     private fun loadAccount(accountUuid: String) = preferences.getAccount(accountUuid)
 
-    fun getFolders(account: Account): LiveData<List<Folder>> {
+    fun getFolders(account: Account): LiveData<RemoteFolderInfo> {
         if (foldersLiveData.value == null) {
             loadFolders(account)
         }
@@ -55,11 +57,11 @@ class AccountSettingsViewModel(
     private fun loadFolders(account: Account) {
         val folderRepository = folderRepositoryManager.getFolderRepository(account)
         launch(UI) {
-            val folders = bg {
-                folderRepository.getRemoteFolders()
+            val remoteFolderInfo = bg {
+                folderRepository.getRemoteFolderInfo()
             }.await()
 
-            foldersLiveData.value = folders
+            foldersLiveData.value = remoteFolderInfo
         }
     }
 }

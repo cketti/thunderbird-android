@@ -8,9 +8,9 @@ import android.app.KeyguardManager;
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.content.Context;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.app.NotificationCompat.Builder;
-import android.support.v4.app.NotificationCompat.InboxStyle;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationCompat.Builder;
+import androidx.core.app.NotificationCompat.InboxStyle;
 
 import com.fsck.k9.Account;
 import com.fsck.k9.K9;
@@ -20,7 +20,6 @@ import com.fsck.k9.NotificationSetting;
 import com.fsck.k9.controller.MessageReference;
 
 import static com.fsck.k9.notification.NotificationHelper.NOTIFICATION_LED_BLINK_SLOW;
-import static com.fsck.k9.notification.NotificationController.platformSupportsExtendedNotifications;
 
 
 class DeviceNotifications extends BaseNotifications {
@@ -41,7 +40,7 @@ class DeviceNotifications extends BaseNotifications {
         int unreadMessageCount = notificationData.getUnreadMessageCount();
 
         NotificationCompat.Builder builder;
-        if (isPrivacyModeActive() || !platformSupportsExtendedNotifications()) {
+        if (isPrivacyModeActive()) {
             builder = createSimpleSummaryNotification(account, unreadMessageCount);
         } else if (notificationData.isSingleMessageNotification()) {
             NotificationHolder holder = notificationData.getHolderForLatestNotification();

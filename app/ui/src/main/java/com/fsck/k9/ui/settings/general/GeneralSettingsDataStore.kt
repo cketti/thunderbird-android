@@ -1,17 +1,16 @@
 package com.fsck.k9.ui.settings.general
 
-import android.content.Context
-import android.support.v4.app.FragmentActivity
-import android.support.v7.preference.PreferenceDataStore
+import androidx.fragment.app.FragmentActivity
+import androidx.preference.PreferenceDataStore
 import com.fsck.k9.K9
 import com.fsck.k9.K9.Theme
 import com.fsck.k9.Preferences
-import com.fsck.k9.service.MailService
+import com.fsck.k9.job.K9JobManager
 import java.util.concurrent.ExecutorService
 
 class GeneralSettingsDataStore(
-        private val context: Context,
         private val preferences: Preferences,
+        private val jobManager: K9JobManager,
         private val executorService: ExecutorService
 ) : PreferenceDataStore() {
     var activity: FragmentActivity? = null
@@ -44,7 +43,6 @@ class GeneralSettingsDataStore(
             "disable_notifications_during_quiet_time" -> !K9.isNotificationDuringQuietTimeEnabled()
             "privacy_hide_useragent" -> K9.hideUserAgent()
             "privacy_hide_timezone" -> K9.hideTimeZone()
-            "privacy_hide_hostname_when_connecting" -> K9.hideHostnameWhenConnecting()
             "debug_logging" -> K9.isDebug()
             "sensitive_logging" -> K9.DEBUG_SENSITIVE
             else -> defValue
@@ -79,7 +77,6 @@ class GeneralSettingsDataStore(
             "disable_notifications_during_quiet_time" -> K9.setNotificationDuringQuietTimeEnabled(!value)
             "privacy_hide_useragent" -> K9.setHideUserAgent(value)
             "privacy_hide_timezone" -> K9.setHideTimeZone(value)
-            "privacy_hide_hostname_when_connecting" -> K9.hideHostnameWhenConnecting()
             "debug_logging" -> K9.setDebug(value)
             "sensitive_logging" -> K9.DEBUG_SENSITIVE = value
             else -> return
@@ -117,7 +114,6 @@ class GeneralSettingsDataStore(
             "lock_screen_notification_visibility" -> K9.getLockScreenNotificationVisibility().name
             "background_ops" -> K9.getBackgroundOps().name
             "notification_hide_subject" -> K9.getNotificationHideSubject().name
-            "attachment_default_path" -> K9.getAttachmentDefaultPath()
             "quiet_time_starts" -> K9.getQuietTimeStarts()
             "quiet_time_ends" -> K9.getQuietTimeEnds()
             else -> defValue
@@ -139,7 +135,6 @@ class GeneralSettingsDataStore(
             "lock_screen_notification_visibility" -> K9.setLockScreenNotificationVisibility(K9.LockScreenNotificationVisibility.valueOf(value))
             "background_ops" -> setBackgroundOps(value)
             "notification_hide_subject" -> K9.setNotificationHideSubject(K9.NotificationHideSubject.valueOf(value))
-            "attachment_default_path" -> K9.setAttachmentDefaultPath(value)
             "quiet_time_starts" -> K9.setQuietTimeStarts(value)
             "quiet_time_ends" -> K9.setQuietTimeEnds(value)
             else -> return
@@ -208,7 +203,7 @@ class GeneralSettingsDataStore(
     }
 
     private fun saveSettings() {
-        val editor = preferences.storage.edit()
+        val editor = preferences.createStorageEditor()
         K9.save(editor)
 
         executorService.execute {
@@ -243,12 +238,8 @@ class GeneralSettingsDataStore(
         val newBackgroundOps = K9.BACKGROUND_OPS.valueOf(value)
         if (newBackgroundOps != K9.getBackgroundOps()) {
             K9.setBackgroundOps(value)
-            resetMailService()
+            jobManager.scheduleAllMailJobs()
         }
-    }
-
-    private fun resetMailService() {
-        MailService.actionReset(context, null)
     }
 
     private fun recreateActivity() {

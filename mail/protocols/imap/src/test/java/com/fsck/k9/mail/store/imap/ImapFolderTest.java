@@ -17,7 +17,6 @@ import com.fsck.k9.mail.FetchProfile;
 import com.fsck.k9.mail.FetchProfile.Item;
 import com.fsck.k9.mail.Flag;
 import com.fsck.k9.mail.Folder;
-import com.fsck.k9.mail.Folder.FolderType;
 import com.fsck.k9.mail.K9LibRobolectricTestRunner;
 import com.fsck.k9.mail.Message;
 import com.fsck.k9.mail.MessageRetrievalListener;
@@ -259,7 +258,7 @@ public class ImapFolderTest {
         ImapFolder imapFolder = createFolder("Folder");
         when(imapStore.getConnection()).thenReturn(imapConnection);
 
-        imapFolder.create(FolderType.HOLDS_MESSAGES);
+        imapFolder.create();
 
         verify(imapConnection).executeSimpleCommand("CREATE \"Folder\"");
     }
@@ -269,7 +268,7 @@ public class ImapFolderTest {
         ImapFolder imapFolder = createFolder("Folder");
         when(imapStore.getConnection()).thenReturn(imapConnection);
 
-        boolean success = imapFolder.create(FolderType.HOLDS_MESSAGES);
+        boolean success = imapFolder.create();
 
         assertTrue(success);
     }
@@ -280,7 +279,7 @@ public class ImapFolderTest {
         when(imapStore.getConnection()).thenReturn(imapConnection);
         doThrow(NegativeImapResponseException.class).when(imapConnection).executeSimpleCommand("CREATE \"Folder\"");
 
-        boolean success = imapFolder.create(FolderType.HOLDS_MESSAGES);
+        boolean success = imapFolder.create();
 
         assertFalse(success);
     }
@@ -1068,7 +1067,7 @@ public class ImapFolderTest {
     public void search_withFullTextSearchEnabled_shouldIssueRespectiveCommand() throws Exception {
         ImapFolder folder = createFolder("Folder");
         prepareImapFolderForOpen(OPEN_MODE_RO);
-        when(storeConfig.allowRemoteSearch()).thenReturn(true);
+        when(storeConfig.isAllowRemoteSearch()).thenReturn(true);
         when(storeConfig.isRemoteSearchFullText()).thenReturn(true);
         setupUidSearchResponses("1 OK SEARCH completed");
 
@@ -1081,7 +1080,7 @@ public class ImapFolderTest {
     public void search_withFullTextSearchDisabled_shouldIssueRespectiveCommand() throws Exception {
         ImapFolder folder = createFolder("Folder");
         prepareImapFolderForOpen(OPEN_MODE_RO);
-        when(storeConfig.allowRemoteSearch()).thenReturn(true);
+        when(storeConfig.isAllowRemoteSearch()).thenReturn(true);
         when(storeConfig.isRemoteSearchFullText()).thenReturn(false);
         setupUidSearchResponses("1 OK SEARCH completed");
 
@@ -1093,7 +1092,7 @@ public class ImapFolderTest {
     @Test
     public void search_withRemoteSearchDisabled_shouldThrow() throws Exception {
         ImapFolder folder = createFolder("Folder");
-        when(storeConfig.allowRemoteSearch()).thenReturn(false);
+        when(storeConfig.isAllowRemoteSearch()).thenReturn(false);
 
         try {
             folder.search("query", Collections.<Flag>emptySet(), Collections.<Flag>emptySet());
@@ -1101,13 +1100,6 @@ public class ImapFolderTest {
         } catch (MessagingException e) {
             assertEquals("Your settings do not allow remote searching of this account", e.getMessage());
         }
-    }
-
-    @Test(expected = Error.class)
-    public void delete_notImplemented() throws Exception {
-        ImapFolder folder = createFolder("Folder");
-
-        folder.delete(false);
     }
 
     @Test

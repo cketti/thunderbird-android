@@ -1,4 +1,5 @@
 apply plugin: 'com.android.library'
+apply plugin: 'org.jetbrains.kotlin.android'
 
 apply from: "${rootProject.projectDir}/gradle/plugins/checkstyle-android.gradle"
 apply from: "${rootProject.projectDir}/gradle/plugins/findbugs-android.gradle"
@@ -8,13 +9,15 @@ if (rootProject.testCoverage) {
 }
 
 dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:${versions.kotlin}"
+
     api project(":mail:common")
 
     implementation "com.jcraft:jzlib:1.0.7"
     implementation "com.beetstra.jutf7:jutf7:1.0.0"
     implementation "commons-io:commons-io:${versions.commonsIo}"
     implementation "com.jakewharton.timber:timber:${versions.timber}"
-    implementation "com.android.support:support-annotations:${versions.supportLibrary}"
+    implementation "androidx.annotation:annotation:${versions.androidxAnnotation}"
 
     testImplementation project(":mail:testing")
     testImplementation "org.robolectric:robolectric:${versions.robolectric}"

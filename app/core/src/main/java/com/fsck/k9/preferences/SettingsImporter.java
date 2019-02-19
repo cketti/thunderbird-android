@@ -14,10 +14,11 @@ import java.util.UUID;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.support.annotation.VisibleForTesting;
+import androidx.annotation.VisibleForTesting;
 import android.text.TextUtils;
 
 import com.fsck.k9.Account;
+import com.fsck.k9.AccountPreferenceSerializer;
 import com.fsck.k9.Core;
 import com.fsck.k9.DI;
 import com.fsck.k9.Identity;
@@ -28,6 +29,8 @@ import com.fsck.k9.mail.AuthType;
 import com.fsck.k9.mail.ConnectionSecurity;
 import com.fsck.k9.mail.ServerSettings;
 import com.fsck.k9.mail.filter.Base64;
+import com.fsck.k9.mailstore.LocalStore;
+import com.fsck.k9.mailstore.LocalStoreProvider;
 import com.fsck.k9.preferences.Settings.InvalidSettingValueException;
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
@@ -156,7 +159,6 @@ public class SettingsImporter {
      *         same UUID is found in the settings file.<br>
      *         <strong>Note:</strong> This can have side-effects we currently don't handle, e.g.
      *         changing the account type from IMAP to POP3. So don't use this for now!
-     *
      * @return An {@link ImportResults} instance containing information about errors and
      *         successfully imported accounts.
      *
@@ -164,7 +166,7 @@ public class SettingsImporter {
      *         In case of an error.
      */
     public static ImportResults importSettings(Context context, InputStream inputStream, boolean globalSettings,
-            List<String> accountUuids, boolean overwrite) throws SettingsImportExportException {
+                                               List<String> accountUuids, boolean overwrite) throws SettingsImportExportException {
 
         try {
             boolean globalSettingsImported = false;
@@ -178,7 +180,7 @@ public class SettingsImporter {
 
             if (globalSettings) {
                 try {
-                    StorageEditor editor = storage.edit();
+                    StorageEditor editor = preferences.createStorageEditor();
                     if (imported.globalSettings != null) {
                         importGlobalSettings(storage, editor, imported.contentVersion, imported.globalSettings);
                     } else {
@@ -201,7 +203,7 @@ public class SettingsImporter {
                         if (imported.accounts.containsKey(accountUuid)) {
                             ImportedAccount account = imported.accounts.get(accountUuid);
                             try {
-                                StorageEditor editor = storage.edit();
+                                StorageEditor editor = preferences.createStorageEditor();
 
                                 AccountDescriptionPair importResult = importAccount(context, editor,
                                         imported.contentVersion, account, overwrite);
@@ -213,7 +215,7 @@ public class SettingsImporter {
                                     // Add UUID of the account we just imported to the list of
                                     // account UUIDs
                                     if (!importResult.overwritten) {
-                                        editor = storage.edit();
+                                        editor = preferences.createStorageEditor();
 
                                         String newUuid = importResult.imported.uuid;
                                         String oldAccountUuids = storage.getString("accountUuids", "");
@@ -252,7 +254,7 @@ public class SettingsImporter {
                         }
                     }
 
-                    StorageEditor editor = storage.edit();
+                    StorageEditor editor = preferences.createStorageEditor();
 
                     String defaultAccountUuid = storage.getString("defaultAccountUuid", null);
                     if (defaultAccountUuid == null) {
@@ -268,6 +270,17 @@ public class SettingsImporter {
             }
 
             preferences.loadAccounts();
+
+            LocalStoreProvider localStoreProvider = DI.get(LocalStoreProvider.class);
+
+            // create missing OUTBOX folders
+            for (Account account: preferences.getAccounts()) {
+                if (accountUuids.contains(account.getUuid())) {
+                    LocalStore localStore = localStoreProvider.getInstance(account);
+                    localStore.createLocalFolder(Account.OUTBOX, Account.OUTBOX_NAME);
+                }
+            }
+
             K9.loadPrefs(preferences);
             Core.setServicesEnabled(context);
 
@@ -338,7 +351,7 @@ public class SettingsImporter {
 
         // Write account name
         String accountKeyPrefix = uuid + ".";
-        putString(editor, accountKeyPrefix + Account.ACCOUNT_DESCRIPTION_KEY, accountName);
+        putString(editor, accountKeyPrefix + AccountPreferenceSerializer.ACCOUNT_DESCRIPTION_KEY, accountName);
 
         if (account.incoming == null) {
             // We don't import accounts without incoming server settings
@@ -349,7 +362,7 @@ public class SettingsImporter {
         ServerSettings incoming = new ImportedServerSettings(account.incoming);
         BackendManager backendManager = DI.get(BackendManager.class);
         String storeUri = backendManager.createStoreUri(incoming);
-        putString(editor, accountKeyPrefix + Account.STORE_URI_KEY, Base64.encode(storeUri));
+        putString(editor, accountKeyPrefix + AccountPreferenceSerializer.STORE_URI_KEY, Base64.encode(storeUri));
 
         // Mark account as disabled if the AuthType isn't EXTERNAL and the
         // settings file didn't contain a password
@@ -366,7 +379,7 @@ public class SettingsImporter {
             // Write outgoing server settings (transportUri)
             ServerSettings outgoing = new ImportedServerSettings(account.outgoing);
             String transportUri = backendManager.createTransportUri(outgoing);
-            putString(editor, accountKeyPrefix + Account.TRANSPORT_URI_KEY, Base64.encode(transportUri));
+            putString(editor, accountKeyPrefix + AccountPreferenceSerializer.TRANSPORT_URI_KEY, Base64.encode(transportUri));
 
             /*
              * Mark account as disabled if the settings file contained a username but no password. However, no password
@@ -417,7 +430,7 @@ public class SettingsImporter {
 
         // If it's a new account generate and write a new "accountNumber"
         if (!mergeImportedAccount) {
-            int newAccountNumber = Account.generateAccountNumber(prefs);
+            int newAccountNumber = prefs.generateAccountNumber();
             putString(editor, accountKeyPrefix + "accountNumber", Integer.toString(newAccountNumber));
         }
 
@@ -522,7 +535,7 @@ public class SettingsImporter {
 
             // Write name used in identity
             String identityName = (identity.name == null) ? "" : identity.name;
-            putString(editor, accountKeyPrefix + Account.IDENTITY_NAME_KEY + identitySuffix, identityName);
+            putString(editor, accountKeyPrefix + AccountPreferenceSerializer.IDENTITY_NAME_KEY + identitySuffix, identityName);
 
             // Validate email address
             if (!IdentitySettings.isEmailAddressValid(identity.email)) {
@@ -530,10 +543,10 @@ public class SettingsImporter {
             }
 
             // Write email address
-            putString(editor, accountKeyPrefix + Account.IDENTITY_EMAIL_KEY + identitySuffix, identity.email);
+            putString(editor, accountKeyPrefix + AccountPreferenceSerializer.IDENTITY_EMAIL_KEY + identitySuffix, identity.email);
 
             // Write identity description
-            putString(editor, accountKeyPrefix + Account.IDENTITY_DESCRIPTION_KEY + identitySuffix,
+            putString(editor, accountKeyPrefix + AccountPreferenceSerializer.IDENTITY_DESCRIPTION_KEY + identitySuffix,
                     identityDescription);
 
             if (identity.settings != null) {

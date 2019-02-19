@@ -5,7 +5,7 @@ import java.util.List;
 
 import android.database.Cursor;
 import android.net.Uri;
-import android.support.test.runner.AndroidJUnit4;
+import androidx.test.runner.AndroidJUnit4;
 import android.test.ProviderTestCase2;
 import android.test.mock.MockContentResolver;
 
@@ -55,7 +55,7 @@ public class MessageProviderTest extends ProviderTestCase2 {
         account.setDescription("TestAccount");
         account.setChipColor(10);
         account.setStoreUri("imap://user@domain.com/");
-        account.save(preferences);
+        preferences.saveAccount(account);
     }
 
     @Test

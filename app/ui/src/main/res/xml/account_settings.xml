@@ -7,10 +7,11 @@
     android:title="@string/account_settings_title_fmt">
 
     <PreferenceScreen
+        android:icon="?attr/iconSettingsGeneral"
         android:key="account_settings"
         android:title="@string/account_settings_general_title">
 
-        <com.takisoft.fix.support.v7.preference.AutoSummaryEditTextPreference
+        <com.takisoft.preferencex.AutoSummaryEditTextPreference
             android:dialogTitle="@string/account_settings_description_label"
             android:key="account_description"
             android:title="@string/account_settings_description_label" />
@@ -28,6 +29,7 @@
     </PreferenceScreen>
 
     <PreferenceScreen
+        android:icon="?attr/iconPreferencesReadMail"
         android:key="reading_mail"
         android:title="@string/account_settings_reading_mail">
 
@@ -47,6 +49,7 @@
     </PreferenceScreen>
 
     <PreferenceScreen
+        android:icon="?attr/iconPreferencesFetchMail"
         android:key="incoming_prefs"
         android:title="@string/account_settings_sync">
 
@@ -152,6 +155,7 @@
     </PreferenceScreen>
 
     <PreferenceScreen
+        android:icon="?attr/iconPreferencesCompose"
         android:key="composing"
         android:title="@string/account_settings_composition">
 
@@ -207,7 +211,7 @@
             android:summary="@string/account_settings_strip_signature_summary"
             android:title="@string/account_settings_strip_signature_label" />
 
-        <com.takisoft.fix.support.v7.preference.AutoSummaryEditTextPreference
+        <com.takisoft.preferencex.AutoSummaryEditTextPreference
             android:dependency="quote_style"
             android:dialogTitle="@string/account_settings_quote_prefix_label"
             android:key="account_quote_prefix"
@@ -227,6 +231,7 @@
     </PreferenceScreen>
 
     <PreferenceScreen
+        android:icon="?attr/iconPreferencesFolders"
         android:key="folders"
         android:title="@string/account_settings_folders">
 
@@ -287,6 +292,7 @@
     </PreferenceScreen>
 
     <PreferenceScreen
+        android:icon="?attr/iconPreferencesStorage"
         android:key="storage_provider"
         android:title="@string/account_settings_storage_title">
 
@@ -299,6 +305,7 @@
     </PreferenceScreen>
 
     <PreferenceScreen
+        android:icon="?attr/iconPreferencesNotifications"
         android:key="notifications"
         android:title="@string/notifications_title">
 
@@ -331,7 +338,7 @@
             android:summary="@string/account_notify_contacts_mail_only_summary"
             android:title="@string/account_notify_contacts_mail_only_label" />
 
-        <com.takisoft.fix.support.v7.preference.RingtonePreference
+        <com.takisoft.preferencex.RingtonePreference
             android:defaultValue="content://settings/system/notification_sound"
             android:dependency="account_notify"
             android:key="account_ringtone"
@@ -374,7 +381,7 @@
             android:summary="@string/account_settings_led_summary"
             android:title="@string/account_settings_led_label" />
 
-        <com.takisoft.fix.support.v7.preference.ColorPickerPreference
+        <com.takisoft.preferencex.ColorPickerPreference
             android:dependency="account_led"
             android:key="led_color"
             android:summary="@string/account_settings_led_color_summary"
@@ -392,9 +399,15 @@
             android:summary="@string/account_settings_notification_opens_unread_summary"
             android:title="@string/account_settings_notification_opens_unread_label" />
 
+        <com.fsck.k9.ui.settings.account.NotificationsPreference
+            android:key="open_notification_settings"
+            android:summary="@string/account_settings_notification_open_system_notifications_summary"
+            android:title="@string/account_settings_notification_open_system_notifications_label" />
+
     </PreferenceScreen>
 
     <PreferenceScreen
+        android:icon="?attr/iconPreferencesSearch"
         android:key="search"
         android:title="@string/account_settings_search">
 
@@ -415,6 +428,7 @@
     </PreferenceScreen>
 
     <PreferenceScreen
+        android:icon="?attr/iconPreferencesCrypto"
         android:key="openpgp"
         android:title="@string/account_settings_crypto">
 
@@ -446,6 +460,14 @@
             android:key="openpgp_encrypt_subject"
             android:summary="@string/account_settings_crypto_encrypt_subject_subtitle"
             android:title="@string/account_settings_crypto_encrypt_subject" />
+
+        <SwitchPreference
+            android:dependency="openpgp_key"
+            android:key="openpgp_encrypt_all_drafts"
+            android:title="@string/account_settings_crypto_encrypt_all_drafts"
+            android:summaryOn="@string/account_settings_crypto_encrypt_all_drafts_on"
+            android:summaryOff="@string/account_settings_crypto_encrypt_all_drafts_off"
+            />
 
         <Preference
             android:dependency="openpgp_key"

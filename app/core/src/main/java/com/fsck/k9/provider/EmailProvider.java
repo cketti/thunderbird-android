@@ -18,11 +18,13 @@ import android.net.Uri;
 import android.text.TextUtils;
 
 import com.fsck.k9.Account;
+import com.fsck.k9.DI;
 import com.fsck.k9.Preferences;
 import com.fsck.k9.cache.EmailProviderCacheCursor;
 import com.fsck.k9.helper.Utility;
 import com.fsck.k9.mail.MessagingException;
 import com.fsck.k9.mailstore.LocalStore;
+import com.fsck.k9.mailstore.LocalStoreProvider;
 import com.fsck.k9.mailstore.LockableDatabase;
 import com.fsck.k9.mailstore.LockableDatabase.DbCallback;
 import com.fsck.k9.mailstore.LockableDatabase.WrappedException;
@@ -527,7 +529,7 @@ public class EmailProvider extends ContentProvider {
     private LockableDatabase getDatabase(Account account) {
         LocalStore localStore;
         try {
-            localStore = account.getLocalStore();
+            localStore = DI.get(LocalStoreProvider.class).getInstance(account);
         } catch (MessagingException e) {
             throw new RuntimeException("Couldn't get LocalStore", e);
         }
@@ -536,7 +538,7 @@ public class EmailProvider extends ContentProvider {
     }
 
     /**
-     * This class is needed to make {@link android.support.v4.widget.CursorAdapter} work with our database schema.
+     * This class is needed to make {@link androidx.cursoradapter.widget.CursorAdapter} work with our database schema.
      *
      * <p>
      * {@code CursorAdapter} requires a column named {@code "_id"} containing a stable id. We use

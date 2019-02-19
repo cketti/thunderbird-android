@@ -287,7 +287,7 @@ public class ImapFolder extends Folder<ImapMessage> {
     }
 
     @Override
-    public boolean create(FolderType type) throws MessagingException {
+    public boolean create() throws MessagingException {
         /*
          * This method needs to operate in the unselected mode as well as the selected mode
          * so we must get the connection ourselves if it's not there. We are specifically
@@ -483,11 +483,6 @@ public class ImapFolder extends Folder<ImapMessage> {
         Collections.sort(uids, Collections.reverseOrder());
 
         return uids.get(0);
-    }
-
-    @Override
-    public void delete(boolean recurse) throws MessagingException {
-        throw new Error("ImapFolder.delete() not yet implemented");
     }
 
     @Override
@@ -1399,7 +1394,7 @@ public class ImapFolder extends Folder<ImapMessage> {
     public List<ImapMessage> search(final String queryString, final Set<Flag> requiredFlags,
             final Set<Flag> forbiddenFlags) throws MessagingException {
 
-        if (!store.getStoreConfig().allowRemoteSearch()) {
+        if (!store.getStoreConfig().isAllowRemoteSearch()) {
             throw new MessagingException("Your settings do not allow remote searching of this account");
         }
 

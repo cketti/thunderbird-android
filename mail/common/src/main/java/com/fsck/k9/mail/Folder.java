@@ -13,6 +13,7 @@ public abstract class Folder<T extends Message> {
     private String status = null;
     private long lastChecked = 0;
     private long lastPush = 0;
+    private FolderType type = FolderType.REGULAR;
 
     public static final int OPEN_MODE_RW=0;
     public static final int OPEN_MODE_RO=1;
@@ -23,7 +24,14 @@ public abstract class Folder<T extends Message> {
     }
 
     public enum FolderType {
-        HOLDS_FOLDERS, HOLDS_MESSAGES,
+        REGULAR,
+        INBOX,
+        OUTBOX,
+        DRAFTS,
+        SENT,
+        TRASH,
+        SPAM,
+        ARCHIVE
     }
 
     /**
@@ -53,7 +61,7 @@ public abstract class Folder<T extends Message> {
      */
     public abstract int getMode();
 
-    public abstract boolean create(FolderType type) throws MessagingException;
+    public abstract boolean create() throws MessagingException;
 
     public abstract boolean exists() throws MessagingException;
 
@@ -130,8 +138,6 @@ public abstract class Folder<T extends Message> {
         Timber.d("fetchPart() not implemented.");
     }
 
-    public abstract void delete(boolean recurse) throws MessagingException;
-
     public abstract String getServerId();
 
     public abstract String getName();
@@ -204,5 +210,13 @@ public abstract class Folder<T extends Message> {
     public List<T> search(String queryString, final Set<Flag> requiredFlags, final Set<Flag> forbiddenFlags)
         throws MessagingException {
         throw new MessagingException("K-9 does not support searches on this folder type");
+    }
+
+    public FolderType getType() {
+        return type;
+    }
+
+    public void setType(FolderType type) {
+        this.type = type;
     }
 }

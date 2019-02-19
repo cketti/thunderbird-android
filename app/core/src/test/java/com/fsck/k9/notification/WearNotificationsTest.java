@@ -1,27 +1,28 @@
 package com.fsck.k9.notification;
 
 
-import java.util.ArrayList;
-
 import android.app.Notification;
 import android.app.PendingIntent;
 import android.content.Context;
-import android.support.v4.app.NotificationCompat.Action;
-import android.support.v4.app.NotificationCompat.Builder;
-import android.support.v4.app.NotificationCompat.Extender;
-import android.support.v4.app.NotificationCompat.WearableExtender;
+import androidx.core.app.NotificationCompat.Action;
+import androidx.core.app.NotificationCompat.Builder;
+import androidx.core.app.NotificationCompat.Extender;
+import androidx.core.app.NotificationCompat.WearableExtender;
 
 import com.fsck.k9.Account;
 import com.fsck.k9.K9;
 import com.fsck.k9.K9.NotificationQuickDelete;
-import com.fsck.k9.MockHelper;
+import com.fsck.k9.testing.MockHelper;
 import com.fsck.k9.RobolectricTest;
 import com.fsck.k9.controller.MessageReference;
 import com.fsck.k9.controller.MessagingController;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.mockito.ArgumentMatcher;
 import org.robolectric.RuntimeEnvironment;
+
+import java.util.ArrayList;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
@@ -196,11 +197,11 @@ public class WearNotificationsTest extends RobolectricTest {
     }
 
     private void disableArchiveAction() {
-        when(account.getArchiveFolder()).thenReturn(K9.FOLDER_NONE);
+        when(account.getArchiveFolder()).thenReturn(null);
     }
 
     private void disableSpamAction() {
-        when(account.getSpamFolder()).thenReturn(K9.FOLDER_NONE);
+        when(account.getSpamFolder()).thenReturn(null);
     }
 
     private void enableDeleteAction() {
@@ -229,7 +230,8 @@ public class WearNotificationsTest extends RobolectricTest {
 
     private NotificationHelper createNotificationHelper(Context context, Builder builder) {
         NotificationHelper notificationHelper = mock(NotificationHelper.class);
-        when(notificationHelper.createNotificationBuilder()).thenReturn(builder);
+        when(notificationHelper.createNotificationBuilder(any(Account.class), any(NotificationChannelManager
+                .ChannelType.class))).thenReturn(builder);
         when(notificationHelper.getAccountName(account)).thenReturn(ACCOUNT_NAME);
         when(notificationHelper.getContext()).thenReturn(context);
         return notificationHelper;
@@ -347,7 +349,7 @@ public class WearNotificationsTest extends RobolectricTest {
         private final MessagingController messagingController;
 
         public TestWearNotifications(NotificationHelper notificationHelper, NotificationActionCreator actionCreator,
-                MessagingController messagingController, NotificationResourceProvider resourceProvider) {
+                                     MessagingController messagingController, NotificationResourceProvider resourceProvider) {
             super(notificationHelper, actionCreator, resourceProvider);
             this.messagingController = messagingController;
         }

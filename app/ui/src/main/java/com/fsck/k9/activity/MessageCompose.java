@@ -24,9 +24,9 @@ import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Parcelable;
-import android.support.annotation.Nullable;
-import android.support.annotation.StringRes;
-import android.support.v7.app.ActionBar;
+import androidx.annotation.Nullable;
+import androidx.annotation.StringRes;
+import androidx.appcompat.app.ActionBar;
 import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.TypedValue;
@@ -45,11 +45,10 @@ import android.widget.Toast;
 
 import com.fsck.k9.Account;
 import com.fsck.k9.Account.MessageFormat;
+import com.fsck.k9.DI;
 import com.fsck.k9.Identity;
 import com.fsck.k9.K9;
 import com.fsck.k9.Preferences;
-import com.fsck.k9.controller.MessageReference;
-import com.fsck.k9.ui.R;
 import com.fsck.k9.activity.MessageLoaderHelper.MessageLoaderCallbacks;
 import com.fsck.k9.activity.compose.AttachmentPresenter;
 import com.fsck.k9.activity.compose.AttachmentPresenter.AttachmentMvpView;
@@ -65,6 +64,8 @@ import com.fsck.k9.activity.compose.RecipientMvpView;
 import com.fsck.k9.activity.compose.RecipientPresenter;
 import com.fsck.k9.activity.compose.SaveMessageTask;
 import com.fsck.k9.activity.misc.Attachment;
+import com.fsck.k9.autocrypt.AutocryptDraftStateHeaderParser;
+import com.fsck.k9.controller.MessageReference;
 import com.fsck.k9.controller.MessagingController;
 import com.fsck.k9.controller.MessagingListener;
 import com.fsck.k9.controller.SimpleMessagingListener;
@@ -98,6 +99,7 @@ import com.fsck.k9.message.SimpleMessageBuilder;
 import com.fsck.k9.message.SimpleMessageFormat;
 import com.fsck.k9.search.LocalSearch;
 import com.fsck.k9.ui.EolConvertingEditText;
+import com.fsck.k9.ui.R;
 import com.fsck.k9.ui.compose.QuotedMessageMvpView;
 import com.fsck.k9.ui.compose.QuotedMessagePresenter;
 import org.openintents.openpgp.OpenPgpApiManager;
@@ -240,9 +242,9 @@ public class MessageCompose extends K9Activity implements OnClickListener,
             // background color needs to be forced
             themeContext.getTheme().resolveAttribute(R.attr.messageViewBackgroundColor, outValue, true);
             v.setBackgroundColor(outValue.data);
-            setContentView(v);
+            setLayout(v);
         } else {
-            setContentView(R.layout.message_compose);
+            setLayout(R.layout.message_compose);
         }
 
         initializeActionBar();
@@ -284,11 +286,12 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         RecipientMvpView recipientMvpView = new RecipientMvpView(this);
         ComposePgpInlineDecider composePgpInlineDecider = new ComposePgpInlineDecider();
         ComposePgpEnableByDefaultDecider composePgpEnableByDefaultDecider = new ComposePgpEnableByDefaultDecider();
+
         OpenPgpApiManager openPgpApiManager = new OpenPgpApiManager(getApplicationContext(), this);
         recipientPresenter = new RecipientPresenter(getApplicationContext(), getSupportLoaderManager(),
                 openPgpApiManager, recipientMvpView, account, composePgpInlineDecider, composePgpEnableByDefaultDecider,
-                AutocryptStatusInteractor.getInstance(), new ReplyToParser(), this
-        );
+                AutocryptStatusInteractor.getInstance(), new ReplyToParser(), this,
+                DI.get(AutocryptDraftStateHeaderParser.class));
         recipientPresenter.asyncUpdateCryptoStatus();
 
 
@@ -390,7 +393,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
             signatureView.setVisibility(View.GONE);
         }
 
-        requestReadReceipt = account.isMessageReadReceiptAlways();
+        requestReadReceipt = account.isMessageReadReceipt();
 
         updateFrom();
 
@@ -455,6 +458,10 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         if (currentMessageBuilder != null) {
             setProgressBarIndeterminateVisibility(true);
             currentMessageBuilder.reattachCallback(this);
+        }
+
+        if (savedInstanceState == null) {
+            checkAndRequestPermissions();
         }
     }
 
@@ -639,6 +646,12 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         updateMessageFormat();
     }
 
+    private void checkAndRequestPermissions() {
+        if (!hasPermission(Permission.READ_CONTACTS)) {
+            requestPermissionOrShowRationale(Permission.READ_CONTACTS);
+        }
+    }
+
     private void setTitle() {
         setTitle(action.getTitleResource());
     }
@@ -652,8 +665,8 @@ public class MessageCompose extends K9Activity implements OnClickListener,
             return null;
         }
 
-        // TODO encrypt drafts for storage
-        if (!isDraft && cryptoStatus.shouldUsePgpMessageBuilder()) {
+        boolean shouldUsePgpMessageBuilder = cryptoStatus.isOpenPgpConfigured();
+        if (shouldUsePgpMessageBuilder) {
             SendErrorState maybeSendErrorState = cryptoStatus.getSendErrorStateOrNull();
             if (maybeSendErrorState != null) {
                 recipientPresenter.showPgpSendError(maybeSendErrorState);
@@ -1315,6 +1328,9 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         // See buildIdentityHeader(TextBody) for a detailed description of the composition of this blob.
         Map<IdentityField, String> k9identity = new HashMap<>();
         String[] identityHeaders = message.getHeader(K9.IDENTITY_HEADER);
+        if (identityHeaders.length == 0) {
+            identityHeaders = messageViewInfo.rootPart.getHeader(K9.IDENTITY_HEADER);
+        }
 
         if (identityHeaders.length > 0 && identityHeaders[0] != null) {
             k9identity = IdentityHeaderParser.parse(identityHeaders[0]);
@@ -1375,15 +1391,17 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         final Contacts contacts;
         final Message message;
         final Long draftId;
+        final String plaintextSubject;
         final MessageReference messageReference;
 
         SendMessageTask(Context context, Account account, Contacts contacts, Message message,
-                Long draftId, MessageReference messageReference) {
+                Long draftId, String plaintextSubject, MessageReference messageReference) {
             this.context = context;
             this.account = account;
             this.contacts = contacts;
             this.message = message;
             this.draftId = draftId;
+            this.plaintextSubject = plaintextSubject;
             this.messageReference = messageReference;
         }
 
@@ -1398,7 +1416,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
                 Timber.e(e, "Failed to mark contact as contacted.");
             }
 
-            MessagingController.getInstance(context).sendMessage(account, message, null);
+            MessagingController.getInstance(context).sendMessage(account, message, plaintextSubject, null);
             if (draftId != null) {
                 // TODO set draft id to invalid in MessageCompose!
                 MessagingController.getInstance(context).deleteDraft(account, draftId);
@@ -1490,6 +1508,9 @@ public class MessageCompose extends K9Activity implements OnClickListener,
 
     @Override
     public void onMessageBuildSuccess(MimeMessage message, boolean isDraft) {
+        String plaintextSubject =
+                (currentMessageBuilder instanceof PgpMessageBuilder) ? currentMessageBuilder.getSubject() : null;
+
         if (isDraft) {
             changesMadeSinceLastSave = false;
             currentMessageBuilder = null;
@@ -1498,9 +1519,8 @@ public class MessageCompose extends K9Activity implements OnClickListener,
                 message.setUid(relatedMessageReference.getUid());
             }
 
-            boolean saveRemotely = recipientPresenter.shouldSaveRemotely();
             new SaveMessageTask(getApplicationContext(), account, contacts, internalMessageHandler,
-                    message, draftId, saveRemotely).execute();
+                    message, draftId, plaintextSubject, true).execute();
             if (finishAfterDraftSaved) {
                 finish();
             } else {
@@ -1509,7 +1529,7 @@ public class MessageCompose extends K9Activity implements OnClickListener,
         } else {
             currentMessageBuilder = null;
             new SendMessageTask(getApplicationContext(), account, contacts, message,
-                    draftId != INVALID_DRAFT_ID ? draftId : null, relatedMessageReference).execute();
+                    draftId != INVALID_DRAFT_ID ? draftId : null, plaintextSubject, relatedMessageReference).execute();
             finish();
         }
     }

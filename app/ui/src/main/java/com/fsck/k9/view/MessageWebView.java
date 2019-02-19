@@ -3,8 +3,8 @@ package com.fsck.k9.view;
 
 import android.content.Context;
 import android.content.pm.PackageManager;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import android.util.AttributeSet;
 import timber.log.Timber;
 import android.view.KeyEvent;
@@ -69,8 +69,6 @@ public class MessageWebView extends RigidWebView {
         }
 
         final WebSettings webSettings = this.getSettings();
-
-        webSettings.setCacheMode(WebSettings.LOAD_NO_CACHE);
 
         /* TODO this might improve rendering smoothness when webview is animated into view
         if (VERSION.SDK_INT >= VERSION_CODES.M) {

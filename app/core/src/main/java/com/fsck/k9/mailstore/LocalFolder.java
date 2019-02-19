@@ -24,7 +24,7 @@ import java.util.UUID;
 import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import com.fsck.k9.Account;
 import com.fsck.k9.DI;
@@ -109,12 +109,17 @@ public class LocalFolder extends Folder<LocalMessage> {
     }
 
     public LocalFolder(LocalStore localStore, String serverId, String name) {
+        this(localStore, serverId, name, FolderType.REGULAR);
+    }
+
+    public LocalFolder(LocalStore localStore, String serverId, String name, FolderType type) {
         this.localStore = localStore;
         this.serverId = serverId;
         this.name = name;
+        super.setType(type);
         attachmentInfoExtractor = localStore.getAttachmentInfoExtractor();
 
-        if (getAccount().getInboxFolder().equals(getServerId())) {
+        if (getServerId().equals(getAccount().getInboxFolder())) {
             syncClass =  FolderClass.FIRST_CLASS;
             pushClass =  FolderClass.FIRST_CLASS;
             isInTopGroup = true;
@@ -142,7 +147,7 @@ public class LocalFolder extends Folder<LocalMessage> {
     }
 
     public boolean syncRemoteDeletions() {
-        return getAccount().syncRemoteDeletions();
+        return getAccount().isSyncRemoteDeletions();
     }
 
     @Override
@@ -218,6 +223,9 @@ public class LocalFolder extends Folder<LocalMessage> {
         moreMessages = MoreMessages.fromDatabaseName(moreMessagesValue);
         name = cursor.getString(LocalStore.FOLDER_NAME_INDEX);
         localOnly = cursor.getInt(LocalStore.LOCAL_ONLY_INDEX) == 1;
+        String typeString = cursor.getString(LocalStore.TYPE_INDEX);
+        FolderType folderType = FolderTypeConverter.fromDatabaseFolderType(typeString);
+        super.setType(folderType);
     }
 
     @Override
@@ -256,6 +264,16 @@ public class LocalFolder extends Folder<LocalMessage> {
     }
 
     @Override
+    public void setType(FolderType type) {
+        super.setType(type);
+        try {
+            updateFolderColumn("type", FolderTypeConverter.toDatabaseFolderType(type));
+        } catch (MessagingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
     public boolean exists() throws MessagingException {
         return this.localStore.getDatabase().execute(false, new DbCallback<Boolean>() {
             @Override
@@ -281,7 +299,7 @@ public class LocalFolder extends Folder<LocalMessage> {
      * Creates a local-only folder.
      */
     @Override
-    public boolean create(FolderType type) throws MessagingException {
+    public boolean create() throws MessagingException {
         if (exists()) {
             throw new MessagingException("Folder " + serverId + " already exists.");
         }
@@ -293,6 +311,7 @@ public class LocalFolder extends Folder<LocalMessage> {
 
         return true;
     }
+
 
     class PreferencesHolder {
         FolderClass displayClass = LocalFolder.this.displayClass;
@@ -609,10 +628,10 @@ public class LocalFolder extends Folder<LocalMessage> {
         return getPrefId(serverId);
     }
 
-    public void delete() throws MessagingException {
+    private void deleteSettings() throws MessagingException {
         String id = getPrefId();
 
-        StorageEditor editor = this.localStore.getStorage().edit();
+        StorageEditor editor = localStore.getPreferences().createStorageEditor();
 
         editor.remove(id + ".displayMode");
         editor.remove(id + ".syncMode");
@@ -624,7 +643,7 @@ public class LocalFolder extends Folder<LocalMessage> {
     }
 
     public void save() throws MessagingException {
-        StorageEditor editor = this.localStore.getStorage().edit();
+        StorageEditor editor = localStore.getPreferences().createStorageEditor();
         save(editor);
         editor.commit();
     }
@@ -633,25 +652,25 @@ public class LocalFolder extends Folder<LocalMessage> {
         String id = getPrefId();
 
         // there can be a lot of folders.  For the defaults, let's not save prefs, saving space, except for INBOX
-        if (displayClass == FolderClass.NO_CLASS && !getAccount().getInboxFolder().equals(getServerId())) {
+        if (displayClass == FolderClass.NO_CLASS && !getServerId().equals(getAccount().getInboxFolder())) {
             editor.remove(id + ".displayMode");
         } else {
             editor.putString(id + ".displayMode", displayClass.name());
         }
 
-        if (syncClass == FolderClass.INHERITED && !getAccount().getInboxFolder().equals(getServerId())) {
+        if (syncClass == FolderClass.INHERITED && !getServerId().equals(getAccount().getInboxFolder())) {
             editor.remove(id + ".syncMode");
         } else {
             editor.putString(id + ".syncMode", syncClass.name());
         }
 
-        if (notifyClass == FolderClass.INHERITED && !getAccount().getInboxFolder().equals(getServerId())) {
+        if (notifyClass == FolderClass.INHERITED && !getServerId().equals(getAccount().getInboxFolder())) {
             editor.remove(id + ".notifyMode");
         } else {
             editor.putString(id + ".notifyMode", notifyClass.name());
         }
 
-        if (pushClass == FolderClass.SECOND_CLASS && !getAccount().getInboxFolder().equals(getServerId())) {
+        if (pushClass == FolderClass.SECOND_CLASS && !getServerId().equals(getAccount().getInboxFolder())) {
             editor.remove(id + ".pushMode");
         } else {
             editor.putString(id + ".pushMode", pushClass.name());
@@ -1879,14 +1898,13 @@ public class LocalFolder extends Folder<LocalMessage> {
         setVisibleLimit(getAccount().getDisplayCount());
     }
 
-    @Override
-    public void delete(final boolean recurse) throws MessagingException {
+    public void delete() throws MessagingException {
         try {
             this.localStore.getDatabase().execute(false, new DbCallback<Void>() {
                 @Override
                 public Void doDbWork(final SQLiteDatabase db) throws WrappedException, UnavailableStorageException {
                     try {
-                        // We need to open the folder first to make sure we've got it's id
+                        // We need to open the folder first to make sure we've got its id
                         open(OPEN_MODE_RO);
                         List<LocalMessage> messages = getMessages(null);
                         for (LocalMessage message : messages) {
@@ -1903,6 +1921,8 @@ public class LocalFolder extends Folder<LocalMessage> {
         } catch (WrappedException e) {
             throw(MessagingException) e.getCause();
         }
+
+        deleteSettings();
     }
 
     @Override
@@ -2408,5 +2428,16 @@ public class LocalFolder extends Folder<LocalMessage> {
         public String getDatabaseName() {
             return databaseName;
         }
+    }
+
+    public static boolean isModeMismatch(Account.FolderMode aMode, Folder.FolderClass fMode) {
+        return aMode == Account.FolderMode.NONE
+                || (aMode == Account.FolderMode.FIRST_CLASS &&
+                fMode != Folder.FolderClass.FIRST_CLASS)
+                || (aMode == Account.FolderMode.FIRST_AND_SECOND_CLASS &&
+                fMode != Folder.FolderClass.FIRST_CLASS &&
+                fMode != Folder.FolderClass.SECOND_CLASS)
+                || (aMode == Account.FolderMode.NOT_SECOND_CLASS &&
+                fMode == Folder.FolderClass.SECOND_CLASS);
     }
 }

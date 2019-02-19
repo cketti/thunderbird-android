@@ -2,18 +2,23 @@ package com.fsck.k9.notification
 
 import android.content.Context
 import android.net.Uri
-import android.support.v4.app.NotificationCompat
-import android.support.v4.app.NotificationManagerCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
 import android.text.TextUtils
 import com.fsck.k9.Account
 import com.fsck.k9.K9
 
 class NotificationHelper(
         private val context: Context,
-        private val notificationManager: NotificationManagerCompat
+        private val notificationManager: NotificationManagerCompat,
+        private val channelUtils: NotificationChannelManager
 ) {
-    fun configureNotification(builder: NotificationCompat.Builder, ringtone: String?, vibrationPattern: LongArray?,
-                                       ledColor: Int?, ledSpeed: Int, ringAndVibrate: Boolean) {
+    fun configureNotification(
+            builder: NotificationCompat.Builder,
+            ringtone: String?,
+            vibrationPattern: LongArray?,
+            ledColor: Int?, ledSpeed: Int,
+            ringAndVibrate: Boolean) {
 
         if (K9.isQuietTime()) {
             return
@@ -57,8 +62,12 @@ class NotificationHelper(
         return notificationManager
     }
 
-    fun createNotificationBuilder(): NotificationCompat.Builder {
-        return NotificationCompat.Builder(context)
+    fun createNotificationBuilder(
+            account: Account,
+            channelType: NotificationChannelManager.ChannelType
+    ): NotificationCompat.Builder {
+        return NotificationCompat.Builder(context,
+                channelUtils.getChannelIdFor(account, channelType))
     }
 
 

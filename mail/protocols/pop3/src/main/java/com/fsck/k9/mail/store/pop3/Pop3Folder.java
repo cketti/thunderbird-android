@@ -111,7 +111,7 @@ public class Pop3Folder extends Folder<Pop3Message> {
     }
 
     @Override
-    public boolean create(FolderType type) throws MessagingException {
+    public boolean create() throws MessagingException {
         return false;
     }
 
@@ -524,10 +524,6 @@ public class Pop3Folder extends Folder<Pop3Message> {
     }
 
     @Override
-    public void delete(boolean recurse) throws MessagingException {
-    }
-
-    @Override
     public void delete(List<? extends Message> msgs, String trashFolder) throws MessagingException {
         setFlags(msgs, Collections.singleton(Flag.DELETED), true);
     }
@@ -565,10 +561,10 @@ public class Pop3Folder extends Folder<Pop3Message> {
 
             Integer msgNum = uidToMsgNumMap.get(message.getUid());
             if (msgNum == null) {
-                MessagingException me = new MessagingException("Could not delete message " + message.getUid()
-                        + " because no msgNum found; permanent error");
-                me.setPermanentFailure(true);
-                throw me;
+                throw new MessagingException(
+                        "Could not delete message " + message.getUid() + " because no msgNum found; permanent error",
+                        true
+                );
             }
             open(Folder.OPEN_MODE_RW);
             connection.executeSimpleCommand(String.format(DELE_COMMAND + " %s", msgNum));

@@ -2,8 +2,8 @@ package com.fsck.k9.notification;
 
 
 import android.app.PendingIntent;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.app.NotificationManagerCompat;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationManagerCompat;
 
 import com.fsck.k9.Account;
 
@@ -31,7 +31,8 @@ class CertificateErrorNotifications {
         String title = resourceProvider.certificateErrorTitle(account.getDescription());
         String text = resourceProvider.certificateErrorBody();
 
-        NotificationCompat.Builder builder = notificationHelper.createNotificationBuilder()
+        NotificationCompat.Builder builder = notificationHelper
+                .createNotificationBuilder(account, NotificationChannelManager.ChannelType.MISCELLANEOUS)
                 .setSmallIcon(resourceProvider.getIconWarning())
                 .setWhen(System.currentTimeMillis())
                 .setAutoCancel(true)

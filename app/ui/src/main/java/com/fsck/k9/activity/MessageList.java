@@ -1,33 +1,26 @@
 package com.fsck.k9.activity;
 
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
 import android.annotation.SuppressLint;
 import android.app.SearchManager;
-import android.arch.lifecycle.Observer;
-import android.arch.lifecycle.ViewModelProvider;
-import android.arch.lifecycle.ViewModelProviders;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentSender;
 import android.content.IntentSender.SendIntentException;
 import android.content.res.Configuration;
+import android.content.res.TypedArray;
 import android.net.Uri;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Parcelable;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v4.app.FragmentManager;
-import android.support.v4.app.FragmentManager.OnBackStackChangedListener;
-import android.support.v4.app.FragmentTransaction;
-import android.support.v4.widget.DrawerLayout;
-import android.support.v7.app.ActionBar;
-import android.support.v7.app.ActionBarDrawerToggle;
-import android.util.TypedValue;
+import androidx.fragment.app.FragmentManager;
+import androidx.fragment.app.FragmentManager.OnBackStackChangedListener;
+import androidx.fragment.app.FragmentTransaction;
+import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.appcompat.app.ActionBar;
+import androidx.appcompat.app.ActionBarDrawerToggle;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -36,8 +29,6 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.AnimationUtils;
-import android.widget.ProgressBar;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.fsck.k9.Account;
@@ -46,17 +37,16 @@ import com.fsck.k9.DI;
 import com.fsck.k9.K9;
 import com.fsck.k9.K9.SplitViewMode;
 import com.fsck.k9.Preferences;
-import com.fsck.k9.controller.MessageReference;
-import com.fsck.k9.helper.Contacts;
-import com.fsck.k9.ui.R;
 import com.fsck.k9.activity.compose.MessageActions;
 import com.fsck.k9.activity.misc.SwipeGestureDetector.OnSwipeGestureListener;
+import com.fsck.k9.controller.MessageReference;
 import com.fsck.k9.fragment.MessageListFragment;
 import com.fsck.k9.fragment.MessageListFragment.MessageListFragmentListener;
+import com.fsck.k9.helper.Contacts;
 import com.fsck.k9.helper.ParcelableUtil;
-import com.fsck.k9.mailstore.Folder;
 import com.fsck.k9.mailstore.SearchStatusManager;
 import com.fsck.k9.mailstore.StorageManager;
+import com.fsck.k9.notification.NotificationChannelManager;
 import com.fsck.k9.preferences.StorageEditor;
 import com.fsck.k9.search.LocalSearch;
 import com.fsck.k9.search.SearchAccount;
@@ -64,23 +54,17 @@ import com.fsck.k9.search.SearchSpecification;
 import com.fsck.k9.search.SearchSpecification.Attribute;
 import com.fsck.k9.search.SearchSpecification.SearchCondition;
 import com.fsck.k9.search.SearchSpecification.SearchField;
-import com.fsck.k9.ui.folders.FolderNameFormatter;
-import com.fsck.k9.ui.messagelist.MessageListViewModel;
-import com.fsck.k9.ui.messagelist.MessageListViewModelFactory;
+import com.fsck.k9.ui.K9Drawer;
+import com.fsck.k9.ui.R;
 import com.fsck.k9.ui.messageview.MessageViewFragment;
 import com.fsck.k9.ui.messageview.MessageViewFragment.MessageViewFragmentListener;
 import com.fsck.k9.ui.settings.SettingsActivity;
-import com.fsck.k9.view.MessageHeader;
-import com.fsck.k9.view.MessageTitleView;
 import com.fsck.k9.view.ViewSwitcher;
 import com.fsck.k9.view.ViewSwitcher.OnSwitchCompleteListener;
-import com.mikepenz.materialdrawer.Drawer;
 import com.mikepenz.materialdrawer.Drawer.OnDrawerListener;
-import com.mikepenz.materialdrawer.DrawerBuilder;
-import com.mikepenz.materialdrawer.model.PrimaryDrawerItem;
-import com.mikepenz.materialdrawer.model.interfaces.IDrawerItem;
 import de.cketti.library.changelog.ChangeLog;
 import timber.log.Timber;
+
 
 
 /**
@@ -169,28 +153,14 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
 
     protected final SearchStatusManager searchStatusManager = DI.get(SearchStatusManager.class);
     private StorageManager.StorageListener mStorageListener = new StorageListenerImplementation();
-    private final FolderNameFormatter folderNameFormatter = DI.get(FolderNameFormatter.class);
     private final Preferences preferences = DI.get(Preferences.class);
+    private final NotificationChannelManager channelUtils = DI.get(NotificationChannelManager.class);
 
     private ActionBar actionBar;
     private ActionBarDrawerToggle drawerToggle;
-    private Drawer drawer;
+    private K9Drawer drawer;
     private FragmentTransaction openFolderTransaction;
-    private View actionBarMessageList;
-    private View actionBarMessageView;
-    private MessageTitleView actionBarSubject;
-    private TextView actionBarTitle;
-    private TextView actionBarSubTitle;
     private Menu menu;
-
-    private int iconFolderInboxResId;
-    private int iconFolderOutbotResId;
-    private int iconFolderSentResId;
-    private int iconFolderTrashResId;
-    private int iconFolderDraftsResId;
-    private int iconFolderArchiveResId;
-    private int iconFolderSpamResId;
-    private int iconFolderResId;
 
     private ViewGroup messageViewContainer;
     private View messageViewPlaceHolder;
@@ -202,10 +172,7 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
     private Account account;
     private LocalSearch search;
     private boolean singleFolderMode;
-    private String openedFolder;
-    private boolean singleAccountMode;
 
-    private ProgressBar actionBarProgress;
     private MenuItem menuButtonCheckMail;
     private View actionButtonIndeterminateProgress;
     private int lastDirection = (K9.messageViewShowNext()) ? NEXT : PREVIOUS;
@@ -239,9 +206,9 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
         }
 
         if (useSplitView()) {
-            setContentView(R.layout.split_message_list);
+            setLayout(R.layout.split_message_list);
         } else {
-            setContentView(R.layout.message_list);
+            setLayout(R.layout.message_list);
             viewSwitcher = findViewById(R.id.container);
             viewSwitcher.setFirstInAnimation(AnimationUtils.loadAnimation(this, R.anim.slide_in_left));
             viewSwitcher.setFirstOutAnimation(AnimationUtils.loadAnimation(this, R.anim.slide_out_right));
@@ -252,7 +219,6 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
 
         initializeActionBar();
         initializeDrawer(savedInstanceState);
-        initializeFolderIcons();
 
         // Enable gesture detection for MessageLists
         setupGestureDetector(this);
@@ -261,16 +227,8 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
             return;
         }
 
-        ViewModelProvider viewModelProvider = ViewModelProviders.of(this, new MessageListViewModelFactory());
-        MessageListViewModel viewModel = viewModelProvider.get(MessageListViewModel.class);
-
         if (isDrawerEnabled()) {
-            viewModel.getFolders(account).observe(this, new Observer<List<Folder>>() {
-                @Override
-                public void onChanged(@Nullable List<Folder> folders) {
-                    populateDrawerWithFolders(folders);
-                }
-            });
+            drawer.updateUserAccountsAndFolders(account);
         }
 
         findFragments();
@@ -278,10 +236,15 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
         initializeLayout();
         initializeFragments();
         displayViews();
+        channelUtils.updateChannels();
 
         ChangeLog cl = new ChangeLog(this);
         if (cl.isFirstRun()) {
             cl.getLogDialog().show();
+        }
+
+        if (savedInstanceState == null) {
+            checkAndRequestPermissions();
         }
     }
 
@@ -308,6 +271,10 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
 
         if (!decodeExtras(intent)) {
             return;
+        }
+
+        if (isDrawerEnabled()) {
+            drawer.updateUserAccountsAndFolders(account);
         }
 
         initializeDisplayMode(null);
@@ -395,7 +362,7 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
 
         return (splitViewMode == SplitViewMode.ALWAYS ||
                 (splitViewMode == SplitViewMode.WHEN_IN_LANDSCAPE &&
-                orientation == Configuration.ORIENTATION_LANDSCAPE));
+                        orientation == Configuration.ORIENTATION_LANDSCAPE));
     }
 
     private void initializeLayout() {
@@ -494,7 +461,8 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
         if (messageReference != null) {
             search = new LocalSearch();
             search.addAccountUuid(messageReference.getAccountUuid());
-            search.addAllowedFolder(messageReference.getFolderServerId());
+            String folderServerId = messageReference.getFolderServerId();
+            search.addAllowedFolder(folderServerId);
         }
 
         if (search == null) {
@@ -511,13 +479,20 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
 
         initializeFromLocalSearch(search);
 
-        if (singleAccountMode && (account == null || !account.isAvailable(this))) {
+        if (account != null && !account.isAvailable(this)) {
             Timber.i("not opening MessageList of unavailable account");
             onAccountUnavailable();
             return false;
         }
 
         return true;
+    }
+
+
+    private void checkAndRequestPermissions() {
+        if (!hasPermission(Permission.READ_CONTACTS)) {
+            requestPermissionOrShowRationale(Permission.READ_CONTACTS);
+        }
     }
 
     @Override
@@ -569,20 +544,9 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
 
     private void initializeActionBar() {
         actionBar = getSupportActionBar();
-
-        actionBar.setDisplayShowCustomEnabled(true);
-        actionBar.setCustomView(R.layout.actionbar_custom);
-
-        View customView = actionBar.getCustomView();
-        actionBarMessageList = customView.findViewById(R.id.actionbar_message_list);
-        actionBarMessageView = customView.findViewById(R.id.actionbar_message_view);
-        actionBarSubject = customView.findViewById(R.id.message_title_view);
-        actionBarTitle = customView.findViewById(R.id.actionbar_title_first);
-        actionBarSubTitle = customView.findViewById(R.id.actionbar_title_sub);
-        actionBarProgress = customView.findViewById(R.id.actionbar_progress);
-        actionButtonIndeterminateProgress = getActionButtonIndeterminateProgress();
-
         actionBar.setDisplayHomeAsUpEnabled(true);
+
+        actionButtonIndeterminateProgress = getActionButtonIndeterminateProgress();
     }
 
     private void initializeDrawer(Bundle savedInstanceState) {
@@ -590,18 +554,9 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
             return;
         }
 
-        drawer = new DrawerBuilder()
-                .withActivity(this)
-                .withDisplayBelowStatusBar(false)
-                .withTranslucentStatusBar(false)
-                .withDrawerLayout(R.layout.material_drawer_fits_not)
-                .withActionBarDrawerToggle(true)
-                .withOnDrawerItemClickListener(createDrawerItemClickListener())
-                .withOnDrawerListener(createOnDrawerListener())
-                .withSavedInstance(savedInstanceState)
-                .build();
+        drawer = new K9Drawer(this, savedInstanceState);
 
-        DrawerLayout drawerLayout = drawer.getDrawerLayout();
+        DrawerLayout drawerLayout = drawer.getLayout();
         drawerToggle = new ActionBarDrawerToggle(
                 this, drawerLayout, null,
                 R.string.navigation_drawer_open, R.string.navigation_drawer_close
@@ -610,19 +565,7 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
         drawerToggle.syncState();
     }
 
-    @NonNull
-    private Drawer.OnDrawerItemClickListener createDrawerItemClickListener() {
-        return new Drawer.OnDrawerItemClickListener() {
-            @Override
-            public boolean onItemClick(View view, int position, IDrawerItem drawerItem) {
-                Folder folder = (Folder) drawerItem.getTag();
-                openFolderTransaction = openFolder(folder.getServerId());
-                return false;
-            }
-        };
-    }
-
-    private OnDrawerListener createOnDrawerListener() {
+    public OnDrawerListener createOnDrawerListener() {
         return new OnDrawerListener() {
             @Override
             public void onDrawerClosed(View drawerView) {
@@ -644,83 +587,47 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
         };
     }
 
-    private void populateDrawerWithFolders(@Nullable List<Folder> folders) {
-        if (folders != null) {
-            List<IDrawerItem> drawerItems = new ArrayList<>(folders.size());
-            long openedFolderId = -1;
-            for (Folder folder : folders) {
-                PrimaryDrawerItem item = new PrimaryDrawerItem()
-                        .withIcon(getFolderIcon(folder))
-                        .withIdentifier(folder.getId())
-                        .withTag(folder)
-                        .withName(getFolderDisplayName(folder));
-
-                drawerItems.add(item);
-
-                if (folder.getServerId().equals(openedFolder)) {
-                    openedFolderId = folder.getId();
-                }
-            }
-            drawer.setItems(drawerItems);
-
-            if (openedFolderId != -1) {
-                drawer.setSelection(openedFolderId, false);
-            }
-        } else {
-            drawer.removeAllItems();
-        }
-    }
-
-    private void initializeFolderIcons() {
-        iconFolderInboxResId = getResId(R.attr.iconFolderInbox);
-        iconFolderOutbotResId = getResId(R.attr.iconFolderOutbox);
-        iconFolderSentResId = getResId(R.attr.iconFolderSent);
-        iconFolderTrashResId = getResId(R.attr.iconFolderTrash);
-        iconFolderDraftsResId = getResId(R.attr.iconFolderDrafts);
-        iconFolderArchiveResId = getResId(R.attr.iconFolderArchive);
-        iconFolderSpamResId = getResId(R.attr.iconFolderSpam);
-        iconFolderResId = getResId(R.attr.iconFolder);
-    }
-
-    private int getResId(int resAttribute) {
-        TypedValue typedValue = new TypedValue();
-        boolean found = getTheme().resolveAttribute(resAttribute, typedValue, true);
-        if (!found) {
-            throw new AssertionError("Couldn't find resource with attribute " + resAttribute);
-        }
-        return typedValue.resourceId;
-    }
-
-    private int getFolderIcon(Folder folder) {
-        switch (folder.getType()) {
-            case INBOX: return iconFolderInboxResId;
-            case OUTBOX: return iconFolderOutbotResId;
-            case SENT: return iconFolderSentResId;
-            case TRASH: return iconFolderTrashResId;
-            case DRAFTS: return iconFolderDraftsResId;
-            case ARCHIVE: return iconFolderArchiveResId;
-            case SPAM: return iconFolderSpamResId;
-            default: return iconFolderResId;
-        }
-    }
-
-    private String getFolderDisplayName(Folder folder) {
-        return folderNameFormatter.displayName(folder);
-    }
-
-    private FragmentTransaction openFolder(String folderName) {
+    public void openFolder(String folderName) {
         LocalSearch search = new LocalSearch(folderName);
         search.addAccountUuid(account.getUuid());
         search.addAllowedFolder(folderName);
 
+        performSearch(search);
+    }
+
+    public void openUnifiedInbox() {
+        account = null;
+        drawer.selectUnifiedInbox();
+        actionDisplaySearch(this, SearchAccount.createUnifiedInboxAccount().getRelatedSearch(), false, false);
+    }
+
+    public void openFolderSettings() {
+        if (account == null) {
+            Timber.e("Tried to open account settings, but no account selected!");
+            return;
+        }
+
+        FolderList.actionHandleAccount(this, account);
+    }
+
+    public void openRealAccount(Account realAccount) {
+        if (realAccount.getAutoExpandFolder() == null) {
+            FolderList.actionHandleAccount(this, realAccount);
+        } else {
+            LocalSearch search = new LocalSearch(realAccount.getAutoExpandFolder());
+            search.addAllowedFolder(realAccount.getAutoExpandFolder());
+            search.addAccountUuid(realAccount.getUuid());
+            actionDisplaySearch(this, search, false, false);
+        }
+    }
+
+    private void performSearch(LocalSearch search) {
         initializeFromLocalSearch(search);
 
         FragmentManager fragmentManager = getSupportFragmentManager();
-        FragmentTransaction ft = fragmentManager.beginTransaction();
+        openFolderTransaction = fragmentManager.beginTransaction();
         messageListFragment = MessageListFragment.newInstance(search, false, K9.isThreadedViewEnabled());
-        ft.replace(R.id.message_list_container, messageListFragment);
-
-        return ft;
+        openFolderTransaction.replace(R.id.message_list_container, messageListFragment);
     }
 
     protected boolean isDrawerEnabled() {
@@ -969,10 +876,10 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
         if (id == android.R.id.home) {
             if (displayMode != DisplayMode.MESSAGE_VIEW && !isAdditionalMessageListDisplayed()) {
                 if (isDrawerEnabled()) {
-                    if (drawer.isDrawerOpen()) {
-                        drawer.closeDrawer();
+                    if (drawer.isOpen()) {
+                        drawer.close();
                     } else {
-                        drawer.openDrawer();
+                        drawer.open();
                     }
                 } else {
                     finish();
@@ -1026,9 +933,6 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
         } else if (id == R.id.mark_all_as_read) {
             messageListFragment.confirmMarkAllAsRead();
             return true;
-        } else if (id == R.id.show_folder_list) {
-            onShowFolderList();
-            return true;
         } else if (id == R.id.next_message) {   // MessageView
             showNextMessage();
             return true;
@@ -1068,9 +972,6 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
         } else if (id == R.id.copy || id == R.id.refile_copy) {
             messageViewFragment.onCopy();
             return true;
-        } else if (id == R.id.select_text) {
-            messageViewFragment.onSelectText();
-            return true;
         } else if (id == R.id.show_headers || id == R.id.hide_headers) {
             messageViewFragment.onToggleAllHeadersView();
             updateMenu();
@@ -1088,6 +989,9 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
             return true;
         } else if (id == R.id.expunge) {
             messageListFragment.onExpunge();
+            return true;
+        } else if (id == R.id.empty_trash) {
+            messageListFragment.onEmptyTrash();
             return true;
         } else {
             return super.onOptionsItemSelected(item);
@@ -1144,7 +1048,6 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
             menu.findItem(R.id.spam).setVisible(false);
             menu.findItem(R.id.refile).setVisible(false);
             menu.findItem(R.id.toggle_unread).setVisible(false);
-            menu.findItem(R.id.select_text).setVisible(false);
             menu.findItem(R.id.toggle_message_view_theme).setVisible(false);
             menu.findItem(R.id.show_headers).setVisible(false);
             menu.findItem(R.id.hide_headers).setVisible(false);
@@ -1183,14 +1086,17 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
             }
 
             // Set title of menu item to toggle the read state of the currently displayed message
+            int[] drawableAttr;
             if (messageViewFragment.isMessageRead()) {
                 menu.findItem(R.id.toggle_unread).setTitle(R.string.mark_as_unread_action);
+                drawableAttr = new int[] { R.attr.iconActionMarkAsUnread };
             } else {
                 menu.findItem(R.id.toggle_unread).setTitle(R.string.mark_as_read_action);
+                drawableAttr = new int[] { R.attr.iconActionMarkAsRead };
             }
-
-            // Jellybean has built-in long press selection support
-            menu.findItem(R.id.select_text).setVisible(Build.VERSION.SDK_INT < 16);
+            TypedArray ta = obtainStyledAttributes(drawableAttr);
+            menu.findItem(R.id.toggle_unread).setIcon(ta.getDrawable(0));
+            ta.recycle();
 
             menu.findItem(R.id.delete).setVisible(K9.isMessageViewDeleteActionVisible());
 
@@ -1249,8 +1155,8 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
             menu.findItem(R.id.select_all).setVisible(false);
             menu.findItem(R.id.send_messages).setVisible(false);
             menu.findItem(R.id.expunge).setVisible(false);
+            menu.findItem(R.id.empty_trash).setVisible(false);
             menu.findItem(R.id.mark_all_as_read).setVisible(false);
-            menu.findItem(R.id.show_folder_list).setVisible(false);
         } else {
             menu.findItem(R.id.set_sort).setVisible(true);
             menu.findItem(R.id.select_all).setVisible(true);
@@ -1261,15 +1167,13 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
             if (!messageListFragment.isSingleAccountMode()) {
                 menu.findItem(R.id.expunge).setVisible(false);
                 menu.findItem(R.id.send_messages).setVisible(false);
-                menu.findItem(R.id.show_folder_list).setVisible(false);
             } else {
                 menu.findItem(R.id.send_messages).setVisible(messageListFragment.isOutbox());
                 menu.findItem(R.id.expunge).setVisible(messageListFragment.isRemoteFolder() &&
                         messageListFragment.isAccountExpungeCapable());
-                menu.findItem(R.id.show_folder_list).setVisible(true);
             }
-
             menu.findItem(R.id.check_mail).setVisible(messageListFragment.isCheckMailSupported());
+            menu.findItem(R.id.empty_trash).setVisible(messageListFragment.isShowingTrashFolder());
 
             // If this is an explicit local search, show the option to search on the server
             if (!messageListFragment.isRemoteSearch() &&
@@ -1288,21 +1192,14 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
     }
 
     public void setActionBarTitle(String title) {
-        actionBarTitle.setText(title);
-    }
-
-    public void setActionBarSubTitle(String subTitle) {
-        actionBarSubTitle.setText(subTitle);
+        actionBar.setTitle(title);
     }
 
     @Override
     public void setMessageListTitle(String title) {
-        setActionBarTitle(title);
-    }
-
-    @Override
-    public void setMessageListSubTitle(String subTitle) {
-        setActionBarSubTitle(subTitle);
+        if (displayMode != DisplayMode.MESSAGE_VIEW) {
+            setActionBarTitle(title);
+        }
     }
 
     @Override
@@ -1554,31 +1451,14 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
 
     @Override
     public void enableActionBarProgress(boolean enable) {
-        if (menuButtonCheckMail != null && menuButtonCheckMail.isVisible()) {
-            actionBarProgress.setVisibility(ProgressBar.GONE);
-            if (enable) {
-                menuButtonCheckMail
-                        .setActionView(actionButtonIndeterminateProgress);
-            } else {
-                menuButtonCheckMail.setActionView(null);
-            }
-        } else {
-            if (menuButtonCheckMail != null)
-                menuButtonCheckMail.setActionView(null);
-            if (enable) {
-                actionBarProgress.setVisibility(ProgressBar.VISIBLE);
-            } else {
-                actionBarProgress.setVisibility(ProgressBar.GONE);
-            }
+        if (menuButtonCheckMail == null) {
+            return;
         }
-    }
 
-    @Override
-    public void displayMessageSubject(String subject) {
-        if (displayMode == DisplayMode.MESSAGE_VIEW) {
-            actionBarSubject.setText(subject);
+        if (menuButtonCheckMail.isVisible()) {
+            menuButtonCheckMail.setActionView(enable ? actionButtonIndeterminateProgress : null);
         } else {
-            actionBarSubject.showSubjectInMessageHeader();
+            menuButtonCheckMail.setActionView(null);
         }
     }
 
@@ -1616,11 +1496,6 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
     @Override
     public void setProgress(boolean enable) {
         setProgressBarIndeterminateVisibility(enable);
-    }
-
-    @Override
-    public void messageHeaderViewAvailable(MessageHeader header) {
-        actionBarSubject.setMessageHeader(header);
     }
 
     private boolean showNextMessage() {
@@ -1700,7 +1575,7 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
         new Thread(new Runnable() {
             @Override
             public void run() {
-                StorageEditor editor = preferences.getStorage().edit();
+                StorageEditor editor = preferences.createStorageEditor();
                 K9.save(editor);
                 editor.commit();
             }
@@ -1710,24 +1585,13 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
     }
 
     private void showDefaultTitleView() {
-        actionBarMessageView.setVisibility(View.GONE);
-        actionBarMessageList.setVisibility(View.VISIBLE);
-
         if (messageListFragment != null) {
             messageListFragment.updateTitle();
         }
-
-        actionBarSubject.setMessageHeader(null);
     }
 
     private void showMessageTitleView() {
-        actionBarMessageList.setVisibility(View.GONE);
-        actionBarMessageView.setVisibility(View.VISIBLE);
-
-        if (messageViewFragment != null) {
-            displayMessageSubject(null);
-            messageViewFragment.updateTitle();
-        }
+        setActionBarTitle("");
     }
 
     @Override
@@ -1762,41 +1626,45 @@ public class MessageList extends K9Activity implements MessageListFragmentListen
     }
 
     private void lockDrawer() {
-        drawer.getDrawerLayout().setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED);
+        drawer.lock();
         drawerToggle.setDrawerIndicatorEnabled(false);
     }
 
     private void unlockDrawer() {
-        drawer.getDrawerLayout().setDrawerLockMode(DrawerLayout.LOCK_MODE_UNLOCKED);
+        drawer.unlock();
         drawerToggle.setDrawerIndicatorEnabled(true);
     }
 
     private void initializeFromLocalSearch(LocalSearch search) {
         this.search = search;
+        singleFolderMode = false;
 
         if (search.searchAllAccounts()) {
-            List<Account> accounts = preferences.getAccounts();
-            singleAccountMode = (accounts.size() == 1);
-            if (singleAccountMode) {
-                account = accounts.get(0);
-            }
+            account = null;
         } else {
             String[] accountUuids = search.getAccountUuids();
-            singleAccountMode = (accountUuids.length == 1);
-            if (singleAccountMode) {
+            if (accountUuids.length == 1) {
                 account = preferences.getAccount(accountUuids[0]);
+                List<String> folderServerIds = search.getFolderServerIds();
+                singleFolderMode = folderServerIds.size() == 1;
+            } else {
+                account = null;
             }
         }
 
-        List<String> folderServerIds = search.getFolderServerIds();
-        singleFolderMode = singleAccountMode && folderServerIds.size() == 1;
-        if (singleFolderMode) {
-            openedFolder = folderServerIds.get(0);
-        } else {
-            openedFolder = null;
-        }
+        configureDrawer();
+    }
 
-        // now we know if we are in single account mode and need a subtitle
-        actionBarSubTitle.setVisibility((!singleFolderMode) ? View.GONE : View.VISIBLE);
+    private void configureDrawer() {
+        if (drawer == null)
+            return;
+
+        if (singleFolderMode) {
+            drawer.selectFolder(search.getFolderServerIds().get(0));
+        } else if (search.getId().equals(SearchAccount.UNIFIED_INBOX)) {
+            drawer.selectUnifiedInbox();
+        } else {
+            drawer.selectFolder(null);
+        }
     }
 }

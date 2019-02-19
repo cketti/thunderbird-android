@@ -3,10 +3,11 @@ package com.fsck.k9.ui.settings
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import android.support.v7.widget.LinearLayoutManager
+import androidx.recyclerview.widget.LinearLayoutManager
 import android.view.MenuItem
 import com.fsck.k9.Account
 import com.fsck.k9.activity.K9Activity
+import com.fsck.k9.activity.setup.WelcomeMessage
 import com.fsck.k9.ui.R
 import com.fsck.k9.ui.observeNotNull
 import com.fsck.k9.ui.settings.account.AccountSettingsActivity
@@ -25,7 +26,7 @@ class SettingsActivity : K9Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_settings)
+        setLayout(R.layout.activity_settings)
 
         initializeActionBar()
         initializeSettingsList()
@@ -51,15 +52,27 @@ class SettingsActivity : K9Activity() {
 
     private fun populateSettingsList() {
         viewModel.accounts.observeNotNull(this) { accounts ->
-            populateSettingsList(accounts)
+            if (accounts.isEmpty()) {
+                launchWelcomeScreen()
+            } else {
+                populateSettingsList(accounts)
+            }
         }
     }
 
     private fun populateSettingsList(accounts: List<Account>) {
         settingsAdapter.clear()
 
+        val miscSection = Section().apply {
+            val item = SettingsActionItem(getString(R.string.about_action), SettingsAction.ABOUT_SCREEN, R.attr.iconSettingsAbout)
+            add(item)
+        }
+        settingsAdapter.add(miscSection)
+
         val generalSection = Section().apply {
-            add(SettingsActionItem(getString(R.string.general_settings_title), SettingsAction.GENERAL_SETTINGS))
+            val item = SettingsActionItem(getString(R.string.general_settings_title),
+                    SettingsAction.GENERAL_SETTINGS, R.attr.iconSettingsGeneral)
+            add(item)
         }
         settingsAdapter.add(generalSection)
 
@@ -67,15 +80,11 @@ class SettingsActivity : K9Activity() {
             for (account in accounts) {
                 add(AccountItem(account))
             }
-            add(SettingsActionItem(getString(R.string.add_account_action), SettingsAction.ADD_ACCOUNT))
+            val item = SettingsActionItem(getString(R.string.add_account_action), SettingsAction.ADD_ACCOUNT, R.attr.iconSettingsAccountAdd)
+            add(item)
         }
+        accountSection.setHeader(SettingsDividerItem(getString(R.string.accounts_title)))
         settingsAdapter.add(accountSection)
-
-        //TODO: add header and/or divider
-        val miscSection = Section().apply {
-            add(SettingsActionItem(getString(R.string.about_action), SettingsAction.ABOUT_SCREEN))
-        }
-        settingsAdapter.add(miscSection)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
@@ -97,6 +106,11 @@ class SettingsActivity : K9Activity() {
 
     private fun launchAccountSettings(account: Account) {
         AccountSettingsActivity.start(this, account.uuid)
+    }
+
+    private fun launchWelcomeScreen() {
+        WelcomeMessage.showWelcomeMessage(this)
+        finish()
     }
 
 

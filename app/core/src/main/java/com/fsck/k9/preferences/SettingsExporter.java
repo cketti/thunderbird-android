@@ -1,8 +1,6 @@
 package com.fsck.k9.preferences;
 
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.text.SimpleDateFormat;
@@ -19,14 +17,13 @@ import java.util.TreeMap;
 
 import android.content.Context;
 import android.net.Uri;
-import android.os.Environment;
 import android.util.Xml;
 
 import com.fsck.k9.Account;
+import com.fsck.k9.AccountPreferenceSerializer;
 import com.fsck.k9.DI;
 import com.fsck.k9.Preferences;
 import com.fsck.k9.backend.BackendManager;
-import com.fsck.k9.helper.FileHelper;
 import com.fsck.k9.mail.ServerSettings;
 import com.fsck.k9.preferences.Settings.InvalidSettingValueException;
 import com.fsck.k9.preferences.Settings.SettingsDescription;
@@ -79,31 +76,6 @@ public class SettingsExporter {
     static final String EMAIL_ELEMENT = "email";
     static final String DESCRIPTION_ELEMENT = "description";
 
-
-    public static String exportToFile(Context context, boolean includeGlobals, Set<String> accountUuids)
-            throws SettingsImportExportException {
-
-        OutputStream os = null;
-        try {
-            File dir = new File(Environment.getExternalStorageDirectory() + File.separator + context.getPackageName());
-            if (!dir.mkdirs()) {
-                Timber.d("Unable to create directory: %s", dir.getAbsolutePath());
-            }
-
-            File file = FileHelper.createUniqueFile(dir, generateDatedExportFileName());
-            String filename = file.getAbsolutePath();
-            os = new FileOutputStream(filename);
-
-            exportPreferences(context, os, includeGlobals, accountUuids);
-
-            // If all went well, we return the name of the file just written.
-            return filename;
-        } catch (Exception e) {
-            throw new SettingsImportExportException(e);
-        } finally {
-            closeOrThrow(os);
-        }
-    }
 
     public static void exportToUri(Context context, boolean includeGlobals, Set<String> accountUuids, Uri uri)
             throws SettingsImportExportException {
@@ -226,7 +198,7 @@ public class SettingsExporter {
         serializer.startTag(null, ACCOUNT_ELEMENT);
         serializer.attribute(null, UUID_ATTRIBUTE, accountUuid);
 
-        String name = (String) prefs.get(accountUuid + "." + Account.ACCOUNT_DESCRIPTION_KEY);
+        String name = (String) prefs.get(accountUuid + "." + AccountPreferenceSerializer.ACCOUNT_DESCRIPTION_KEY);
         if (name != null) {
             serializer.startTag(null, NAME_ELEMENT);
             serializer.text(name);
@@ -324,7 +296,7 @@ public class SettingsExporter {
                 String secondPart = keyPart.substring(0, indexOfLastDot);
                 String thirdPart = keyPart.substring(indexOfLastDot + 1);
 
-                if (Account.IDENTITY_DESCRIPTION_KEY.equals(secondPart)) {
+                if (AccountPreferenceSerializer.IDENTITY_DESCRIPTION_KEY.equals(secondPart)) {
                     // This is an identity key. Save identity index for later...
                     try {
                         identities.add(Integer.parseInt(thirdPart));
@@ -393,19 +365,19 @@ public class SettingsExporter {
         String suffix = "." + identity;
 
         // Write name belonging to the identity
-        String name = (String) prefs.get(prefix + Account.IDENTITY_NAME_KEY + suffix);
+        String name = (String) prefs.get(prefix + AccountPreferenceSerializer.IDENTITY_NAME_KEY + suffix);
         serializer.startTag(null, NAME_ELEMENT);
         serializer.text(name);
         serializer.endTag(null, NAME_ELEMENT);
 
         // Write email address belonging to the identity
-        String email = (String) prefs.get(prefix + Account.IDENTITY_EMAIL_KEY + suffix);
+        String email = (String) prefs.get(prefix + AccountPreferenceSerializer.IDENTITY_EMAIL_KEY + suffix);
         serializer.startTag(null, EMAIL_ELEMENT);
         serializer.text(email);
         serializer.endTag(null, EMAIL_ELEMENT);
 
         // Write identity description
-        String description = (String) prefs.get(prefix + Account.IDENTITY_DESCRIPTION_KEY + suffix);
+        String description = (String) prefs.get(prefix + AccountPreferenceSerializer.IDENTITY_DESCRIPTION_KEY + suffix);
         if (description != null) {
             serializer.startTag(null, DESCRIPTION_ELEMENT);
             serializer.text(description);

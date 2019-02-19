@@ -2,6 +2,7 @@
 <resources>
 
     <declare-styleable name="K9Styles">
+        <attr name="iconUnifiedInbox" format="reference" />
         <attr name="iconFolder" format="reference" />
         <attr name="iconFolderInbox" format="reference" />
         <attr name="iconFolderOutbox" format="reference" />
@@ -49,9 +50,19 @@
         <attr name="iconPreferencesInteraction" format="reference" />
         <attr name="iconPreferencesNotifications" format="reference" />
         <attr name="iconPreferencesNetwork" format="reference" />
-        <attr name="iconPreferencesVarious" format="reference" />
         <attr name="iconPreferencesPrivacy" format="reference" />
         <attr name="iconPreferencesDebug" format="reference" />
+        <attr name="iconPreferencesFolders" format="reference" />
+        <attr name="iconPreferencesCrypto" format="reference" />
+        <attr name="iconPreferencesFetchMail" format="reference" />
+        <attr name="iconPreferencesSearch" format="reference" />
+        <attr name="iconPreferencesReadMail" format="reference" />
+        <attr name="iconPreferencesStorage" format="reference" />
+        <attr name="iconPreferencesCompose" format="reference" />
+        <attr name="iconSettingsAbout" format="reference" />
+        <attr name="iconSettingsGeneral" format="reference" />
+        <attr name="iconSettingsAccount" format="reference" />
+        <attr name="iconSettingsAccountAdd" format="reference" />
         <attr name="textColorPrimaryRecipientDropdown" format="reference" />
         <attr name="textColorSecondaryRecipientDropdown" format="reference" />
         <attr name="backgroundColorChooseAccountHeader" format="color" />
@@ -72,6 +83,9 @@
         <attr name="tintColorBulletPointPositive" format="reference|color"/>
         <attr name="tintColorBulletPointNeutral" format="reference|color"/>
         <attr name="tintColorBulletPointNegative" format="reference|color"/>
+
+        <attr name="iconAboutAuthors" format="reference"/>
+        <attr name="iconAboutLicense" format="reference"/>
 
         <attr name="openpgp_black" format="reference|color" />
         <attr name="openpgp_orange" format="reference|color" />

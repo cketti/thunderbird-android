@@ -6,7 +6,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import android.support.annotation.NonNull;
+import androidx.annotation.NonNull;
 
 import com.fsck.k9.mail.AuthType;
 import com.fsck.k9.mail.ConnectionSecurity;
@@ -61,8 +61,6 @@ public class Pop3Store extends RemoteStore {
 
     @Override
     public void checkSettings() throws MessagingException {
-        mStoreConfig.setInboxFolder(Pop3Folder.INBOX);
-
         Pop3Folder folder = new Pop3Folder(this, Pop3Folder.INBOX);
         try {
             folder.open(Folder.OPEN_MODE_RW);

@@ -3,12 +3,12 @@ package com.fsck.k9.notification;
 
 import android.app.Notification;
 import android.app.PendingIntent;
-import android.support.v4.app.NotificationCompat;
-import android.support.v4.app.NotificationCompat.Builder;
-import android.support.v4.app.NotificationManagerCompat;
+import androidx.core.app.NotificationCompat;
+import androidx.core.app.NotificationCompat.Builder;
+import androidx.core.app.NotificationManagerCompat;
 
 import com.fsck.k9.Account;
-import com.fsck.k9.MockHelper;
+import com.fsck.k9.testing.MockHelper;
 import com.fsck.k9.RobolectricTest;
 import org.junit.Before;
 import org.junit.Test;
@@ -91,7 +91,10 @@ public class SendFailedNotificationsTest extends RobolectricTest {
         NotificationHelper notificationHelper = mock(NotificationHelper.class);
         when(notificationHelper.getContext()).thenReturn(RuntimeEnvironment.application);
         when(notificationHelper.getNotificationManager()).thenReturn(notificationManager);
-        when(notificationHelper.createNotificationBuilder()).thenReturn(builder);
+        when(notificationHelper.createNotificationBuilder(any(Account.class),
+                any(NotificationChannelManager.ChannelType.class)))
+                .thenReturn(builder);
+
         return notificationHelper;
     }
 

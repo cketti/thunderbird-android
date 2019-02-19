@@ -1,13 +1,13 @@
 package com.fsck.k9.notification;
 
 
-import android.support.v4.app.NotificationCompat.BigTextStyle;
-import android.support.v4.app.NotificationCompat.Builder;
+import androidx.core.app.NotificationCompat.BigTextStyle;
+import androidx.core.app.NotificationCompat.Builder;
 
 import com.fsck.k9.Account;
 import com.fsck.k9.K9;
 import com.fsck.k9.K9.NotificationQuickDelete;
-import com.fsck.k9.MockHelper;
+import com.fsck.k9.testing.MockHelper;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -112,7 +112,8 @@ public class BaseNotificationsTest {
     private NotificationHelper createFakeNotificationHelper() {
         Builder builder = MockHelper.mockBuilder(Builder.class);
         NotificationHelper notificationHelper = mock(NotificationHelper.class);
-        when(notificationHelper.createNotificationBuilder()).thenReturn(builder);
+        when(notificationHelper.createNotificationBuilder(any(Account.class), any(NotificationChannelManager
+                .ChannelType.class))).thenReturn(builder);
         when(notificationHelper.getAccountName(any(Account.class))).thenReturn(ACCOUNT_NAME);
         return notificationHelper;
     }

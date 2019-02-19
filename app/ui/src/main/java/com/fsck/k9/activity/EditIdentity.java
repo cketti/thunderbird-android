@@ -43,7 +43,7 @@ public class EditIdentity extends K9Activity {
             mIdentity = new Identity();
         }
 
-        setContentView(R.layout.edit_identity);
+        setLayout(R.layout.edit_identity);
 
         /*
          * If we're being reloaded we override the original account with the one
@@ -113,7 +113,7 @@ public class EditIdentity extends K9Activity {
             identities.add(mIdentityIndex, mIdentity);
         }
 
-        mAccount.save(Preferences.getPreferences(getApplication().getApplicationContext()));
+        Preferences.getPreferences(getApplicationContext()).saveAccount(mAccount);
 
         finish();
     }

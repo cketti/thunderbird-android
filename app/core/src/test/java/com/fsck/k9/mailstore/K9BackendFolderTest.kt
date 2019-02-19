@@ -10,7 +10,7 @@ import com.fsck.k9.backend.api.BackendFolder
 import com.fsck.k9.backend.api.FolderInfo
 import com.fsck.k9.mail.Address
 import com.fsck.k9.mail.Flag
-import com.fsck.k9.mail.Message
+import com.fsck.k9.mail.Folder.FolderType
 import com.fsck.k9.mail.internet.MimeMessage
 import com.fsck.k9.mail.internet.MimeMessageHelper
 import com.fsck.k9.mail.internet.TextBody
@@ -25,10 +25,12 @@ import org.koin.standalone.inject
 
 class K9BackendFolderTest : K9RobolectricTest() {
     val preferences: Preferences by inject()
+    val folderRepositoryManager: FolderRepositoryManager by inject()
+    val localStoreProvider: LocalStoreProvider by inject()
 
     val account: Account = createAccount()
     val backendFolder = createBackendFolder()
-    val database: LockableDatabase = account.localStore.database
+    val database: LockableDatabase = localStoreProvider.getInstance(account).database
 
 
     @Before
@@ -73,18 +75,30 @@ class K9BackendFolderTest : K9RobolectricTest() {
         assertEquals(flags, messageFlags)
     }
 
+    @Test
+    fun getLastUid() {
+        createMessage("200")
+        createMessage("123")
+
+        val lastUid = backendFolder.getLastUid()
+
+        assertEquals(200L, lastUid)
+    }
+
 
     fun createAccount(): Account {
         //FIXME: This is a hack to get Preferences into a state where it's safe to call newAccount()
-        preferences.loadAccounts()
+        preferences.clearAccounts()
 
         return preferences.newAccount()
     }
 
     fun createBackendFolder(): BackendFolder {
-        val localStore: LocalStore = account.localStore
-        val backendStorage = K9BackendStorage(preferences, account, localStore)
-        backendStorage.createFolders(listOf(FolderInfo(FOLDER_SERVER_ID, FOLDER_NAME)))
+        val localStore: LocalStore = localStoreProvider.getInstance(account)
+        val folderRepository = folderRepositoryManager.getFolderRepository(account)
+        val specialFolderUpdater = SpecialFolderUpdater(preferences, folderRepository, account)
+        val backendStorage = K9BackendStorage(preferences, account, localStore, specialFolderUpdater)
+        backendStorage.createFolders(listOf(FolderInfo(FOLDER_SERVER_ID, FOLDER_NAME, FOLDER_TYPE)))
 
         val folderServerIds = backendStorage.getFolderServerIds()
         assertTrue(FOLDER_SERVER_ID in folderServerIds)
@@ -96,7 +110,7 @@ class K9BackendFolderTest : K9RobolectricTest() {
         val message = MimeMessage().apply {
             subject = "Test message"
             setFrom(Address("alice@domain.example"))
-            setRecipient(Message.RecipientType.TO, Address("bob@domain.example"))
+            setHeader("To", "bob@domain.example")
             MimeMessageHelper.setBody(this, TextBody("Hello Bob!"))
 
             uid = messageServerId
@@ -127,6 +141,7 @@ class K9BackendFolderTest : K9RobolectricTest() {
     companion object {
         const val FOLDER_SERVER_ID = "testFolder"
         const val FOLDER_NAME = "Test Folder"
+        val FOLDER_TYPE = FolderType.INBOX
         const val MESSAGE_SERVER_ID = "msg001"
     }
 }

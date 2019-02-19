@@ -8,13 +8,13 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Parcelable;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.annotation.UiThread;
-import android.support.v4.app.FragmentManager;
-import android.support.v4.app.LoaderManager;
-import android.support.v4.app.LoaderManager.LoaderCallbacks;
-import android.support.v4.content.Loader;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.annotation.UiThread;
+import androidx.fragment.app.FragmentManager;
+import androidx.loader.app.LoaderManager;
+import androidx.loader.app.LoaderManager.LoaderCallbacks;
+import androidx.loader.content.Loader;
 
 import com.fsck.k9.Account;
 import com.fsck.k9.Preferences;
@@ -144,8 +144,8 @@ public class MessageLoaderHelper {
         cancelAndClearCryptoOperation();
         cancelAndClearDecodeLoader();
 
-        if (account.isOpenPgpProviderConfigured()) {
-            String openPgpProvider = account.getOpenPgpProvider();
+        String openPgpProvider = account.getOpenPgpProvider();
+        if (openPgpProvider != null) {
             startOrResumeCryptoOperation(openPgpProvider);
         } else {
             startOrResumeDecodeMessage();
@@ -232,8 +232,8 @@ public class MessageLoaderHelper {
             return;
         }
 
-        if (account.isOpenPgpProviderConfigured()) {
-            String openPgpProvider = account.getOpenPgpProvider();
+        String openPgpProvider = account.getOpenPgpProvider();
+        if (openPgpProvider != null) {
             startOrResumeCryptoOperation(openPgpProvider);
             return;
         }
@@ -300,7 +300,7 @@ public class MessageLoaderHelper {
             retainCryptoHelperFragment.setData(messageCryptoHelper);
         }
         messageCryptoHelper.asyncStartOrResumeProcessingMessage(
-                localMessage, messageCryptoCallback, cachedDecryptionResult, !account.getOpenPgpHideSignOnly());
+                localMessage, messageCryptoCallback, cachedDecryptionResult, !account.isOpenPgpHideSignOnly());
     }
 
     private void cancelAndClearCryptoOperation() {
