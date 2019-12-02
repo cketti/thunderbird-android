@@ -18,6 +18,7 @@ class AccountCreator(private val preferences: Preferences, private val resources
     fun getDefaultDeletePolicy(type: String): DeletePolicy {
         return when (type) {
             Protocols.IMAP -> DeletePolicy.ON_DELETE
+            Protocols.JMAP -> DeletePolicy.ON_DELETE
             Protocols.POP3 -> DeletePolicy.NEVER
             Protocols.WEBDAV -> DeletePolicy.ON_DELETE
             else -> throw AssertionError("Unhandled case: $type")

@@ -13,6 +13,7 @@
 -dontnote com.github.amlcurran.showcaseview.**
 -dontnote de.cketti.safecontentresolver.**
 -dontnote com.tokenautocomplete.**
+-keep class rs.ltt.jmap.common.** {*;}
 
 -dontwarn okio.**
 -dontwarn com.squareup.moshi.**

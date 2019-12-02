@@ -179,7 +179,7 @@ public class ServerSettings {
 
     public ServerSettings newPassword(String newPassword) {
         return new ServerSettings(type, host, port, connectionSecurity, authenticationType,
-                username, newPassword, clientCertificateAlias);
+                username, newPassword, clientCertificateAlias, extra);
     }
 
     public ServerSettings newClientCertificateAlias(String newAlias) {
