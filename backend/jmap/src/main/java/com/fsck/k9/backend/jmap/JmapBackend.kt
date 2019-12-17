@@ -7,15 +7,12 @@ import com.fsck.k9.backend.api.SyncListener
 import com.fsck.k9.mail.BodyFactory
 import com.fsck.k9.mail.FetchProfile
 import com.fsck.k9.mail.Flag
-import com.fsck.k9.mail.Folder.FolderType
 import com.fsck.k9.mail.Message
 import com.fsck.k9.mail.Part
 import com.fsck.k9.mail.PushReceiver
 import com.fsck.k9.mail.Pusher
 import okhttp3.HttpUrl
 import rs.ltt.jmap.client.JmapClient
-import rs.ltt.jmap.common.entity.Mailbox
-import rs.ltt.jmap.common.entity.Role
 import rs.ltt.jmap.common.method.call.core.EchoMethodCall
 
 class JmapBackend(
@@ -24,6 +21,7 @@ class JmapBackend(
 ) : Backend {
     private val jmapClient = config.toJmapClient()
     private val accountId = config.accountId
+    private val commandRefreshFolderList = CommandRefreshFolderList(backendStorage, jmapClient, accountId)
     override val supportsSeenFlag = true
     override val supportsExpunge = false
     override val supportsMove = true
@@ -35,7 +33,7 @@ class JmapBackend(
     override val isDeleteMoveToTrash = false
 
     override fun refreshFolderList() {
-        // TODO: implement
+        commandRefreshFolderList.refreshFolderList()
     }
 
     override fun sync(folder: String, syncConfig: SyncConfig, listener: SyncListener) {
@@ -122,15 +120,4 @@ class JmapBackend(
             JmapClient(username, password, baseHttpUrl)
         }
     }
-
-    private val Mailbox.type: FolderType
-        get() = when (role) {
-            Role.INBOX -> FolderType.INBOX
-            Role.ARCHIVE -> FolderType.ARCHIVE
-            Role.DRAFTS -> FolderType.DRAFTS
-            Role.SENT -> FolderType.SENT
-            Role.TRASH -> FolderType.TRASH
-            Role.JUNK -> FolderType.SPAM
-            else -> FolderType.REGULAR
-        }
 }
