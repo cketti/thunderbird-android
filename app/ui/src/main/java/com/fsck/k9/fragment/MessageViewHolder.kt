@@ -5,6 +5,7 @@ import android.view.View
 import android.widget.CheckBox
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
 import com.fsck.k9.ui.ContactBadge
 import com.fsck.k9.ui.R
 
@@ -12,9 +13,7 @@ import com.fsck.k9.ui.R
 class MessageViewHolder(
     view: View,
     private val itemActionListener: MessageListItemActionListener
-) : View.OnClickListener {
-    var position = -1
-
+) : RecyclerView.ViewHolder(view), View.OnClickListener {
     val contactBadge: ContactBadge = view.findViewById(R.id.contact_badge)
     val subject: TextView = view.findViewById(R.id.subject)
     val preview: TextView = view.findViewById(R.id.preview)
@@ -26,7 +25,8 @@ class MessageViewHolder(
     val status: ImageView = view.findViewById(R.id.status)
 
     override fun onClick(view: View) {
-        if (position != -1) {
+        val position = adapterPosition
+        if (position != RecyclerView.NO_POSITION) {
             if (view.id == R.id.star) {
                 itemActionListener.toggleMessageFlagWithAdapterPosition(position)
             }

@@ -14,10 +14,10 @@ import android.text.style.StyleSpan
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.BaseAdapter
 import android.widget.TextView
 import androidx.core.graphics.drawable.DrawableCompat
 import androidx.core.view.isVisible
+import androidx.recyclerview.widget.RecyclerView
 import com.fsck.k9.FontSizes
 import com.fsck.k9.contacts.ContactPictureLoader
 import com.fsck.k9.controller.MessageReference
@@ -28,15 +28,16 @@ import com.fsck.k9.ui.messagelist.MessageListAppearance
 import com.fsck.k9.ui.messagelist.MessageListItem
 import kotlin.math.max
 
-class MessageListAdapter internal constructor(
+class MessageListAdapter(
     private val context: Context,
     theme: Resources.Theme,
     private val res: Resources,
     private val layoutInflater: LayoutInflater,
     private val contactsPictureLoader: ContactPictureLoader,
     private val listItemListener: MessageListItemActionListener,
-    private val appearance: MessageListAppearance
-) : BaseAdapter() {
+    private val appearance: MessageListAppearance,
+    private val clickListener: View.OnClickListener
+) : RecyclerView.Adapter<MessageViewHolder>() {
 
     private val forwardedIcon: Drawable
     private val answeredIcon: Drawable
@@ -72,6 +73,8 @@ class MessageListAdapter internal constructor(
         unreadItemBackgroundColor = array.getColor(7, Color.BLACK)
 
         array.recycle()
+
+        setHasStableIds(true)
     }
 
     var messages: List<MessageListItem> = emptyList()
@@ -101,24 +104,17 @@ class MessageListAdapter internal constructor(
         }
     }
 
-    override fun hasStableIds(): Boolean = true
+    fun isEmpty(): Boolean = messages.isEmpty()
 
-    override fun getCount(): Int = messages.size
+    override fun getItemCount(): Int = messages.size
 
     override fun getItemId(position: Int): Long = messages[position].uniqueId
 
-    override fun getItem(position: Int): MessageListItem = messages[position]
+    fun getItem(position: Int): MessageListItem = messages[position]
 
-    override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
-        val message = getItem(position)
-        val view: View = convertView ?: newView(parent)
-        bindView(view, context, message)
-
-        return view
-    }
-
-    private fun newView(parent: ViewGroup?): View {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): MessageViewHolder {
         val view = layoutInflater.inflate(R.layout.message_list_item, parent, false)
+        view.setOnClickListener(clickListener)
 
         val holder = MessageViewHolder(view, listItemListener)
 
@@ -137,16 +133,14 @@ class MessageListAdapter internal constructor(
         holder.flagged.isVisible = appearance.stars
         holder.flagged.setOnClickListener(holder)
 
-        view.tag = holder
-
-        return view
+        return holder
     }
 
-    private fun bindView(view: View, context: Context, message: MessageListItem) {
+    override fun onBindViewHolder(holder: MessageViewHolder, position: Int) {
+        val message = messages[position]
+        val view = holder.itemView
         val isSelected = selected.contains(message.uniqueId)
         val isActive = isActiveMessage(message)
-
-        val holder = view.tag as MessageViewHolder
 
         with(message) {
             val maybeBoldTypeface = if (isRead) Typeface.NORMAL else Typeface.BOLD
@@ -163,7 +157,6 @@ class MessageListAdapter internal constructor(
             if (appearance.stars) {
                 holder.flagged.isChecked = isStarred
             }
-            holder.position = position
             if (holder.contactBadge.isVisible) {
                 updateContactBadge(holder.contactBadge, counterPartyAddress)
             }

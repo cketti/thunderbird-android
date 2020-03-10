@@ -26,6 +26,7 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.View.OnClickListener;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.AdapterView.AdapterContextMenuInfo;
@@ -39,6 +40,9 @@ import androidx.appcompat.view.ActionMode;
 import androidx.fragment.app.DialogFragment;
 import androidx.fragment.app.Fragment;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.RecyclerView.LayoutManager;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.fsck.k9.Account;
 import com.fsck.k9.Account.SortType;
@@ -109,7 +113,8 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
     private final FolderNameFormatterFactory folderNameFormatterFactory = DI.get(FolderNameFormatterFactory.class);
     private FolderNameFormatter folderNameFormatter;
 
-    ListView listView;
+    private RecyclerView recyclerView;
+    LayoutManager recyclerViewLayoutManager;
     private SwipeRefreshLayout swipeRefreshLayout;
     Parcelable savedListState;
 
@@ -245,33 +250,33 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
 
     @Override
     public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-        if (view == footerView) {
-            if (currentFolder != null && !search.isManualSearch() && currentFolder.moreMessages) {
-
-                messagingController.loadMoreMessages(account, folderServerId, null);
-
-            } else if (currentFolder != null && isRemoteSearch() &&
-                    extraSearchResults != null && extraSearchResults.size() > 0) {
-
-                int numResults = extraSearchResults.size();
-                int limit = account.getRemoteSearchNumResults();
-
-                List<String> toProcess = extraSearchResults;
-
-                if (limit > 0 && numResults > limit) {
-                    toProcess = toProcess.subList(0, limit);
-                    extraSearchResults = extraSearchResults.subList(limit,
-                            extraSearchResults.size());
-                } else {
-                    extraSearchResults = null;
-                    updateFooter(null);
-                }
-
-                messagingController.loadSearchResults(account, currentFolder.serverId, toProcess, activityListener);
-            }
-
-            return;
-        }
+//        if (view == footerView) {
+//            if (currentFolder != null && !search.isManualSearch() && currentFolder.moreMessages) {
+//
+//                messagingController.loadMoreMessages(account, folderServerId, null);
+//
+//            } else if (currentFolder != null && isRemoteSearch() &&
+//                    extraSearchResults != null && extraSearchResults.size() > 0) {
+//
+//                int numResults = extraSearchResults.size();
+//                int limit = account.getRemoteSearchNumResults();
+//
+//                List<String> toProcess = extraSearchResults;
+//
+//                if (limit > 0 && numResults > limit) {
+//                    toProcess = toProcess.subList(0, limit);
+//                    extraSearchResults = extraSearchResults.subList(limit,
+//                            extraSearchResults.size());
+//                } else {
+//                    extraSearchResults = null;
+//                    updateFooter(null);
+//                }
+//
+//                messagingController.loadSearchResults(account, currentFolder.serverId, toProcess, activityListener);
+//            }
+//
+//            return;
+//        }
 
         int adapterPosition = listViewToAdapterPosition(position);
         MessageListItem messageListItem = adapter.getItem(adapterPosition);
@@ -338,14 +343,14 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
         initializePullToRefresh(view);
 
         initializeLayout();
-        listView.setVerticalFadingEdgeEnabled(false);
+        recyclerView.setVerticalFadingEdgeEnabled(false);
 
         return view;
     }
 
     @Override
     public void onDestroyView() {
-        savedListState = listView.onSaveInstanceState();
+        savedListState = recyclerViewLayoutManager.onSaveInstanceState();
         super.onDestroyView();
     }
 
@@ -421,8 +426,8 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
         if (savedListState != null) {
             // The previously saved state was never restored, so just use that.
             outState.putParcelable(STATE_MESSAGE_LIST, savedListState);
-        } else if (listView != null) {
-            outState.putParcelable(STATE_MESSAGE_LIST, listView.onSaveInstanceState());
+        } else if (recyclerView != null) {
+            outState.putParcelable(STATE_MESSAGE_LIST, recyclerViewLayoutManager.onSaveInstanceState());
         }
     }
 
@@ -474,6 +479,17 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
     }
 
     private void initializeMessageList() {
+        recyclerViewLayoutManager = new LinearLayoutManager(getActivity());
+        recyclerView.setLayoutManager(recyclerViewLayoutManager);
+
+        OnClickListener clickListener = view -> {
+            System.out.println("Click listener");
+
+            RecyclerView.ViewHolder holder = recyclerView.getChildViewHolder(view);
+            //FIXME
+            MessageListFragment.this.onItemClick(null, null, holder.getAdapterPosition(), holder.getItemId());
+        };
+
         adapter = new MessageListAdapter(
                 requireContext(),
                 requireActivity().getTheme(),
@@ -481,7 +497,8 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
                 layoutInflater,
                 ContactPicture.getContactPictureLoader(),
                 this,
-                getMessageListAppearance()
+                getMessageListAppearance(),
+                clickListener
         );
 
         if (folderServerId != null) {
@@ -489,11 +506,12 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
         }
 
         if (singleFolderMode) {
-            listView.addFooterView(getFooterView(listView));
+            //FIXME
+//            adapter.addFooterView(getFooterView(recyclerView));
             updateFooterView();
         }
 
-        listView.setAdapter(adapter);
+        recyclerView.setAdapter(adapter);
     }
 
     private MessageListAppearance getMessageListAppearance() {
@@ -580,7 +598,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
 
     private void initializePullToRefresh(View layout) {
         swipeRefreshLayout = layout.findViewById(R.id.swiperefresh);
-        listView = layout.findViewById(R.id.message_list);
+        recyclerView = layout.findViewById(R.id.message_list);
 
         if (isRemoteSearchAllowed()) {
             swipeRefreshLayout.setOnRefreshListener(
@@ -607,13 +625,10 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
     }
 
     private void initializeLayout() {
-        listView.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
-        listView.setLongClickable(true);
-        listView.setFastScrollEnabled(true);
-        listView.setScrollingCacheEnabled(false);
-        listView.setOnItemClickListener(this);
+        recyclerView.setScrollBarStyle(View.SCROLLBARS_INSIDE_OVERLAY);
+        recyclerView.setLongClickable(true);
 
-        registerForContextMenu(listView);
+        registerForContextMenu(recyclerView);
     }
 
     public void onCompose() {
@@ -1055,7 +1070,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
     }
 
     private int listViewToAdapterPosition(int position) {
-        if (position >= 0 && position < adapter.getCount()) {
+        if (position >= 0 && position < adapter.getItemCount()) {
             return position;
         }
 
@@ -1063,7 +1078,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
     }
 
     private int adapterToListViewPosition(int position) {
-        if (position >= 0 && position < adapter.getCount()) {
+        if (position >= 0 && position < adapter.getItemCount()) {
             return position;
         }
 
@@ -1281,13 +1296,13 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
      */
     private void setSelectionState(boolean selected) {
         if (selected) {
-            if (adapter.getCount() == 0) {
+            if (adapter.getItemCount() == 0) {
                 // Nothing to do if there are no messages
                 return;
             }
 
             selectedCount = 0;
-            for (int i = 0, end = adapter.getCount(); i < end; i++) {
+            for (int i = 0, end = adapter.getItemCount(); i < end; i++) {
                 MessageListItem messageListItem = adapter.getItem(i);
                 long uniqueId = messageListItem.getUniqueId();
                 this.selected.add(uniqueId);
@@ -1383,14 +1398,14 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
     }
 
     private void computeSelectAllVisibility() {
-        actionModeCallback.showSelectAll(selected.size() != adapter.getCount());
+        actionModeCallback.showSelectAll(selected.size() != adapter.getItemCount());
     }
 
     private void computeBatchDirection() {
         boolean isBatchFlag = false;
         boolean isBatchRead = false;
 
-        for (int i = 0, end = adapter.getCount(); i < end; i++) {
+        for (int i = 0, end = adapter.getItemCount(); i < end; i++) {
             MessageListItem messageListItem = adapter.getItem(i);
             long uniqueId = messageListItem.getUniqueId();
 
@@ -1445,7 +1460,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
         Map<Account, List<Long>> threadMap = new HashMap<>();
         Set<Account> accounts = new HashSet<>();
 
-        for (int position = 0, end = adapter.getCount(); position < end; position++) {
+        for (int position = 0, end = adapter.getItemCount(); position < end; position++) {
             MessageListItem messageListItem = adapter.getItem(position);
             long uniqueId = messageListItem.getUniqueId();
 
@@ -1817,7 +1832,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
             int maxAccounts = accountUuids.length;
             Set<String> accountUuids = new HashSet<>(maxAccounts);
 
-            for (int position = 0, end = adapter.getCount(); position < end; position++) {
+            for (int position = 0, end = adapter.getItemCount(); position < end; position++) {
                 MessageListItem messageListItem = adapter.getItem(position);
                 long uniqueId = messageListItem.getUniqueId();
 
@@ -2048,24 +2063,26 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
     }
 
     public void onMoveUp() {
-        int currentPosition = listView.getSelectedItemPosition();
-        if (currentPosition == AdapterView.INVALID_POSITION || listView.isInTouchMode()) {
-            currentPosition = listView.getFirstVisiblePosition();
-        }
-        if (currentPosition > 0) {
-            listView.setSelection(currentPosition - 1);
-        }
+        //FIXME
+//        int currentPosition = listView.getSelectedItemPosition();
+//        if (currentPosition == AdapterView.INVALID_POSITION || listView.isInTouchMode()) {
+//            currentPosition = listView.getFirstVisiblePosition();
+//        }
+//        if (currentPosition > 0) {
+//            listView.setSelection(currentPosition - 1);
+//        }
     }
 
     public void onMoveDown() {
-        int currentPosition = listView.getSelectedItemPosition();
-        if (currentPosition == AdapterView.INVALID_POSITION || listView.isInTouchMode()) {
-            currentPosition = listView.getFirstVisiblePosition();
-        }
-
-        if (currentPosition < listView.getCount()) {
-            listView.setSelection(currentPosition + 1);
-        }
+        //FIXME
+//        int currentPosition = listView.getSelectedItemPosition();
+//        if (currentPosition == AdapterView.INVALID_POSITION || listView.isInTouchMode()) {
+//            currentPosition = listView.getFirstVisiblePosition();
+//        }
+//
+//        if (currentPosition < listView.getCount()) {
+//            listView.setSelection(currentPosition + 1);
+//        }
     }
 
     public boolean openPrevious(MessageReference messageReference) {
@@ -2080,7 +2097,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
 
     public boolean openNext(MessageReference messageReference) {
         int position = getPosition(messageReference);
-        if (position < 0 || position == adapter.getCount() - 1) {
+        if (position < 0 || position == adapter.getItemCount() - 1) {
             return false;
         }
 
@@ -2093,7 +2110,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
     }
 
     public boolean isLast(MessageReference messageReference) {
-        return adapter.isEmpty() || messageReference.equals(getReferenceForPosition(adapter.getCount() - 1));
+        return adapter.isEmpty() || messageReference.equals(getReferenceForPosition(adapter.getItemCount() - 1));
     }
 
     private MessageReference getReferenceForPosition(int position) {
@@ -2107,12 +2124,13 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
 
     private void openMessageAtPosition(int position) {
         // Scroll message into view if necessary
-        int listViewPosition = adapterToListViewPosition(position);
-        if (listViewPosition != AdapterView.INVALID_POSITION &&
-                (listViewPosition < listView.getFirstVisiblePosition() ||
-                listViewPosition > listView.getLastVisiblePosition())) {
-            listView.setSelection(listViewPosition);
-        }
+        //FIXME
+//        int listViewPosition = adapterToListViewPosition(position);
+//        if (listViewPosition != AdapterView.INVALID_POSITION &&
+//                (listViewPosition < listView.getFirstVisiblePosition() ||
+//                listViewPosition > listView.getLastVisiblePosition())) {
+//            listView.setSelection(listViewPosition);
+//        }
 
         MessageReference ref = getReferenceForPosition(position);
 
@@ -2123,7 +2141,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
     }
 
     private int getPosition(MessageReference messageReference) {
-        for (int i = 0, len = adapter.getCount(); i < len; i++) {
+        for (int i = 0, len = adapter.getItemCount(); i < len; i++) {
             MessageListItem messageListItem = adapter.getItem(i);
 
             String accountUuid = messageListItem.getAccount().getUuid();
@@ -2166,19 +2184,24 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
     }
 
     private MessageReference getSelectedMessage() {
-        int listViewPosition = listView.getSelectedItemPosition();
-        int adapterPosition = listViewToAdapterPosition(listViewPosition);
-
-        return getMessageAtPosition(adapterPosition);
+        //FIXME
+//        int listViewPosition = listView.getSelectedItemPosition();
+//        int adapterPosition = listViewToAdapterPosition(listViewPosition);
+//
+//        return getMessageAtPosition(adapterPosition);
+        throw new UnsupportedOperationException();
     }
 
     private int getAdapterPositionForSelectedMessage() {
-        int listViewPosition = listView.getSelectedItemPosition();
-        return listViewToAdapterPosition(listViewPosition);
+        //FIXME
+//        int listViewPosition = listView.getSelectedItemPosition();
+//        return listViewToAdapterPosition(listViewPosition);
+
+        return RecyclerView.NO_POSITION;
     }
 
     private int getPositionForUniqueId(long uniqueId) {
-        for (int position = 0, end = adapter.getCount(); position < end; position++) {
+        for (int position = 0, end = adapter.getItemCount(); position < end; position++) {
             MessageListItem messageListItem = adapter.getItem(position);
             if (messageListItem.getUniqueId() == uniqueId) {
                 return position;
@@ -2204,7 +2227,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
 
     private List<MessageReference> getCheckedMessages() {
         List<MessageReference> messages = new ArrayList<>(selected.size());
-        for (int position = 0, end = adapter.getCount(); position < end; position++) {
+        for (int position = 0, end = adapter.getItemCount(); position < end; position++) {
             MessageListItem messageListItem = adapter.getItem(position);
             long uniqueId = messageListItem.getUniqueId();
 
@@ -2227,7 +2250,8 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
     }
 
     public void toggleMessageSelect() {
-        toggleMessageSelect(listView.getSelectedItemPosition());
+        // FIXME
+//        toggleMessageSelect(listView.getSelectedItemPosition());
     }
 
     public void onToggleFlagged() {
@@ -2468,7 +2492,7 @@ public class MessageListFragment extends Fragment implements OnItemClickListener
         }
 
         selectedCount = 0;
-        for (int i = 0, end = adapter.getCount(); i < end; i++) {
+        for (int i = 0, end = adapter.getItemCount(); i < end; i++) {
             MessageListItem messageListItem = adapter.getItem(i);
             long uniqueId = messageListItem.getUniqueId();
 
