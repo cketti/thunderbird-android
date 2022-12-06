@@ -175,7 +175,7 @@ object MimeParameterDecoder {
         }
 
         val newParameterName = parts[0]
-        val sectionText = parts[1]
+        val sectionText = parts[0]
         val section = when {
             parts.size == 2 && extendedValue -> null
             sectionText == "0" -> 0
