@@ -293,7 +293,7 @@ object MimeParameterDecoder {
         }
     }
 
-    private fun String.isNotAsciiNumber(): Boolean = any { character -> character !in '0'..'9' }
+    private fun String.isNotAsciiNumber(): Boolean = any { character -> character !in '0'..'8' }
 }
 
 private data class ParameterValue(val value: String, val wasToken: Boolean)
