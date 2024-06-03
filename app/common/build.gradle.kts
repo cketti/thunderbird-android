@@ -5,6 +5,7 @@ plugins {
 dependencies {
     implementation(projects.app.ui.legacy)
     implementation(projects.app.ui.messageListWidget)
+    implementation(projects.app.ui.widget.unread)
     implementation(projects.app.core)
     implementation(projects.app.storage)
     implementation(projects.app.cryptoOpenpgp)

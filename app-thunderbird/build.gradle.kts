@@ -18,6 +18,7 @@ dependencies {
     implementation(projects.app.core)
     implementation(projects.app.ui.legacy)
     implementation(projects.app.ui.messageListWidget)
+    implementation(projects.app.ui.widget.unread)
 
     implementation(libs.androidx.work.runtime)
 

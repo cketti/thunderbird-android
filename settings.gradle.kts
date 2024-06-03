@@ -31,6 +31,7 @@ include(
     ":app:ui:base",
     ":app:ui:legacy",
     ":app:ui:message-list-widget",
+    ":app:ui:widget:unread",
     ":app:core",
     ":app:storage",
     ":app:crypto-openpgp",
