@@ -18,12 +18,10 @@ import timber.log.Timber
 /**
  * Unread home screen widget "provider"
  *
- * IMPORTANT: This class must not be renamed or moved, otherwise unread widgets added to the home screen using an older
- * version of the app will stop working.
- *
- * The rest of the unread widget specific code can be found in the package [com.fsck.k9.widget.unread].
+ * IMPORTANT: The concrete implementation of this class that is exposed via the manifest must have a fully qualified
+ * name that can't ever be changed. Otherwise widgets created with old versions of the app will stop working.
  */
-class UnreadWidgetProvider : AppWidgetProvider(), EarlyInit {
+abstract class UnreadWidgetProvider : AppWidgetProvider(), EarlyInit {
     private val repository: UnreadWidgetRepository by inject()
 
     override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
