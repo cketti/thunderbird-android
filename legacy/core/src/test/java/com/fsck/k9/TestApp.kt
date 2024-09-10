@@ -47,6 +47,7 @@ val testModule = module {
     single<TelemetryManager> {
         object : TelemetryManager {
             override fun isTelemetryFeatureIncluded(): Boolean = true
+            override fun setEnabled(enable: Boolean) = Unit
         }
     }
 }
