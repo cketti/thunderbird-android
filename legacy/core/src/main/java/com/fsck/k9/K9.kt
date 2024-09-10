@@ -393,7 +393,7 @@ object K9 : EarlyInit {
         swipeLeftAction = storage.getEnum("swipeLeftAction", SwipeAction.ToggleRead)
 
         if (telemetryManager.isTelemetryFeatureIncluded()) {
-            isTelemetryEnabled = storage.getBoolean("enableTelemetry", true)
+            isTelemetryEnabled = storage.getBoolean("enableTelemetry", !DEVELOPER_MODE)
         }
     }
 
