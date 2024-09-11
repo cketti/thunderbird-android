@@ -19,7 +19,7 @@ class GleanTelemetryManager(
         Glean.setUploadEnabled(enable)
     }
 
-    fun init(uploadEnabled: Boolean, releaseChannel: String?, versionCode: Int, versionName: String) {
+    override fun init(uploadEnabled: Boolean, releaseChannel: String?, versionCode: Int, versionName: String) {
         val httpClient = lazy { OkHttpClient(okHttpClient.value, context) }
 
         val configuration = Configuration(

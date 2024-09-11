@@ -78,6 +78,7 @@ include(
 
 include(
     ":feature:telemetry:api",
+    ":feature:telemetry:noop",
     ":feature:telemetry:glean",
 )
 

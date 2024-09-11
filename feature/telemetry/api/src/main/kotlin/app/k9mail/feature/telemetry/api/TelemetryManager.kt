@@ -10,4 +10,9 @@ interface TelemetryManager {
      * Enable or disable telemetry.
      */
     fun setEnabled(enable: Boolean)
+
+    /**
+     * Initialize the telemetry library.
+     */
+    fun init(uploadEnabled: Boolean, releaseChannel: String?, versionCode: Int, versionName: String)
 }
