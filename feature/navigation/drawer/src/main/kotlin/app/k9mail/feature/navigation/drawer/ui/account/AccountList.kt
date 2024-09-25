@@ -57,15 +57,13 @@ internal fun AccountList(
                 }
             }
             Column(
-                modifier = Modifier.padding(vertical = MainTheme.spacings.oneHalf),
+                modifier = Modifier.padding(vertical = MainTheme.spacings.default),
             ) {
                 SettingItem(
                     icon = Icons.Outlined.Sync,
                     label = stringResource(id = R.string.navigation_drawer_action_sync_all_accounts),
                     onClick = onSyncAllAccountsClick,
                 )
-                // Hack to compensate the column placement at an uneven coordinate, caused by the 1.dp divider.
-                Spacer(modifier = Modifier.height(7.dp))
                 SettingItem(
                     icon = Icons.Outlined.Settings,
                     label = stringResource(id = R.string.navigation_drawer_action_settings),
